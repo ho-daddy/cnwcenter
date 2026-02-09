@@ -47,3 +47,8 @@ next-env.d.ts
 !.vscode/launch.json
 !.vscode/extensions.json
 .idea
+
+#windows
+desktop.ini
+Thumbs.db
+.DS_Store
