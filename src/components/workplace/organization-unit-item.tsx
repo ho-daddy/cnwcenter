@@ -1,0 +1,313 @@
+'use client'
+
+import { useState } from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Button } from '@/components/ui/button'
+import {
+  ChevronRight,
+  ChevronDown,
+  GripVertical,
+  Plus,
+  Edit2,
+  Trash2,
+  Loader2,
+  Save,
+  X,
+} from 'lucide-react'
+import { OrganizationUnitWithChildren, LEVEL_LABELS } from '@/types/workplace'
+
+interface OrganizationUnitItemProps {
+  unit: OrganizationUnitWithChildren
+  depth: number
+  isExpanded: boolean
+  hasChildren: boolean
+  onToggle: () => void
+  levelColor: string
+  workplaceId: string
+  orgId: string
+  onRefresh: () => void
+}
+
+export function OrganizationUnitItem({
+  unit,
+  depth,
+  isExpanded,
+  hasChildren,
+  onToggle,
+  levelColor,
+  workplaceId,
+  orgId,
+  onRefresh,
+}: OrganizationUnitItemProps) {
+  const [editing, setEditing] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const [editForm, setEditForm] = useState({
+    name: unit.name,
+    isLeaf: unit.isLeaf,
+  })
+
+  const [addForm, setAddForm] = useState({
+    name: '',
+    level: Math.min(unit.level + 1, 5),
+    isLeaf: false,
+  })
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: unit.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleUpdate = async () => {
+    if (!editForm.name.trim()) {
+      alert('단위명은 필수입니다.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/organizations/${orgId}/units/${unit.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editForm),
+        }
+      )
+
+      if (res.ok) {
+        setEditing(false)
+        onRefresh()
+      } else {
+        const data = await res.json()
+        alert(data.error || '수정에 실패했습니다.')
+      }
+    } catch (error) {
+      alert('오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    const childCount = unit.children.length
+    const message = childCount > 0
+      ? `이 단위와 하위 ${childCount}개 단위를 모두 삭제하시겠습니까?`
+      : '이 단위를 삭제하시겠습니까?'
+
+    if (!confirm(message)) return
+
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/organizations/${orgId}/units/${unit.id}`,
+        { method: 'DELETE' }
+      )
+
+      if (res.ok) {
+        onRefresh()
+      } else {
+        const data = await res.json()
+        alert(data.error || '삭제에 실패했습니다.')
+      }
+    } catch (error) {
+      alert('오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddChild = async () => {
+    if (!addForm.name.trim()) {
+      alert('단위명은 필수입니다.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/organizations/${orgId}/units`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: addForm.name,
+            level: addForm.level,
+            parentId: unit.id,
+            isLeaf: addForm.isLeaf,
+          }),
+        }
+      )
+
+      if (res.ok) {
+        setAdding(false)
+        setAddForm({ name: '', level: Math.min(unit.level + 1, 5), isLeaf: false })
+        onRefresh()
+      } else {
+        const data = await res.json()
+        alert(data.error || '추가에 실패했습니다.')
+      }
+    } catch (error) {
+      alert('오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`p-3 rounded-lg border ${levelColor}`}
+      >
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            className="flex-1 px-2 py-1 border rounded text-sm"
+            autoFocus
+          />
+          <label className="flex items-center gap-1 text-sm">
+            <input
+              type="checkbox"
+              checked={editForm.isLeaf}
+              onChange={(e) => setEditForm({ ...editForm, isLeaf: e.target.checked })}
+              className="rounded"
+            />
+            평가 대상
+          </label>
+          <Button size="sm" onClick={handleUpdate} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className={`p-2 rounded-lg border ${levelColor} flex items-center gap-2`}>
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab hover:bg-gray-200 rounded p-1"
+        >
+          <GripVertical className="h-4 w-4 text-gray-400" />
+        </button>
+
+        {hasChildren ? (
+          <button onClick={onToggle} className="p-1 hover:bg-gray-200 rounded">
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+        ) : (
+          <div className="w-6" />
+        )}
+
+        <div className="flex-1 flex items-center gap-2">
+          <span className="font-medium text-sm">{unit.name}</span>
+          <span className="text-xs text-gray-500">{unit.level}단계</span>
+          {unit.isLeaf && (
+            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+              대상
+            </span>
+          )}
+        </div>
+
+        <div className="flex gap-1">
+          {unit.level < 5 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAdding(!adding)}
+              title="하위 단위 추가"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEditForm({ name: unit.name, isLeaf: unit.isLeaf })
+              setEditing(true)
+            }}
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleDelete} disabled={loading}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4 text-red-500" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* 하위 단위 추가 폼 */}
+      {adding && (
+        <div className="ml-8 mt-1 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={addForm.name}
+              onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+              placeholder="하위 단위명"
+              className="flex-1 px-2 py-1 border rounded text-sm"
+              autoFocus
+            />
+            <select
+              value={addForm.level}
+              onChange={(e) => setAddForm({ ...addForm, level: parseInt(e.target.value) })}
+              className="px-2 py-1 border rounded text-sm"
+            >
+              {[unit.level + 1, unit.level + 2, unit.level + 3, unit.level + 4]
+                .filter((l) => l >= 1 && l <= 5)
+                .map((l) => (
+                  <option key={l} value={l}>
+                    {l}단계
+                  </option>
+                ))}
+            </select>
+            <label className="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                checked={addForm.isLeaf}
+                onChange={(e) => setAddForm({ ...addForm, isLeaf: e.target.checked })}
+                className="rounded"
+              />
+              평가 대상
+            </label>
+            <Button size="sm" onClick={handleAddChild} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : '추가'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

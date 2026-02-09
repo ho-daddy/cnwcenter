@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run db:push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 5)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(taskkill:*)",
+      "Bash(ls:*)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output ''All node processes stopped''\")",
+      "WebFetch(domain:www.labortoday.co.kr)",
+      "WebFetch(domain:portal.kosha.or.kr)",
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(timeout:*)",
+      "WebFetch(domain:www.safety1stnews.com)",
+      "WebFetch(domain:www.anjunj.com)",
+      "Bash(npm run db:seed:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(find:*)"
+    ],
+    "additionalDirectories": [
+      "d:\\coding_local\\cnwcenter"
+    ]
+  }
+}

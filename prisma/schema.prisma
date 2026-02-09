@@ -1,0 +1,543 @@
+// Prisma 스키마 파일
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 모델
+model User {
+  id              String      @id @default(cuid())
+  email           String      @unique
+  emailVerified   DateTime?
+  name            String?
+  password        String?     // 소셜 로그인 시 null 가능
+  image           String?
+  role            UserRole    @default(WORKPLACE_USER)
+  status          UserStatus  @default(PENDING)
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectedAt      DateTime?
+  rejectedReason  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // 관계
+  accounts        Account[]
+  sessions        Session[]
+  counselingCases CounselingCase[]
+  schedules       Schedule[]
+  workplaces      WorkplaceUser[]
+  musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사 (작성자)
+}
+
+enum UserRole {
+  SUPER_ADMIN      // 최고관리자 - 모든 권한
+  STAFF            // 새움터 스탭 - 시스템 설정 제외 모든 권한
+  WORKPLACE_USER   // 사업장 사용자 - 소속 사업장의 위험성평가, 근골조사만
+}
+
+enum UserStatus {
+  PENDING    // 승인 대기
+  APPROVED   // 승인됨
+  REJECTED   // 거부됨
+  SUSPENDED  // 정지됨
+}
+
+// NextAuth Account (소셜 로그인 계정 연결)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// NextAuth Session
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// NextAuth VerificationToken (이메일 인증용)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// 사업장 모델
+model Workplace {
+  id            String   @id @default(cuid())
+  name          String                    // 사업장명
+  industry      String?                   // 업종
+  products      String?  @db.Text         // 주요생산품 및 서비스
+  address       String?                   // 소재지
+  employeeCount Int?                      // 인원규모
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users         WorkplaceUser[]
+  contacts      WorkplaceContact[]        // 담당자 (복수)
+  organizations Organization[]            // 연도별 조직도
+  musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
+}
+
+// 담당자 유형
+enum ContactType {
+  SAFETY_OFFICER       // 안전보건업무 담당자
+  UNION_REPRESENTATIVE // 노동조합 안전보건담당자
+}
+
+// 사업장 담당자
+model WorkplaceContact {
+  id          String      @id @default(cuid())
+  workplaceId String
+  workplace   Workplace   @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  contactType ContactType
+  name        String                      // 담당자명
+  position    String?                     // 직책
+  phone       String?                     // 전화번호
+  email       String?                     // 이메일
+  isPrimary   Boolean     @default(false) // 대표 담당자 여부
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([workplaceId])
+  @@index([contactType])
+}
+
+// 조직도 (연도별 버전 관리)
+model Organization {
+  id          String   @id @default(cuid())
+  workplaceId String
+  workplace   Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  year        Int                         // 연도 (예: 2024, 2025)
+  name        String   @default("기본 조직도") // 조직도 버전명
+  isActive    Boolean  @default(false)    // 현재 활성화된 조직도
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  units       OrganizationUnit[]
+  musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
+
+  @@unique([workplaceId, year, name])
+  @@index([workplaceId])
+  @@index([year])
+}
+
+// 조직 단위 (부서-공정-작업 등 5단계 계층)
+model OrganizationUnit {
+  id             String             @id @default(cuid())
+  organizationId String
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentId       String?
+  parent         OrganizationUnit?  @relation("UnitHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       OrganizationUnit[] @relation("UnitHierarchy")
+
+  name           String                    // 조직 단위명
+  level          Int                       // 1~5 단계
+  sortOrder      Int      @default(0)      // 정렬 순서
+  isLeaf         Boolean  @default(false)  // 최하단 = 평가대상 여부
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
+
+  @@index([organizationId])
+  @@index([parentId])
+  @@index([level])
+}
+
+// 사용자-사업장 연결 (다대다)
+model WorkplaceUser {
+  id          String    @id @default(cuid())
+  userId      String
+  workplaceId String
+  assignedAt  DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workplace   Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workplaceId])
+  @@index([userId])
+  @@index([workplaceId])
+}
+
+// 일정 관리
+model Schedule {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?      @db.Text
+  startDate    DateTime
+  endDate      DateTime?
+  isAllDay     Boolean      @default(false) // 종일 일정 여부
+  location     String?      // 장소
+  isOnline     Boolean      @default(false) // 온라인 여부
+  scheduleType ScheduleType @default(GENERAL)
+  relatedId    String?      // 상담/위험성평가/근골조사 ID (향후 연동용)
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([scheduleType])
+}
+
+enum ScheduleType {
+  GENERAL           // 일반 일정
+  COUNSELING        // 상담
+  RISK_ASSESSMENT   // 위험성평가
+  MUSCULOSKELETAL   // 근골조사
+}
+
+// 상담 케이스 관리
+model CounselingCase {
+  id              String           @id @default(cuid())
+  caseNumber      String           @unique
+  victimName      String
+  victimContact   String
+  accidentDate    DateTime?
+  accidentType    String?
+  status          CaseStatus       @default(OPEN)
+  assignedTo      String
+  user            User             @relation(fields: [assignedTo], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // 관계
+  consultations   Consultation[]
+  documents       Document[]
+
+  @@index([assignedTo])
+  @@index([status])
+  @@index([caseNumber])
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING
+  CLOSED
+}
+
+// 상담 기록
+model Consultation {
+  id              String         @id @default(cuid())
+  caseId          String
+  case            CounselingCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  consultDate     DateTime
+  consultType     String         // 전화, 방문, 이메일 등
+  content         String         @db.Text
+  nextAction      String?        @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([caseId])
+  @@index([consultDate])
+}
+
+// 문서 관리
+model Document {
+  id          String         @id @default(cuid())
+  caseId      String
+  case        CounselingCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  uploadedAt  DateTime       @default(now())
+
+  @@index([caseId])
+}
+
+// 뉴스/브리핑
+model NewsBriefing {
+  id              String    @id @default(cuid())
+  title           String
+  content         String    @db.Text
+  source          String    // 소스명 (예: '고용노동부')
+  sourceId        String    // 하드코딩 소스 ID (예: 'moel')
+  url             String?
+  linkHash        String    @unique // URL 해시 (중복 방지)
+  priority        String?   // critical/high/medium/low/none
+  matchedKeywords String?   @db.Text // 매칭된 키워드 (JSON 배열)
+  publishedAt     DateTime
+  collectedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  @@index([publishedAt])
+  @@index([sourceId])
+  @@index([linkHash])
+  @@index([priority])
+}
+
+// 수집 상태
+enum CollectionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// 수집 로그
+model CollectionLog {
+  id            String           @id @default(cuid())
+  sourceId      String           // 하드코딩 소스 ID
+  sourceName    String
+  status        CollectionStatus
+  articlesCount Int              @default(0)
+  errorMessage  String?          @db.Text
+  startedAt     DateTime
+  completedAt   DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@index([sourceId])
+  @@index([createdAt])
+}
+
+// 일일 리포트 (AI 분석 결과)
+model DailyReport {
+  id            String   @id @default(cuid())
+  date          DateTime @unique // 브리핑 날짜
+  topIssuesJson String   @db.Text // 3대 이슈 JSON
+  analysisJson  String   @db.Text // 상세 분석 JSON
+  insightsText  String   @db.Text // 실무 시사점
+  markdownPath  String?  // 저장된 마크다운 파일 경로
+  articleCount  Int      // 수집된 기사 수
+  filteredCount Int      // 필터링된 기사 수
+  createdAt     DateTime @default(now())
+
+  @@index([date])
+}
+
+// 위험성평가 (추후 확장)
+model RiskAssessment {
+  id          String   @id @default(cuid())
+  companyName String
+  assessDate  DateTime
+  assessor    String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([assessDate])
+}
+
+// ==========================================
+// 근골격계 유해요인 조사 (근골조사)
+// ==========================================
+
+// 근골조사 상태
+enum MSurveyStatus {
+  DRAFT           // 작성중
+  IN_PROGRESS     // 조사진행중
+  COMPLETED       // 조사완료
+  REVIEWED        // 검토완료
+}
+
+// 부담부위 (6개)
+enum BodyPart {
+  HAND_WRIST      // 손/손목
+  ELBOW_FOREARM   // 팔꿈치/아래팔
+  SHOULDER_ARM    // 어깨/위팔
+  NECK            // 목
+  BACK_HIP        // 허리/고관절
+  KNEE_ANKLE      // 무릎/발목
+}
+
+// 근골조사 메인 모델 (공정당 1개)
+model MusculoskeletalAssessment {
+  id                 String        @id @default(cuid())
+  workplaceId        String
+  workplace          Workplace     @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  organizationId     String
+  organization       Organization  @relation(fields: [organizationId], references: [id])
+  organizationUnitId String
+  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
+
+  year               Int           // 조사년도
+  assessmentType     String        // 정기조사, 수시조사
+  status             MSurveyStatus @default(DRAFT)
+
+  // 1번시트 (관리카드) 필드
+  dailyWorkHours     Float?        // 1일작업시간
+  dailyProduction    String?       // 1일생산량
+  workFrequency      String?       // 작업빈도 (상시/간헐)
+  employmentType     String?       // 고용형태
+  jobAutonomy        Int?          // 직무자율성 (1-3)
+
+  // 기타 위험요인 (체크박스)
+  hasNoise           Boolean       @default(false)
+  hasThermal         Boolean       @default(false)
+  hasBurn            Boolean       @default(false)
+  hasDust            Boolean       @default(false)
+
+  // 부담부위 체크 (1번시트)
+  affectedHandWrist     Boolean    @default(false)
+  affectedElbow         Boolean    @default(false)
+  affectedShoulder      Boolean    @default(false)
+  affectedNeck          Boolean    @default(false)
+  affectedBack          Boolean    @default(false)
+  affectedKnee          Boolean    @default(false)
+
+  // 작업조건 변화 (최근3년)
+  changeWorkHours    String?       // 변화없음/증가/감소
+  changeWorkSpeed    String?
+  changeManpower     String?
+  changeWorkload     String?
+  changeEquipment    String?
+
+  // 4번시트 (종합평가카드) 필드
+  managementLevel    String?       // 상/중상/중/하
+  overallComment     String?       @db.Text
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  createdById        String?
+  createdBy          User?         @relation(fields: [createdById], references: [id])
+
+  // 관계
+  elementWorks       ElementWork[]
+  improvements       MSurveyImprovement[]
+  attachments        MSurveyAttachment[]
+
+  @@index([workplaceId])
+  @@index([organizationUnitId])
+  @@index([year])
+  @@index([status])
+}
+
+// 요소작업 모델 (요소작업당 1개 = 2,3번시트)
+model ElementWork {
+  id            String                    @id @default(cuid())
+  assessmentId  String
+  assessment    MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  sortOrder     Int                       // 요소작업 순번 (1, 2, 3...)
+  name          String                    // 요소작업명
+  description   String?       @db.Text    // 작업내용
+
+  // 2번시트 상단: 작업특성
+  toolWeight       Float?                 // 공구무게 (kg)
+  loadWeight       Float?                 // 중량물 무게 (kg)
+  loadFrequency    Int?                   // 중량물 빈도 (회/일)
+  pushPullForce    Float?                 // 밀고당기기 (kgf)
+  pushPullFreq     Int?                   // 밀고당기기 빈도 (회/일)
+  vibrationSource  String?                // 전신진동발생원
+  vibrationHours   Float?                 // 진동노출시간 (시간/일)
+
+  // 3번시트: RULA/REBA 관련
+  rulaScore        Int?
+  rulaLevel        String?                // 안전/보통/위험/고위험
+  rebaScore        Int?
+  rebaLevel        String?
+  pushPullArm      String?                // 팔 평가결과
+  pushPullHand     String?                // 손 평가결과
+
+  // 3번시트: 추가입력 (체크박스)
+  hasArmSupport    Boolean   @default(false)  // 팔이 지탱된 상태
+  hasUnstableLeg   Boolean   @default(false)  // 다리/발 불안정
+  hasRapidPosture  Boolean   @default(false)  // 급속 자세변경
+  hasRapidForce    Boolean   @default(false)  // 급격한 힘 사용
+
+  // 3번시트: 추가입력 (선택)
+  kneePosture      String?                // 무릎 자세 (0~30도/30~60도 등)
+  handleQuality    String?                // 손잡이 상태 (양호/보통/불충분)
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  // 관계
+  bodyPartScores   BodyPartScore[]
+
+  @@index([assessmentId])
+}
+
+// 부담부위별 점수 모델 (요소작업당 6개)
+model BodyPartScore {
+  id              String      @id @default(cuid())
+  elementWorkId   String
+  elementWork     ElementWork @relation(fields: [elementWorkId], references: [id], onDelete: Cascade)
+
+  bodyPart        BodyPart
+
+  // 각도 입력값 (JSON - 부위별로 다름)
+  angles          Json?       // { flexion: 30, extension: 0, rotation: 15, ... }
+
+  // 부가점수 체크박스들 (JSON)
+  additionalFactors Json?     // { toolOver1kg: true, vibration: false, ... }
+
+  // 계산된 점수
+  postureScore    Int         @default(0)  // 자세 기본점수 (max 5)
+  additionalScore Int         @default(0)  // 부가점수 합계
+  totalScore      Int         @default(0)  // 총점 (1-7)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([elementWorkId, bodyPart])
+  @@index([elementWorkId])
+}
+
+// 개선사항 모델 (4번시트 하단)
+model MSurveyImprovement {
+  id            String                    @id @default(cuid())
+  assessmentId  String
+  assessment    MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  documentNo    String?                   // 참조 문서번호
+  problem       String        @db.Text    // 주요 문제점
+  improvement   String        @db.Text    // 개선 검토 방향
+  source        String?                   // 수집경로
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([assessmentId])
+}
+
+// 첨부파일 모델 (사진/영상)
+model MSurveyAttachment {
+  id            String                    @id @default(cuid())
+  assessmentId  String
+  assessment    MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  elementWorkId String?                   // 특정 요소작업에 연결된 경우
+
+  fileName      String                    // 저장된 파일명 (공정명_요소작업명_001.jpg)
+  originalName  String                    // 원본 파일명
+  fileType      String                    // image/jpeg, video/mp4 등
+  fileSize      Int                       // 바이트
+  filePath      String                    // 저장 경로
+
+  createdAt     DateTime      @default(now())
+
+  @@index([assessmentId])
+  @@index([elementWorkId])
+}
