@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess } from '@/lib/auth-utils'
 import { unlink } from 'fs/promises'
 import path from 'path'
 
@@ -9,7 +9,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; assessmentId: string; attachmentId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

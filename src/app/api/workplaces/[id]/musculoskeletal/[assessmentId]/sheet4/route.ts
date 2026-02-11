@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess } from '@/lib/auth-utils'
 
 // 4번시트 - 종합평가 조회
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; assessmentId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -85,7 +85,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; assessmentId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

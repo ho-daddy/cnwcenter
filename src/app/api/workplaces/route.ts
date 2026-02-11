@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireAuth, getAccessibleWorkplaceIds, requireStaffOrAbove } from '@/lib/auth-utils'
 
 // 사업장 목록 조회
 export async function GET(request: NextRequest) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireAuth()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -12,12 +12,26 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
+    const user = authCheck.user!
+
+    // 사용자가 접근 가능한 사업장 ID 목록 조회
+    const accessibleWorkplaceIds = await getAccessibleWorkplaceIds(user.id, user.role)
 
     const where: any = {}
+
+    // WORKPLACE_USER인 경우 할당된 사업장만 조회
+    if (accessibleWorkplaceIds !== null) {
+      where.id = { in: accessibleWorkplaceIds }
+    }
+
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { address: { contains: search, mode: 'insensitive' } },
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { address: { contains: search, mode: 'insensitive' } },
+          ],
+        },
       ]
     }
 

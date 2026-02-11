@@ -420,26 +420,26 @@ export default function SurveyDetailPage() {
       )}
 
       {activeTab === 'sheet2' && (
-        <div className="text-center py-12 text-gray-500">
-          <Calculator className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-          <p>2번시트 (부위별 점수 입력)는 요소작업별로 입력합니다.</p>
-          <p className="text-sm mt-2">위의 요소작업 목록에서 작업을 선택하세요.</p>
-        </div>
+        <Sheet2Content
+          assessment={assessment}
+          workplaceId={assessment.workplace.id}
+          onUpdate={(elementWorks) => setAssessment({ ...assessment, elementWorks })}
+        />
       )}
 
       {activeTab === 'sheet3' && (
-        <div className="text-center py-12 text-gray-500">
-          <BarChart3 className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-          <p>3번시트 (RULA/REBA)는 요소작업별로 입력합니다.</p>
-          <p className="text-sm mt-2">위의 요소작업 목록에서 작업을 선택하세요.</p>
-        </div>
+        <Sheet3Content
+          assessment={assessment}
+          workplaceId={assessment.workplace.id}
+        />
       )}
 
       {activeTab === 'sheet4' && (
-        <div className="text-center py-12 text-gray-500">
-          <CheckCircle className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-          <p>4번시트 (종합평가) 기능 준비중입니다.</p>
-        </div>
+        <Sheet4Content
+          assessment={assessment}
+          workplaceId={assessment.workplace.id}
+          onUpdate={(data) => setAssessment({ ...assessment, ...data })}
+        />
       )}
     </div>
   )
@@ -584,5 +584,513 @@ function Sheet1Content({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// Sheet2 Content Component - 부위별 점수 입력
+const BODY_PARTS = [
+  { id: 'HAND_WRIST', name: '손/손목', color: 'blue' },
+  { id: 'ELBOW_FOREARM', name: '팔꿈치/아래팔', color: 'green' },
+  { id: 'SHOULDER_ARM', name: '어깨/위팔', color: 'yellow' },
+  { id: 'NECK', name: '목', color: 'orange' },
+  { id: 'BACK_HIP', name: '허리/고관절', color: 'red' },
+  { id: 'KNEE_ANKLE', name: '무릎/발목', color: 'purple' },
+]
+
+function Sheet2Content({
+  assessment,
+  workplaceId,
+  onUpdate,
+}: {
+  assessment: Assessment
+  workplaceId: string
+  onUpdate: (elementWorks: ElementWork[]) => void
+}) {
+  const router = useRouter()
+  const [selectedWork, setSelectedWork] = useState<ElementWork | null>(
+    assessment.elementWorks.length > 0 ? assessment.elementWorks[0] : null
+  )
+
+  if (assessment.elementWorks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center text-gray-500">
+            <ClipboardList className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+            <p>등록된 요소작업이 없습니다.</p>
+            <p className="text-sm mt-2">개요 탭에서 먼저 요소작업을 추가하세요.</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* 요소작업 목록 */}
+      <Card className="lg:col-span-1">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">요소작업 선택</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2">
+          <div className="space-y-1">
+            {assessment.elementWorks
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((work, index) => {
+                const isSelected = selectedWork?.id === work.id
+                const scoreCount = work.bodyPartScores.filter(s => s.totalScore > 0).length
+                return (
+                  <button
+                    key={work.id}
+                    onClick={() => setSelectedWork(work)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      isSelected
+                        ? 'bg-blue-100 border-2 border-blue-500'
+                        : 'hover:bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-bold rounded-full">
+                        {index + 1}
+                      </span>
+                      <span className="flex-1 text-sm font-medium truncate">{work.name}</span>
+                    </div>
+                    {scoreCount > 0 && (
+                      <div className="mt-1 ml-8">
+                        <span className="text-xs text-green-600">
+                          {scoreCount}/6 부위 입력됨
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 부위별 점수 입력 */}
+      <Card className="lg:col-span-3">
+        <CardHeader>
+          <CardTitle className="text-lg">
+            {selectedWork ? `${selectedWork.name} - 부위별 점수` : '요소작업을 선택하세요'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedWork ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                {BODY_PARTS.map((part) => {
+                  const score = selectedWork.bodyPartScores.find(
+                    (s) => s.bodyPart === part.id
+                  )
+                  return (
+                    <div
+                      key={part.id}
+                      className={`p-4 rounded-lg border-2 text-center ${
+                        score && score.totalScore > 0
+                          ? 'border-green-300 bg-green-50'
+                          : 'border-gray-200 bg-gray-50'
+                      }`}
+                    >
+                      <span className="block text-sm font-medium text-gray-900 mb-2">{part.name}</span>
+                      {score && score.totalScore > 0 ? (
+                        <span className="text-2xl font-bold text-green-600">
+                          {score.totalScore}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  onClick={() =>
+                    router.push(`/musculoskeletal/survey/${assessment.id}/work/${selectedWork.id}`)
+                  }
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  부위별 점수 입력하기
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>왼쪽에서 요소작업을 선택하세요.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Sheet4 Content Component - 종합평가
+const MANAGEMENT_LEVELS = [
+  { value: '상', label: '상 (7점)', minScore: 7, color: 'bg-red-100 text-red-700 border-red-300' },
+  { value: '중상', label: '중상 (5-6점)', minScore: 5, color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  { value: '중', label: '중 (3-4점)', minScore: 3, color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  { value: '하', label: '하 (1-2점)', minScore: 1, color: 'bg-green-100 text-green-700 border-green-300' },
+]
+
+function Sheet4Content({
+  assessment,
+  workplaceId,
+  onUpdate,
+}: {
+  assessment: Assessment
+  workplaceId: string
+  onUpdate: (data: Partial<Assessment>) => void
+}) {
+  const [formData, setFormData] = useState({
+    managementLevel: (assessment as any).managementLevel || '',
+    overallComment: (assessment as any).overallComment || '',
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  // 최고 점수 계산
+  const maxScore = Math.max(
+    ...assessment.elementWorks.flatMap((w) =>
+      w.bodyPartScores.map((s) => s.totalScore)
+    ),
+    0
+  )
+
+  // 권장 관리등급
+  const recommendedLevel = maxScore >= 7 ? '상' : maxScore >= 5 ? '중상' : maxScore >= 3 ? '중' : '하'
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/sheet4`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        }
+      )
+
+      if (res.ok) {
+        const data = await res.json()
+        onUpdate(data.assessment)
+        alert('저장되었습니다.')
+      } else {
+        const error = await res.json()
+        alert(error.error || '저장에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('저장 오류:', error)
+      alert('저장 중 오류가 발생했습니다.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 점수 요약 테이블 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">요소작업별 점수 요약</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {assessment.elementWorks.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>등록된 요소작업이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left p-3 font-medium">요소작업</th>
+                    {BODY_PARTS.map((part) => (
+                      <th key={part.id} className="text-center p-3 font-medium whitespace-nowrap">
+                        {part.name}
+                      </th>
+                    ))}
+                    <th className="text-center p-3 font-medium">최고점</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assessment.elementWorks
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                    .map((work) => {
+                      const workMaxScore = Math.max(
+                        ...work.bodyPartScores.map((s) => s.totalScore),
+                        0
+                      )
+                      return (
+                        <tr key={work.id} className="border-b hover:bg-gray-50">
+                          <td className="p-3 font-medium">{work.name}</td>
+                          {BODY_PARTS.map((part) => {
+                            const score = work.bodyPartScores.find(
+                              (s) => s.bodyPart === part.id
+                            )
+                            return (
+                              <td key={part.id} className="text-center p-3">
+                                {score ? (
+                                  <span
+                                    className={`inline-block w-8 h-8 leading-8 rounded-full text-sm font-medium ${
+                                      score.totalScore >= 7
+                                        ? 'bg-red-100 text-red-700'
+                                        : score.totalScore >= 5
+                                          ? 'bg-orange-100 text-orange-700'
+                                          : score.totalScore >= 3
+                                            ? 'bg-yellow-100 text-yellow-700'
+                                            : 'bg-green-100 text-green-700'
+                                    }`}
+                                  >
+                                    {score.totalScore}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            )
+                          })}
+                          <td className="text-center p-3">
+                            <span
+                              className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
+                                workMaxScore >= 7
+                                  ? 'bg-red-100 text-red-700'
+                                  : workMaxScore >= 5
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : workMaxScore >= 3
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-green-100 text-green-700'
+                              }`}
+                            >
+                              {workMaxScore > 0 ? workMaxScore : '-'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 관리등급 및 종합의견 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">관리등급</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {maxScore > 0 && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  최고 점수 <strong>{maxScore}점</strong>을 기준으로 권장 등급은{' '}
+                  <strong>&quot;{recommendedLevel}&quot;</strong>입니다.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {MANAGEMENT_LEVELS.map((level) => (
+                <button
+                  key={level.value}
+                  onClick={() =>
+                    setFormData({ ...formData, managementLevel: level.value })
+                  }
+                  className={`p-4 rounded-lg border-2 text-center transition-all ${
+                    formData.managementLevel === level.value
+                      ? level.color + ' border-current'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="block font-medium">{level.label}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">종합 의견</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              value={formData.overallComment}
+              onChange={(e) =>
+                setFormData({ ...formData, overallComment: e.target.value })
+              }
+              rows={6}
+              className="w-full px-3 py-2 border rounded-lg resize-none"
+              placeholder="조사 결과에 대한 종합적인 의견을 작성하세요..."
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 저장 버튼 */}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={isSaving} size="lg">
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              저장 중...
+            </>
+          ) : (
+            '종합평가 저장'
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// Sheet3 Content Component - RULA/REBA 요소작업 목록
+function Sheet3Content({
+  assessment,
+  workplaceId,
+}: {
+  assessment: Assessment
+  workplaceId: string
+}) {
+  const router = useRouter()
+
+  if (assessment.elementWorks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center text-gray-500">
+            <ClipboardList className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+            <p>등록된 요소작업이 없습니다.</p>
+            <p className="text-sm mt-2">개요 탭에서 먼저 요소작업을 추가하세요.</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Instructions */}
+      <Card className="bg-purple-50 border-purple-200">
+        <CardContent className="py-4">
+          <p className="text-sm text-purple-800">
+            각 요소작업을 선택하여 RULA/REBA 평가를 진행하세요.
+            RULA는 상지 중심, REBA는 전신 자세 평가에 적합합니다.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Element Work List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">요소작업별 RULA/REBA 평가</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {assessment.elementWorks
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((work, index) => {
+                const hasRula = work.rulaScore !== null
+                const hasReba = work.rebaScore !== null
+
+                return (
+                  <div
+                    key={work.id}
+                    className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="w-8 h-8 flex items-center justify-center bg-purple-100 text-purple-600 font-bold rounded-full">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{work.name}</p>
+                      <div className="flex gap-2 mt-1">
+                        {hasRula && (
+                          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
+                            RULA {work.rulaScore}
+                          </span>
+                        )}
+                        {hasReba && (
+                          <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded">
+                            REBA {work.rebaScore}
+                          </span>
+                        )}
+                        {!hasRula && !hasReba && (
+                          <span className="text-xs text-gray-400">
+                            평가 미실시
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        router.push(
+                          `/musculoskeletal/survey/${assessment.id}/work/${work.id}?tab=sheet3`
+                        )
+                      }
+                    >
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      RULA/REBA 입력
+                    </Button>
+                  </div>
+                )
+              })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary */}
+      {assessment.elementWorks.some((w) => w.rulaScore !== null || w.rebaScore !== null) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">평가 요약</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left p-3 font-medium">요소작업</th>
+                    <th className="text-center p-3 font-medium">RULA</th>
+                    <th className="text-center p-3 font-medium">REBA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assessment.elementWorks
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                    .filter((w) => w.rulaScore !== null || w.rebaScore !== null)
+                    .map((work) => (
+                      <tr key={work.id} className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-medium">{work.name}</td>
+                        <td className="text-center p-3">
+                          {work.rulaScore !== null ? (
+                            <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                              {work.rulaScore}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="text-center p-3">
+                          {work.rebaScore !== null ? (
+                            <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
+                              {work.rebaScore}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }

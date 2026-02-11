@@ -84,10 +84,12 @@ function NewSurveyPage() {
         if (orgRes.ok) {
           const orgData = await orgRes.json()
           setOrganizations(orgData.organizations)
-          // 활성 조직도 자동 선택
+          // 활성 조직도 자동 선택, 없으면 첫 번째 조직도 선택
           const activeOrg = orgData.organizations.find((o: Organization) => o.isActive)
           if (activeOrg) {
             setSelectedOrg(activeOrg)
+          } else if (orgData.organizations.length > 0) {
+            setSelectedOrg(orgData.organizations[0])
           }
         }
       } catch (error) {
@@ -99,18 +101,19 @@ function NewSurveyPage() {
     fetchData()
   }, [workplaceId, router])
 
-  // 선택된 조직도의 단위 목록 조회
+  // 선택된 조직도의 단위 목록 조회 (트리 구조)
   useEffect(() => {
     if (!selectedOrg || !workplaceId) return
 
     const fetchUnits = async () => {
       try {
+        // 트리 구조로 반환하는 조직도 상세 API 호출
         const res = await fetch(
-          `/api/workplaces/${workplaceId}/organizations/${selectedOrg.id}/units`
+          `/api/workplaces/${workplaceId}/organizations/${selectedOrg.id}`
         )
         if (res.ok) {
           const data = await res.json()
-          setUnits(data.units)
+          setUnits(data.units || [])
         }
       } catch (error) {
         console.error('조직단위 조회 오류:', error)

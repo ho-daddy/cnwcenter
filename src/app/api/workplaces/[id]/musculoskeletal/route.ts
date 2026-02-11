@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess, requireStaffOrAbove } from '@/lib/auth-utils'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -9,7 +9,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장의 조사 목록 조회 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -87,7 +88,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장에서 조사 생성 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

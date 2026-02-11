@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess, requireStaffOrAbove } from '@/lib/auth-utils'
 
 // 조직 단위 목록 조회
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; orgId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장의 조직 단위 조회 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

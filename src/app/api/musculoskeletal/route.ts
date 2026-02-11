@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireAuth, getAccessibleWorkplaceIds } from '@/lib/auth-utils'
 import { MSurveyStatus, Prisma } from '@prisma/client'
 
 // 전체 조사 목록 조회 (모아보기용)
 export async function GET(request: NextRequest) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireAuth()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -18,11 +18,23 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.MusculoskeletalAssessmentWhereInput = {}
 
+    // WORKPLACE_USER의 경우 할당된 사업장만 조회
+    const user = authCheck.user!
+    const accessibleIds = await getAccessibleWorkplaceIds(user.id, user.role)
+    if (accessibleIds !== null) {
+      where.workplaceId = { in: accessibleIds }
+    }
+
     if (year) where.year = parseInt(year)
     if (status && Object.values(MSurveyStatus).includes(status as MSurveyStatus)) {
       where.status = status as MSurveyStatus
     }
-    if (workplaceId) where.workplaceId = workplaceId
+    // workplaceId 필터가 있으면 추가 (이미 accessibleIds로 제한되어 있으면 AND 조건)
+    if (workplaceId) {
+      if (accessibleIds === null || accessibleIds.includes(workplaceId)) {
+        where.workplaceId = workplaceId
+      }
+    }
 
     const assessments = await prisma.musculoskeletalAssessment.findMany({
       where,

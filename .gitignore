@@ -52,3 +52,16 @@ next-env.d.ts
 desktop.ini
 Thumbs.db
 .DS_Store
+nul
+
+# temp Excel lock files
+~$*.xlsx
+
+# extra reference files
+/extra_files/
+
+# generated reports
+/data/reports/
+
+# Claude local settings
+.claude/settings.local.json
