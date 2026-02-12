@@ -15,6 +15,9 @@ import {
   calculateNeckAdditionalScore,
   calculateBackAdditionalScore,
   calculateKneeAnkleAdditionalScore,
+  calculateForceScore,
+  calculateStaticRepetitionScore,
+  calculateTotalScore,
 } from '@/lib/musculoskeletal/score-calculator'
 
 // 2번시트 - 부위별 점수 조회
@@ -74,7 +77,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { bodyPart, angles, additionalFactors } = body
+    const { bodyPart, angles, additionalFactors, forceStaticFactors } = body
 
     // 유효성 검사
     if (!bodyPart || !Object.values(BodyPart).includes(bodyPart)) {
@@ -136,7 +139,21 @@ export async function PATCH(
         break
     }
 
-    const totalScore = Math.min(postureScore + additionalScore, 7)
+    // 힘 점수 / 정적·반복 점수
+    const fsf = forceStaticFactors || {}
+    const forceScore = calculateForceScore(!!fsf.forceChecked)
+    const staticRepetitionScore = calculateStaticRepetitionScore(
+      !!fsf.staticOver1min,
+      !!fsf.repetitionChecked
+    )
+
+    const totalScore = calculateTotalScore(postureScore, additionalScore, forceScore, staticRepetitionScore)
+
+    // additionalFactors에 forceStaticFactors도 함께 저장
+    const mergedFactors = {
+      ...additionalFactors,
+      _forceStatic: fsf,
+    }
 
     // upsert - 있으면 업데이트, 없으면 생성
     const bodyPartScore = await prisma.bodyPartScore.upsert({
@@ -148,7 +165,7 @@ export async function PATCH(
       },
       update: {
         angles,
-        additionalFactors,
+        additionalFactors: mergedFactors,
         postureScore,
         additionalScore,
         totalScore,
@@ -157,7 +174,7 @@ export async function PATCH(
         elementWorkId: params.workId,
         bodyPart,
         angles,
-        additionalFactors,
+        additionalFactors: mergedFactors,
         postureScore,
         additionalScore,
         totalScore,

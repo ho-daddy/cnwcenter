@@ -38,11 +38,23 @@ export async function PATCH(
     const assessment = await prisma.musculoskeletalAssessment.update({
       where: { id: params.assessmentId },
       data: {
+        // 작업자/조사자
+        workerName: body.workerName ?? undefined,
+        investigatorName: body.investigatorName ?? undefined,
+
+        // 수시조사 사유
+        occasionalReason: body.occasionalReason ?? undefined,
+        occasionalReasonCustom: body.occasionalReasonCustom ?? undefined,
+
         // 작업조건
         dailyWorkHours: body.dailyWorkHours ?? undefined,
         dailyProduction: body.dailyProduction ?? undefined,
         workFrequency: body.workFrequency ?? undefined,
         employmentType: body.employmentType ?? undefined,
+        workDays: body.workDays ?? undefined,
+        workDaysCustom: body.workDaysCustom ?? undefined,
+        shiftType: body.shiftType ?? undefined,
+        shiftTypeCustom: body.shiftTypeCustom ?? undefined,
         jobAutonomy: body.jobAutonomy ?? undefined,
 
         // 기타 위험요인
@@ -50,6 +62,10 @@ export async function PATCH(
         hasThermal: body.hasThermal ?? undefined,
         hasBurn: body.hasBurn ?? undefined,
         hasDust: body.hasDust ?? undefined,
+        hasAccident: body.hasAccident ?? undefined,
+        hasStress: body.hasStress ?? undefined,
+        hasOtherRisk: body.hasOtherRisk ?? undefined,
+        otherRiskDetail: body.otherRiskDetail ?? undefined,
 
         // 부담부위
         affectedHandWrist: body.affectedHandWrist ?? undefined,
@@ -65,6 +81,9 @@ export async function PATCH(
         changeManpower: body.changeManpower ?? undefined,
         changeWorkload: body.changeWorkload ?? undefined,
         changeEquipment: body.changeEquipment ?? undefined,
+
+        // 참조
+        reference: body.reference ?? undefined,
 
         // 상태 업데이트 (입력 시작시 IN_PROGRESS로)
         status: body.status ?? 'IN_PROGRESS',

@@ -16,6 +16,7 @@ import {
   BackFactors,
   KneeAnkleValues,
   KneeAnkleFactors,
+  ForceStaticFactors,
 } from '@/types/musculoskeletal'
 
 // ==========================================
@@ -329,8 +330,9 @@ export function calculateKneeAnklePostureScore(values: KneeAnkleValues): number 
   // 운전형태 점수 (0-2) - 시간 기반
   const drivingScore = values.drivingHours < 2 ? 0 : values.drivingHours < 4 ? 1 : 2
 
-  // 걷기 점수 (0-2) - 시간 기반
-  const walkingScore = values.walkingHours < 2 ? 0 : values.walkingHours < 4 ? 1 : 2
+  // 걷기 점수 (0-2) - km 기반
+  const walkingKm = values.walkingKm ?? 0
+  const walkingScore = walkingKm < 2 ? 0 : walkingKm < 4 ? 1 : 2
 
   const addScore = Math.max(climbingScore, drivingScore, walkingScore)
 
@@ -595,15 +597,42 @@ export function evaluatePushPullHand(forceKgf: number): string {
 }
 
 // ==========================================
+// 힘 점수 / 정적·반복 점수 계산
+// ==========================================
+
+/**
+ * 힘 점수 계산 (0 또는 1)
+ */
+export function calculateForceScore(forceChecked: boolean): number {
+  return forceChecked ? 1 : 0
+}
+
+/**
+ * 정적/반복 점수 계산 (최대 1점)
+ * 하나 이상 체크시 1점
+ */
+export function calculateStaticRepetitionScore(
+  staticOver1min: boolean,
+  repetitionChecked: boolean
+): number {
+  return (staticOver1min || repetitionChecked) ? 1 : 0
+}
+
+// ==========================================
 // 종합 점수 계산
 // ==========================================
 
 /**
- * 부위별 총점 계산
+ * 부위별 총점 계산 (힘/정적·반복 포함)
  */
-export function calculateTotalScore(postureScore: number, additionalScore: number): number {
+export function calculateTotalScore(
+  postureScore: number,
+  additionalScore: number,
+  forceScore: number = 0,
+  staticRepetitionScore: number = 0
+): number {
   // 총점은 최대 7점
-  return Math.min(postureScore + additionalScore, 7)
+  return Math.min(postureScore + additionalScore + forceScore + staticRepetitionScore, 7)
 }
 
 /**

@@ -13,7 +13,36 @@ import {
 import {
   getScoreLevel,
   SCORE_LEVEL_INFO,
+  type HandWristAngles,
+  type HandWristFactors,
+  type ElbowAngles,
+  type ElbowFactors,
+  type ShoulderAngles,
+  type ShoulderFactors,
+  type NeckAngles,
+  type NeckFactors,
+  type BackAngles,
+  type BackFactors,
+  type KneeAnkleValues,
+  type KneeAnkleFactors,
 } from '@/types/musculoskeletal'
+import {
+  calculateHandWristPostureScore,
+  calculateElbowPostureScore,
+  calculateShoulderPostureScore,
+  calculateNeckPostureScore,
+  calculateBackPostureScore,
+  calculateKneeAnklePostureScore,
+  calculateHandWristAdditionalScore,
+  calculateElbowAdditionalScore,
+  calculateShoulderAdditionalScore,
+  calculateNeckAdditionalScore,
+  calculateBackAdditionalScore,
+  calculateKneeAnkleAdditionalScore,
+  calculateForceScore,
+  calculateStaticRepetitionScore,
+  calculateTotalScore,
+} from '@/lib/musculoskeletal/score-calculator'
 
 interface ElementWork {
   id: string
@@ -58,7 +87,7 @@ const DEFAULT_ANGLES: Record<string, Record<string, number>> = {
   SHOULDER_ARM: { neutral: 0, flexion: 0, extension: 0, abduction: 0, adduction: 0, externalRotation: 0, internalRotation: 0 },
   NECK: { neutral: 0, flexion: 0, extension: 0, rotation: 0, lateralTilt: 0 },
   BACK_HIP: { flexion: 0, extension: 0, rotation: 0, lateralTilt: 0 },
-  KNEE_ANKLE: { kneelingTime: 0, climbingCount: 0, drivingHours: 0, walkingHours: 0 },
+  KNEE_ANKLE: { kneelingTime: 0, climbingCount: 0, drivingHours: 0, walkingKm: 0 },
 }
 
 const DEFAULT_FACTORS: Record<string, Record<string, boolean>> = {
@@ -106,7 +135,7 @@ const ANGLE_FIELDS: Record<string, { key: string; label: string; min: number; ma
     { key: 'kneelingTime', label: '무릎꿇기/쪼그리기', min: 0, max: 8, unit: '시간/일' },
     { key: 'climbingCount', label: '오르내리기', min: 0, max: 2000, unit: '회/일' },
     { key: 'drivingHours', label: '운전형태', min: 0, max: 8, unit: '시간/일' },
-    { key: 'walkingHours', label: '걷기', min: 0, max: 8, unit: '시간/일' },
+    { key: 'walkingKm', label: '걷기', min: 0, max: 50, unit: 'km/일' },
   ],
 }
 
@@ -172,6 +201,39 @@ const FACTOR_LABELS: Record<string, Record<string, string>> = {
   },
 }
 
+// Force/Static/Repetition labels per body part
+const FORCE_STATIC_LABELS: Record<string, { force: string; static: string; repetition?: string }> = {
+  HAND_WRIST: {
+    force: '취급물중량 손가락>1kg 또는 손>2kg',
+    static: '1분 이상 정적자세',
+    repetition: '분당 4회 이상 반복',
+  },
+  ELBOW_FOREARM: {
+    force: '취급물중량>3kg',
+    static: '1분 이상 정적자세',
+    repetition: '분당 4회 이상 반복',
+  },
+  SHOULDER_ARM: {
+    force: '취급물중량>3kg',
+    static: '1분 이상 정적자세',
+    repetition: '분당 4회 이상 반복',
+  },
+  NECK: {
+    force: '머리 또는 목 부위 중량물 또는 힘이 작용',
+    static: '1분 이상 정적자세',
+    repetition: '분당 2회 이상 반복',
+  },
+  BACK_HIP: {
+    force: '일일 취급 누적중량>250kg',
+    static: '1분 이상 정적자세',
+    repetition: '분당 2회 이상 반복',
+  },
+  KNEE_ANKLE: {
+    force: '취급물중량>5kg',
+    static: '1분 이상 정적자세',
+  },
+}
+
 // Local score type for display
 type LocalScore = {
   bodyPart: string
@@ -194,16 +256,27 @@ export function Sheet2Modal({
     Record<string, { angles: Record<string, number>; factors: Record<string, boolean> }>
   >({})
 
+  const [forceStaticData, setForceStaticData] = useState<
+    Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }>
+  >({})
+
   // Initialize body part data
   useEffect(() => {
     const initialData: Record<string, { angles: Record<string, number>; factors: Record<string, boolean> }> = {}
+    const initialForceStatic: Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }> = {}
     BODY_PARTS.forEach((part) => {
       initialData[part.id] = {
         angles: { ...DEFAULT_ANGLES[part.id] },
         factors: { ...DEFAULT_FACTORS[part.id] },
       }
+      initialForceStatic[part.id] = {
+        forceChecked: false,
+        staticOver1min: false,
+        repetitionChecked: false,
+      }
     })
     setBodyPartData(initialData)
+    setForceStaticData(initialForceStatic)
     setLocalScores(elementWork.bodyPartScores)
   }, [elementWork])
 
@@ -241,6 +314,62 @@ export function Sheet2Modal({
     }))
   }
 
+  const handleForceStaticChange = (partId: string, key: string, checked: boolean) => {
+    setForceStaticData((prev) => ({
+      ...prev,
+      [partId]: {
+        ...prev[partId],
+        [key]: checked,
+      },
+    }))
+  }
+
+  // Real-time score calculation
+  const calculateRealtimeScore = (partId: string) => {
+    const data = bodyPartData[partId]
+    const fs = forceStaticData[partId]
+    if (!data) return null
+
+    let postureScore = 0
+    let additionalScore = 0
+
+    switch (partId) {
+      case 'HAND_WRIST':
+        postureScore = calculateHandWristPostureScore(data.angles as unknown as HandWristAngles)
+        additionalScore = calculateHandWristAdditionalScore(data.factors as unknown as HandWristFactors)
+        break
+      case 'ELBOW_FOREARM':
+        postureScore = calculateElbowPostureScore(data.angles as unknown as ElbowAngles)
+        additionalScore = calculateElbowAdditionalScore(data.factors as unknown as ElbowFactors)
+        break
+      case 'SHOULDER_ARM':
+        postureScore = calculateShoulderPostureScore(data.angles as unknown as ShoulderAngles)
+        additionalScore = calculateShoulderAdditionalScore(data.factors as unknown as ShoulderFactors)
+        break
+      case 'NECK':
+        postureScore = calculateNeckPostureScore(data.angles as unknown as NeckAngles)
+        additionalScore = calculateNeckAdditionalScore(data.factors as unknown as NeckFactors)
+        break
+      case 'BACK_HIP':
+        postureScore = calculateBackPostureScore(data.angles as unknown as BackAngles)
+        additionalScore = calculateBackAdditionalScore(data.factors as unknown as BackFactors)
+        break
+      case 'KNEE_ANKLE':
+        postureScore = calculateKneeAnklePostureScore(data.angles as unknown as KneeAnkleValues)
+        additionalScore = calculateKneeAnkleAdditionalScore(data.factors as unknown as KneeAnkleFactors)
+        break
+    }
+
+    const forceScore = calculateForceScore(fs?.forceChecked ?? false)
+    const staticRepetitionScore = calculateStaticRepetitionScore(
+      fs?.staticOver1min ?? false,
+      fs?.repetitionChecked ?? false
+    )
+    const totalScore = calculateTotalScore(postureScore, additionalScore, forceScore, staticRepetitionScore)
+
+    return { postureScore, additionalScore, forceScore, staticRepetitionScore, totalScore }
+  }
+
   const handleSaveBodyPart = async (partId: string) => {
     setSavingPart(partId)
     try {
@@ -253,6 +382,11 @@ export function Sheet2Modal({
             bodyPart: partId,
             angles: bodyPartData[partId].angles,
             additionalFactors: bodyPartData[partId].factors,
+            forceStaticFactors: forceStaticData[partId] || {
+              forceChecked: false,
+              staticOver1min: false,
+              repetitionChecked: false,
+            },
           }),
         }
       )
@@ -312,21 +446,23 @@ export function Sheet2Modal({
           {/* Summary */}
           <div className="grid grid-cols-6 gap-2 mb-4">
             {BODY_PARTS.map((part) => {
-              const score = localScores.find((s) => s.bodyPart === part.id)
-              const level = score ? getScoreLevel(score.totalScore) : null
+              const realtimeScore = calculateRealtimeScore(part.id)
+              const savedScore = localScores.find((s) => s.bodyPart === part.id)
+              const displayTotal = realtimeScore?.totalScore ?? savedScore?.totalScore
+              const level = displayTotal != null ? getScoreLevel(displayTotal) : null
               const levelInfo = level ? SCORE_LEVEL_INFO[level] : null
 
               return (
                 <div
                   key={part.id}
                   className={`text-center p-2 rounded-lg border ${
-                    score ? levelInfo?.color : 'bg-gray-50 border-gray-200'
+                    displayTotal != null ? levelInfo?.color : 'bg-gray-50 border-gray-200'
                   }`}
                 >
                   <div className="text-lg">{part.icon}</div>
                   <div className="text-xs text-gray-600">{part.name}</div>
-                  {score ? (
-                    <div className="text-xl font-bold">{score.totalScore}</div>
+                  {displayTotal != null ? (
+                    <div className="text-xl font-bold">{displayTotal}</div>
                   ) : (
                     <div className="text-sm text-gray-400">-</div>
                   )}
@@ -340,8 +476,11 @@ export function Sheet2Modal({
             {BODY_PARTS.map((part) => {
               const isExpanded = expandedParts.has(part.id)
               const existingScore = localScores.find((s) => s.bodyPart === part.id)
-              const scoreLevel = existingScore ? getScoreLevel(existingScore.totalScore) : null
+              const realtimeScore = calculateRealtimeScore(part.id)
+              const displayTotal = realtimeScore?.totalScore ?? existingScore?.totalScore
+              const scoreLevel = displayTotal != null ? getScoreLevel(displayTotal) : null
               const levelInfo = scoreLevel ? SCORE_LEVEL_INFO[scoreLevel] : null
+              const fsLabels = FORCE_STATIC_LABELS[part.id]
 
               return (
                 <div key={part.id} className="border rounded-lg overflow-hidden">
@@ -352,9 +491,9 @@ export function Sheet2Modal({
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{part.icon}</span>
                       <span className="font-medium text-gray-900">{part.name}</span>
-                      {existingScore && (
+                      {displayTotal != null && (
                         <span className={`text-xs px-2 py-0.5 rounded ${levelInfo?.color || ''}`}>
-                          {existingScore.totalScore}점
+                          {displayTotal}점
                         </span>
                       )}
                     </div>
@@ -370,6 +509,25 @@ export function Sheet2Modal({
 
                   {isExpanded && (
                     <div className="border-t bg-gray-50 p-4 space-y-4">
+                      {/* Real-time Score Display */}
+                      {realtimeScore && (
+                        <div className="bg-white rounded-lg border p-3">
+                          <div className="flex items-center gap-3 text-xs">
+                            <span>자세:<strong>{realtimeScore.postureScore}</strong></span>
+                            <span className="text-gray-400">+</span>
+                            <span>부가:<strong>{realtimeScore.additionalScore}</strong></span>
+                            <span className="text-gray-400">+</span>
+                            <span>힘:<strong>{realtimeScore.forceScore}</strong></span>
+                            <span className="text-gray-400">+</span>
+                            <span>정적/반복:<strong>{realtimeScore.staticRepetitionScore}</strong></span>
+                            <span className="text-gray-400">=</span>
+                            <span className={`font-bold text-sm px-2 py-0.5 rounded ${levelInfo?.color || ''}`}>
+                              {realtimeScore.totalScore}점
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       <div>
                         <h4 className="text-sm font-medium text-gray-700 mb-2">
                           {part.id === 'KNEE_ANKLE' ? '작업 특성' : '자세 각도'}
@@ -413,6 +571,51 @@ export function Sheet2Modal({
                               <span className="text-gray-700">{label}</span>
                             </label>
                           ))}
+                        </div>
+                      </div>
+
+                      {/* Force / Static / Repetition */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">힘 / 정적자세 / 반복성</h4>
+                        <div className="space-y-1">
+                          <label className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={forceStaticData[part.id]?.forceChecked ?? false}
+                              onChange={(e) => handleForceStaticChange(part.id, 'forceChecked', e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300"
+                            />
+                            <span className="text-gray-700">
+                              <strong className="text-blue-700">[힘 +1]</strong> {fsLabels.force}
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={forceStaticData[part.id]?.staticOver1min ?? false}
+                              onChange={(e) => handleForceStaticChange(part.id, 'staticOver1min', e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300"
+                            />
+                            <span className="text-gray-700">
+                              <strong className="text-orange-700">[정적 +1]</strong> {fsLabels.static}
+                            </span>
+                          </label>
+                          {fsLabels.repetition && (
+                            <label className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer text-sm">
+                              <input
+                                type="checkbox"
+                                checked={forceStaticData[part.id]?.repetitionChecked ?? false}
+                                onChange={(e) => handleForceStaticChange(part.id, 'repetitionChecked', e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300"
+                              />
+                              <span className="text-gray-700">
+                                <strong className="text-orange-700">[반복 +1]</strong> {fsLabels.repetition}
+                              </span>
+                            </label>
+                          )}
+                          <p className="text-xs text-gray-500 ml-2">
+                            * 힘: 체크시 +1점 / 정적·반복: 둘 중 하나라도 체크시 +1점 (최대 +1)
+                          </p>
                         </div>
                       </div>
 

@@ -29,10 +29,58 @@ export const JOB_AUTONOMY_OPTIONS = [
   { value: 3, label: '라인작업이며 정해진 작업속도에 맞추어야 함' },
 ] as const
 
+export const OCCASIONAL_REASON_OPTIONS = [
+  { value: '질환자발생', label: '질환자발생' },
+  { value: '설비변화', label: '설비변화' },
+  { value: '작업방법변경', label: '작업방법변경' },
+  { value: '기타', label: '기타(직접입력)' },
+] as const
+
+export const WORK_DAYS_OPTIONS = [
+  { value: '주5일', label: '주5일' },
+  { value: '주6일', label: '주6일' },
+  { value: '기타', label: '기타(직접입력)' },
+] as const
+
+export const SHIFT_TYPE_OPTIONS = [
+  { value: '주간고정', label: '주간고정' },
+  { value: '주야2교대', label: '주야2교대' },
+  { value: '주간연속2교대', label: '주간연속2교대' },
+  { value: '4조3교대', label: '4조3교대' },
+  { value: '5조3교대', label: '5조3교대' },
+  { value: '기타', label: '기타(직접입력)' },
+] as const
+
 export const CHANGE_OPTIONS = [
+  { value: 'CHANGE', label: '변화있음' },
   { value: 'NO_CHANGE', label: '변화없음' },
-  { value: 'INCREASE', label: '증가' },
-  { value: 'DECREASE', label: '감소' },
+] as const
+
+export const OTHER_RISK_OPTIONS = [
+  { key: 'hasNoise', label: '소음' },
+  { key: 'hasThermal', label: '온열' },
+  { key: 'hasBurn', label: '화상' },
+  { key: 'hasDust', label: '분진' },
+  { key: 'hasAccident', label: '사고성재해' },
+  { key: 'hasStress', label: '스트레스' },
+  { key: 'hasOtherRisk', label: '기타(직접입력)' },
+] as const
+
+export const AFFECTED_BODY_PARTS = [
+  { key: 'affectedHandWrist', label: '손/손목' },
+  { key: 'affectedElbow', label: '팔꿈치/아래팔' },
+  { key: 'affectedShoulder', label: '어깨/위팔' },
+  { key: 'affectedNeck', label: '목' },
+  { key: 'affectedBack', label: '허리/고관절' },
+  { key: 'affectedKnee', label: '무릎/발목' },
+] as const
+
+export const WORK_CONDITION_CHANGES = [
+  { key: 'changeWorkHours', label: '작업시간(특근 등)' },
+  { key: 'changeWorkSpeed', label: '작업속도' },
+  { key: 'changeManpower', label: '인력' },
+  { key: 'changeWorkload', label: '작업량(일의 종류)' },
+  { key: 'changeEquipment', label: '작업설비' },
 ] as const
 
 export const MANAGEMENT_LEVEL_OPTIONS = [
@@ -171,7 +219,14 @@ export interface KneeAnkleValues {
   kneelingTime: number    // 무릎꿇기/쪼그리기 (시간/일)
   climbingCount: number   // 오르내리기 (회/일)
   drivingHours: number    // 운전형태 (시간/일)
-  walkingHours: number    // 걷기 (시간/일)
+  walkingKm: number       // 걷기 (km/일)
+}
+
+// 힘 점수 / 정적·반복 점수 (부위별 추가 항목)
+export interface ForceStaticFactors {
+  forceChecked: boolean       // 힘 점수 체크
+  staticOver1min: boolean     // 1분 이상 정적자세
+  repetitionChecked: boolean  // 반복 체크 (부위별 기준 다름)
 }
 
 // 무릎/발목 부가요인
@@ -191,10 +246,18 @@ export interface KneeAnkleFactors {
 // 1번시트 (관리카드) 폼 데이터
 export interface Sheet1FormData {
   assessmentType: string
+  workerName: string
+  investigatorName: string
+  occasionalReason: string
+  occasionalReasonCustom: string
   dailyWorkHours: number | null
   dailyProduction: string
   workFrequency: string
   employmentType: string
+  workDays: string
+  workDaysCustom: string
+  shiftType: string
+  shiftTypeCustom: string
   jobAutonomy: number | null
 
   // 기타 위험요인
@@ -202,6 +265,10 @@ export interface Sheet1FormData {
   hasThermal: boolean
   hasBurn: boolean
   hasDust: boolean
+  hasAccident: boolean
+  hasStress: boolean
+  hasOtherRisk: boolean
+  otherRiskDetail: string
 
   // 부담부위
   affectedHandWrist: boolean
@@ -211,12 +278,15 @@ export interface Sheet1FormData {
   affectedBack: boolean
   affectedKnee: boolean
 
-  // 작업조건 변화
+  // 작업조건 변화 (변화있음/변화없음)
   changeWorkHours: string
   changeWorkSpeed: string
   changeManpower: string
   changeWorkload: string
   changeEquipment: string
+
+  // 참조
+  reference: string
 }
 
 // 요소작업 기본 정보
@@ -307,16 +377,28 @@ export interface AssessmentDetail {
   status: MSurveyStatus
 
   // 1번시트 필드
+  workerName: string | null
+  investigatorName: string | null
+  occasionalReason: string | null
+  occasionalReasonCustom: string | null
   dailyWorkHours: number | null
   dailyProduction: string | null
   workFrequency: string | null
   employmentType: string | null
+  workDays: string | null
+  workDaysCustom: string | null
+  shiftType: string | null
+  shiftTypeCustom: string | null
   jobAutonomy: number | null
 
   hasNoise: boolean
   hasThermal: boolean
   hasBurn: boolean
   hasDust: boolean
+  hasAccident: boolean
+  hasStress: boolean
+  hasOtherRisk: boolean
+  otherRiskDetail: string | null
 
   affectedHandWrist: boolean
   affectedElbow: boolean
@@ -330,6 +412,8 @@ export interface AssessmentDetail {
   changeManpower: string | null
   changeWorkload: string | null
   changeEquipment: string | null
+
+  reference: string | null
 
   // 4번시트 필드
   managementLevel: string | null

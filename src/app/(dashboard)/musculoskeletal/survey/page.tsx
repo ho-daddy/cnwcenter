@@ -23,6 +23,16 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import {
+  OCCASIONAL_REASON_OPTIONS,
+  WORK_DAYS_OPTIONS,
+  SHIFT_TYPE_OPTIONS,
+  JOB_AUTONOMY_OPTIONS,
+  OTHER_RISK_OPTIONS,
+  AFFECTED_BODY_PARTS,
+  WORK_CONDITION_CHANGES,
+  CHANGE_OPTIONS,
+} from '@/types/musculoskeletal'
 
 // Import modals
 import { Sheet2Modal } from '@/components/musculoskeletal/sheet2-modal'
@@ -91,10 +101,39 @@ interface Assessment {
   year: number
   assessmentType: string
   status: string
+  workerName: string | null
+  investigatorName: string | null
+  occasionalReason: string | null
+  occasionalReasonCustom: string | null
   dailyWorkHours: number | null
   dailyProduction: string | null
   workFrequency: string | null
   employmentType: string | null
+  workDays: string | null
+  workDaysCustom: string | null
+  shiftType: string | null
+  shiftTypeCustom: string | null
+  jobAutonomy: number | null
+  hasNoise: boolean
+  hasThermal: boolean
+  hasBurn: boolean
+  hasDust: boolean
+  hasAccident: boolean
+  hasStress: boolean
+  hasOtherRisk: boolean
+  otherRiskDetail: string | null
+  affectedHandWrist: boolean
+  affectedElbow: boolean
+  affectedShoulder: boolean
+  affectedNeck: boolean
+  affectedBack: boolean
+  affectedKnee: boolean
+  changeWorkHours: string | null
+  changeWorkSpeed: string | null
+  changeManpower: string | null
+  changeWorkload: string | null
+  changeEquipment: string | null
+  reference: string | null
   managementLevel: string | null
   overallComment: string | null
   organizationUnit: {
@@ -131,8 +170,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 }
 
 const SHEET_TABS = [
-  { id: 'overview', label: '개요', icon: FileText },
-  { id: 'sheet1', label: '1.관리카드', icon: ClipboardList },
+  { id: 'overview', label: '개요·관리카드', icon: FileText },
   { id: 'sheet2', label: '2.부위별점수', icon: Calculator },
   { id: 'sheet3', label: '3.RULA/REBA', icon: BarChart3 },
   { id: 'sheet4', label: '4.종합평가', icon: CheckCircle },
@@ -974,28 +1012,28 @@ function AssessmentDetail({
       </CardHeader>
 
       <CardContent>
-        {/* Overview Tab */}
+        {/* 개요·관리카드 통합 탭 */}
         {activeTab === 'overview' && (
-          <OverviewContent
-            assessment={assessment}
-            isAddingWork={isAddingWork}
-            setIsAddingWork={setIsAddingWork}
-            newWorkName={newWorkName}
-            setNewWorkName={setNewWorkName}
-            onAddWork={onAddWork}
-            onDeleteWork={onDeleteWork}
-            onOpenSheet2={onOpenSheet2}
-            onOpenSheet3={onOpenSheet3}
-          />
-        )}
-
-        {/* Sheet1 Tab */}
-        {activeTab === 'sheet1' && (
-          <Sheet1Content
-            assessment={assessment}
-            workplaceId={workplaceId}
-            onUpdate={onUpdate}
-          />
+          <>
+            <OverviewContent
+              assessment={assessment}
+              isAddingWork={isAddingWork}
+              setIsAddingWork={setIsAddingWork}
+              newWorkName={newWorkName}
+              setNewWorkName={setNewWorkName}
+              onAddWork={onAddWork}
+              onDeleteWork={onDeleteWork}
+              onOpenSheet2={onOpenSheet2}
+              onOpenSheet3={onOpenSheet3}
+            />
+            <div className="mt-6">
+              <Sheet1Content
+                assessment={assessment}
+                workplaceId={workplaceId}
+                onUpdate={onUpdate}
+              />
+            </div>
+          </>
         )}
 
         {/* Sheet2 Tab */}
@@ -1079,19 +1117,19 @@ function OverviewContent({
         <div>
           <h4 className="font-medium text-gray-800 mb-3">진행 상태</h4>
           <div className="space-y-2">
-            <SheetProgress label="1번시트" completed={!!assessment.dailyWorkHours} />
+            <SheetProgress label="관리카드" completed={!!assessment.dailyWorkHours} />
             <SheetProgress
-              label="2번시트"
+              label="부위별점수"
               completed={assessment.elementWorks.some((w) => w.bodyPartScores.length > 0)}
             />
             <SheetProgress
-              label="3번시트"
+              label="RULA/REBA"
               completed={assessment.elementWorks.some(
                 (w) => w.rulaScore !== null || w.rebaScore !== null
               )}
             />
             <SheetProgress
-              label="4번시트"
+              label="종합평가"
               completed={!!assessment.managementLevel}
             />
           </div>
@@ -1215,7 +1253,7 @@ function SheetProgress({ label, completed }: { label: string; completed: boolean
   )
 }
 
-// Sheet1 Content
+// Sheet1 Content - 관리카드 (확장)
 function Sheet1Content({
   assessment,
   workplaceId,
@@ -1226,10 +1264,39 @@ function Sheet1Content({
   onUpdate: (data: Partial<Assessment>) => void
 }) {
   const [formData, setFormData] = useState({
-    dailyWorkHours: assessment.dailyWorkHours || '',
+    workerName: assessment.workerName || '',
+    investigatorName: assessment.investigatorName || '',
+    occasionalReason: assessment.occasionalReason || '',
+    occasionalReasonCustom: assessment.occasionalReasonCustom || '',
+    dailyWorkHours: assessment.dailyWorkHours ?? '',
     dailyProduction: assessment.dailyProduction || '',
     workFrequency: assessment.workFrequency || '상시',
     employmentType: assessment.employmentType || '정규직',
+    workDays: assessment.workDays || '주5일',
+    workDaysCustom: assessment.workDaysCustom || '',
+    shiftType: assessment.shiftType || '주간고정',
+    shiftTypeCustom: assessment.shiftTypeCustom || '',
+    jobAutonomy: assessment.jobAutonomy ?? null,
+    hasNoise: assessment.hasNoise,
+    hasThermal: assessment.hasThermal,
+    hasBurn: assessment.hasBurn,
+    hasDust: assessment.hasDust,
+    hasAccident: assessment.hasAccident,
+    hasStress: assessment.hasStress,
+    hasOtherRisk: assessment.hasOtherRisk,
+    otherRiskDetail: assessment.otherRiskDetail || '',
+    affectedHandWrist: assessment.affectedHandWrist,
+    affectedElbow: assessment.affectedElbow,
+    affectedShoulder: assessment.affectedShoulder,
+    affectedNeck: assessment.affectedNeck,
+    affectedBack: assessment.affectedBack,
+    affectedKnee: assessment.affectedKnee,
+    changeWorkHours: assessment.changeWorkHours || 'NO_CHANGE',
+    changeWorkSpeed: assessment.changeWorkSpeed || 'NO_CHANGE',
+    changeManpower: assessment.changeManpower || 'NO_CHANGE',
+    changeWorkload: assessment.changeWorkload || 'NO_CHANGE',
+    changeEquipment: assessment.changeEquipment || 'NO_CHANGE',
+    reference: assessment.reference || '',
   })
   const [isSaving, setIsSaving] = useState(false)
 
@@ -1242,12 +1309,11 @@ function Sheet1Content({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...formData,
             dailyWorkHours: formData.dailyWorkHours
               ? parseFloat(formData.dailyWorkHours as string)
               : null,
-            dailyProduction: formData.dailyProduction || null,
-            workFrequency: formData.workFrequency,
-            employmentType: formData.employmentType,
+            jobAutonomy: formData.jobAutonomy,
           }),
         }
       )
@@ -1265,18 +1331,80 @@ function Sheet1Content({
     }
   }
 
+  const setField = (key: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+  }
+
   return (
     <div className="space-y-4">
+      <h4 className="font-medium text-gray-800">관리카드</h4>
+
+      {/* 작업자 / 조사자 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">작업자</label>
+          <input
+            type="text"
+            value={formData.workerName}
+            onChange={(e) => setField('workerName', e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+            placeholder="작업자명"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">조사자</label>
+          <input
+            type="text"
+            value={formData.investigatorName}
+            onChange={(e) => setField('investigatorName', e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+            placeholder="조사자명"
+          />
+        </div>
+      </div>
+
+      {/* 수시조사 사유 */}
+      {assessment.assessmentType === '수시조사' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">수시조사 사유</label>
+          <div className="flex flex-wrap gap-3">
+            {OCCASIONAL_REASON_OPTIONS.map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="occasionalReason"
+                  value={opt.value}
+                  checked={formData.occasionalReason === opt.value}
+                  onChange={(e) => setField('occasionalReason', e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+          {formData.occasionalReason === '기타' && (
+            <input
+              type="text"
+              value={formData.occasionalReasonCustom}
+              onChange={(e) => setField('occasionalReasonCustom', e.target.value)}
+              className="mt-2 w-full px-3 py-2 border rounded-lg text-sm"
+              placeholder="기타 사유 입력"
+            />
+          )}
+        </div>
+      )}
+
+      {/* 작업조건 기본 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">1일 작업시간</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">1일 작업시간 (시간)</label>
           <input
             type="number"
             step="0.5"
             value={formData.dailyWorkHours}
-            onChange={(e) => setFormData({ ...formData, dailyWorkHours: e.target.value })}
+            onChange={(e) => setField('dailyWorkHours', e.target.value)}
             className="w-full px-3 py-2 border rounded-lg text-sm"
-            placeholder="시간"
+            placeholder="예: 8"
           />
         </div>
         <div>
@@ -1284,15 +1412,16 @@ function Sheet1Content({
           <input
             type="text"
             value={formData.dailyProduction}
-            onChange={(e) => setFormData({ ...formData, dailyProduction: e.target.value })}
+            onChange={(e) => setField('dailyProduction', e.target.value)}
             className="w-full px-3 py-2 border rounded-lg text-sm"
+            placeholder="예: 100개/일"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">작업빈도</label>
           <select
             value={formData.workFrequency}
-            onChange={(e) => setFormData({ ...formData, workFrequency: e.target.value })}
+            onChange={(e) => setField('workFrequency', e.target.value)}
             className="w-full px-3 py-2 border rounded-lg text-sm"
           >
             <option value="상시">상시</option>
@@ -1303,7 +1432,7 @@ function Sheet1Content({
           <label className="block text-sm font-medium text-gray-700 mb-1">고용형태</label>
           <select
             value={formData.employmentType}
-            onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
+            onChange={(e) => setField('employmentType', e.target.value)}
             className="w-full px-3 py-2 border rounded-lg text-sm"
           >
             <option value="정규직">정규직</option>
@@ -1314,10 +1443,175 @@ function Sheet1Content({
         </div>
       </div>
 
+      {/* 작업일수 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">작업일수</label>
+        <div className="flex flex-wrap gap-3">
+          {WORK_DAYS_OPTIONS.map((opt) => (
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="workDays"
+                value={opt.value}
+                checked={formData.workDays === opt.value}
+                onChange={(e) => setField('workDays', e.target.value)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        {formData.workDays === '기타' && (
+          <input
+            type="text"
+            value={formData.workDaysCustom}
+            onChange={(e) => setField('workDaysCustom', e.target.value)}
+            className="mt-2 w-full max-w-xs px-3 py-2 border rounded-lg text-sm"
+            placeholder="직접 입력"
+          />
+        )}
+      </div>
+
+      {/* 교대근무형태 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">교대근무형태</label>
+        <div className="flex flex-wrap gap-3">
+          {SHIFT_TYPE_OPTIONS.map((opt) => (
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="shiftType"
+                value={opt.value}
+                checked={formData.shiftType === opt.value}
+                onChange={(e) => setField('shiftType', e.target.value)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        {formData.shiftType === '기타' && (
+          <input
+            type="text"
+            value={formData.shiftTypeCustom}
+            onChange={(e) => setField('shiftTypeCustom', e.target.value)}
+            className="mt-2 w-full max-w-xs px-3 py-2 border rounded-lg text-sm"
+            placeholder="직접 입력"
+          />
+        )}
+      </div>
+
+      {/* 직무자율성 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">직무자율성</label>
+        <div className="space-y-2">
+          {JOB_AUTONOMY_OPTIONS.map((opt) => (
+            <label key={opt.value} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer">
+              <input
+                type="radio"
+                name="jobAutonomy"
+                value={opt.value}
+                checked={formData.jobAutonomy === opt.value}
+                onChange={() => setField('jobAutonomy', opt.value)}
+                className="w-4 h-4 mt-0.5"
+              />
+              <span className="text-sm text-gray-700">{opt.value}. {opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* 기타 위험요인 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">기타 위험요인</label>
+        <div className="flex flex-wrap gap-3">
+          {OTHER_RISK_OPTIONS.map((opt) => (
+            <label key={opt.key} className="flex items-center gap-2 p-2 rounded border hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(formData as Record<string, unknown>)[opt.key]}
+                onChange={(e) => setField(opt.key, e.target.checked)}
+                className="w-4 h-4 rounded"
+              />
+              <span className="text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        {formData.hasOtherRisk && (
+          <input
+            type="text"
+            value={formData.otherRiskDetail}
+            onChange={(e) => setField('otherRiskDetail', e.target.value)}
+            className="mt-2 w-full max-w-md px-3 py-2 border rounded-lg text-sm"
+            placeholder="기타 위험요인 입력"
+          />
+        )}
+      </div>
+
+      {/* 부담부위 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">부담부위</label>
+        <div className="flex flex-wrap gap-3">
+          {AFFECTED_BODY_PARTS.map((opt) => (
+            <label key={opt.key} className="flex items-center gap-2 p-2 rounded border hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!(formData as Record<string, unknown>)[opt.key]}
+                onChange={(e) => setField(opt.key, e.target.checked)}
+                className="w-4 h-4 rounded"
+              />
+              <span className="text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* 작업조건 변화 (최근 3년) */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          작업조건 변화 (최근 3년)
+        </label>
+        <div className="space-y-2">
+          {WORK_CONDITION_CHANGES.map((item) => (
+            <div key={item.key} className="flex items-center justify-between p-3 rounded-lg border">
+              <span className="text-sm text-gray-700">{item.label}</span>
+              <div className="flex gap-4">
+                {CHANGE_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={item.key}
+                      value={opt.value}
+                      checked={(formData as Record<string, unknown>)[item.key] === opt.value}
+                      onChange={(e) => setField(item.key, e.target.value)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 참조 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">참조</label>
+        <textarea
+          value={formData.reference}
+          onChange={(e) => setField('reference', e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+          placeholder="자유형식으로 참조사항을 입력하세요..."
+        />
+      </div>
+
+      {/* 저장 */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-          저장
+          관리카드 저장
         </Button>
       </div>
     </div>
@@ -1336,7 +1630,7 @@ function Sheet2Content({
     return (
       <div className="text-center py-8 text-gray-500">
         <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-        <p className="text-sm">개요 탭에서 먼저 요소작업을 추가하세요.</p>
+        <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
       </div>
     )
   }
@@ -1404,7 +1698,7 @@ function Sheet3Content({
     return (
       <div className="text-center py-8 text-gray-500">
         <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-        <p className="text-sm">개요 탭에서 먼저 요소작업을 추가하세요.</p>
+        <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
       </div>
     )
   }
