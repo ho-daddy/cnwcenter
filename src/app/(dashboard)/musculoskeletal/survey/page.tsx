@@ -37,12 +37,6 @@ interface Workplace {
   }
 }
 
-interface Organization {
-  id: string
-  name: string
-  year: number
-}
-
 interface OrganizationUnit {
   id: string
   name: string
@@ -164,8 +158,7 @@ export default function SurveyListPage() {
   // State for top section
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
   const [selectedWorkplace, setSelectedWorkplace] = useState<Workplace | null>(null)
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
   const [orgUnits, setOrgUnits] = useState<OrganizationUnit[]>([])
   const [selectedUnit, setSelectedUnit] = useState<OrganizationUnit | null>(null)
   const [assessments, setAssessments] = useState<Assessment[]>([])
@@ -205,58 +198,42 @@ export default function SurveyListPage() {
     fetchWorkplaces()
   }, [])
 
-  // Fetch organizations when workplace changes
+  // Fetch organization and units when workplace changes (single org per workplace)
   useEffect(() => {
     if (!selectedWorkplace) {
-      setOrganizations([])
-      setSelectedOrg(null)
+      setOrgId(null)
+      setOrgUnits([])
+      setSelectedUnit(null)
       return
     }
 
-    const fetchOrganizations = async () => {
+    const fetchOrgAndUnits = async () => {
       try {
-        const res = await fetch(`/api/workplaces/${selectedWorkplace.id}/organizations`)
-        if (res.ok) {
-          const data = await res.json()
-          setOrganizations(data.organizations || [])
-          // Auto-select the most recent organization
-          if (data.organizations && data.organizations.length > 0) {
-            setSelectedOrg(data.organizations[0])
+        // 단일 조직도 조회 (없으면 자동 생성)
+        const orgRes = await fetch(`/api/workplaces/${selectedWorkplace.id}/organizations`)
+        if (orgRes.ok) {
+          const orgData = await orgRes.json()
+          const org = orgData.organization
+          if (org) {
+            setOrgId(org.id)
+            // 조직도 단위 트리 조회
+            const unitsRes = await fetch(
+              `/api/workplaces/${selectedWorkplace.id}/organizations/${org.id}`
+            )
+            if (unitsRes.ok) {
+              const unitsData = await unitsRes.json()
+              const flatUnits = unitsData.flatUnits || []
+              const treeUnits = buildOrganizationTree(flatUnits)
+              setOrgUnits(treeUnits)
+            }
           }
         }
       } catch (error) {
         console.error('조직도 조회 오류:', error)
       }
     }
-    fetchOrganizations()
+    fetchOrgAndUnits()
   }, [selectedWorkplace])
-
-  // Fetch organization units when organization changes
-  useEffect(() => {
-    if (!selectedWorkplace || !selectedOrg) {
-      setOrgUnits([])
-      setSelectedUnit(null)
-      return
-    }
-
-    const fetchUnits = async () => {
-      try {
-        const res = await fetch(
-          `/api/workplaces/${selectedWorkplace.id}/organizations/${selectedOrg.id}/units`
-        )
-        if (res.ok) {
-          const data = await res.json()
-          // Transform flat array to tree structure
-          const flatUnits = data.units || []
-          const treeUnits = buildOrganizationTree(flatUnits)
-          setOrgUnits(treeUnits)
-        }
-      } catch (error) {
-        console.error('조직 단위 조회 오류:', error)
-      }
-    }
-    fetchUnits()
-  }, [selectedWorkplace, selectedOrg])
 
   // Fetch assessments when workplace changes
   useEffect(() => {
@@ -305,8 +282,8 @@ export default function SurveyListPage() {
   })
 
   // Handle new assessment
-  const handleNewAssessment = async () => {
-    if (!selectedWorkplace || !selectedUnit || !selectedOrg) {
+  const handleNewAssessment = async (year?: number, assessmentType?: string) => {
+    if (!selectedWorkplace || !selectedUnit) {
       alert('사업장과 평가단위를 먼저 선택하세요.')
       return
     }
@@ -316,10 +293,9 @@ export default function SurveyListPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          organizationId: selectedOrg.id,
           organizationUnitId: selectedUnit.id,
-          year: new Date().getFullYear(),
-          assessmentType: '정기조사',
+          year: year || new Date().getFullYear(),
+          assessmentType: assessmentType || '정기조사',
         }),
       })
 
@@ -467,26 +443,6 @@ export default function SurveyListPage() {
                   <span className="text-gray-500 font-normal">- {selectedWorkplace.name}</span>
                 )}
               </CardTitle>
-              <div className="flex items-center gap-2">
-                {organizations.length > 0 && (
-                  <select
-                    value={selectedOrg?.id || ''}
-                    onChange={(e) => {
-                      const org = organizations.find((o) => o.id === e.target.value)
-                      setSelectedOrg(org || null)
-                      setSelectedUnit(null)
-                      setSelectedAssessment(null)
-                    }}
-                    className="text-xs px-2 py-1 border rounded"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.year}년
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
             </div>
             {/* Search */}
             {selectedWorkplace && orgUnits.length > 0 && (
@@ -634,7 +590,7 @@ function IntegratedTreeView({
   statusFilter: string
   onSelectUnit: (unit: OrganizationUnit) => void
   onSelectAssessment: (assessmentId: string) => void
-  onNewAssessment: () => void
+  onNewAssessment: (year?: number, assessmentType?: string) => void
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -766,48 +722,12 @@ function IntegratedTreeView({
 
         {/* Assessments for this unit (shown when selected or has few items) */}
         {unit.isLeaf && isSelected && (
-          <div className="ml-9 mt-1 mb-2 space-y-1">
-            {unitAssessments.length === 0 ? (
-              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
-                <span className="text-gray-500">조사 내역이 없습니다.</span>
-                <Button size="sm" variant="outline" onClick={onNewAssessment}>
-                  <Plus className="w-3 h-3 mr-1" />
-                  새 조사
-                </Button>
-              </div>
-            ) : (
-              <>
-                {unitAssessments.map((assessment) => (
-                  <button
-                    key={assessment.id}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onSelectAssessment(assessment.id)
-                    }}
-                    className={`w-full flex items-center justify-between p-2 rounded text-left text-sm transition-colors ${
-                      selectedAssessment?.id === assessment.id
-                        ? 'bg-blue-100 border border-blue-300'
-                        : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                    }`}
-                  >
-                    <span className="text-gray-700">
-                      {assessment.year}년 {assessment.assessmentType}
-                    </span>
-                    <StatusBadge status={assessment.status} />
-                  </button>
-                ))}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  onClick={onNewAssessment}
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  새 조사 추가
-                </Button>
-              </>
-            )}
-          </div>
+          <NewAssessmentPanel
+            unitAssessments={unitAssessments}
+            selectedAssessment={selectedAssessment}
+            onSelectAssessment={onSelectAssessment}
+            onNewAssessment={onNewAssessment}
+          />
         )}
 
         {/* Children */}
@@ -856,6 +776,114 @@ function IntegratedTreeView({
         </div>
       )}
       <div className="space-y-0.5">{units.map((unit) => renderUnit(unit))}</div>
+    </div>
+  )
+}
+
+// New Assessment Panel with year + type selection
+function NewAssessmentPanel({
+  unitAssessments,
+  selectedAssessment,
+  onSelectAssessment,
+  onNewAssessment,
+}: {
+  unitAssessments: Assessment[]
+  selectedAssessment: Assessment | null
+  onSelectAssessment: (assessmentId: string) => void
+  onNewAssessment: (year?: number, assessmentType?: string) => void
+}) {
+  const [showForm, setShowForm] = useState(false)
+  const [newYear, setNewYear] = useState(new Date().getFullYear())
+  const [newType, setNewType] = useState('정기조사')
+
+  return (
+    <div className="ml-9 mt-1 mb-2 space-y-1">
+      {unitAssessments.length === 0 && !showForm && (
+        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
+          <span className="text-gray-500">조사 내역이 없습니다.</span>
+          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+            <Plus className="w-3 h-3 mr-1" />
+            새 조사
+          </Button>
+        </div>
+      )}
+      {unitAssessments.length > 0 && (
+        <>
+          {unitAssessments.map((assessment) => (
+            <button
+              key={assessment.id}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectAssessment(assessment.id)
+              }}
+              className={`w-full flex items-center justify-between p-2 rounded text-left text-sm transition-colors ${
+                selectedAssessment?.id === assessment.id
+                  ? 'bg-blue-100 border border-blue-300'
+                  : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+              }`}
+            >
+              <span className="text-gray-700">
+                {assessment.year}년 {assessment.assessmentType}
+              </span>
+              <StatusBadge status={assessment.status} />
+            </button>
+          ))}
+          {!showForm && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              onClick={() => setShowForm(true)}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              새 조사 추가
+            </Button>
+          )}
+        </>
+      )}
+      {showForm && (
+        <div className="p-2 bg-blue-50 rounded border border-blue-200 space-y-2">
+          <div className="flex gap-2">
+            <select
+              value={newYear}
+              onChange={(e) => setNewYear(parseInt(e.target.value))}
+              className="text-xs px-2 py-1 border rounded flex-1"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                <option key={y} value={y}>{y}년</option>
+              ))}
+            </select>
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              className="text-xs px-2 py-1 border rounded flex-1"
+            >
+              <option value="정기조사">정기조사</option>
+              <option value="수시조사">수시조사</option>
+            </select>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={() => {
+                onNewAssessment(newYear, newType)
+                setShowForm(false)
+              }}
+            >
+              생성
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={() => setShowForm(false)}
+            >
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

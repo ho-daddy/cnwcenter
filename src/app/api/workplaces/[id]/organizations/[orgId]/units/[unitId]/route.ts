@@ -2,6 +2,38 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireStaffOrAbove } from '@/lib/auth-utils'
 
+// 조직 단위의 상위 경로를 구성
+async function buildUnitPath(unitId: string): Promise<string> {
+  const parts: string[] = []
+  let currentId: string | null = unitId
+
+  while (currentId) {
+    const found: { name: string; parentId: string | null } | null = await prisma.organizationUnit.findUnique({
+      where: { id: currentId },
+      select: { name: true, parentId: true },
+    })
+    if (!found) break
+    parts.unshift(found.name)
+    currentId = found.parentId
+  }
+
+  return parts.join(' > ')
+}
+
+// 하위 단위 ID를 재귀적으로 수집
+async function collectDescendantIds(unitId: string): Promise<string[]> {
+  const children = await prisma.organizationUnit.findMany({
+    where: { parentId: unitId },
+    select: { id: true },
+  })
+
+  const ids = [unitId]
+  for (const child of children) {
+    ids.push(...(await collectDescendantIds(child.id)))
+  }
+  return ids
+}
+
 // 조직 단위 수정
 export async function PATCH(
   request: NextRequest,
@@ -62,7 +94,7 @@ export async function PATCH(
   }
 }
 
-// 조직 단위 삭제 (하위 단위도 함께)
+// 조직 단위 삭제 (하위 단위도 함께, 조사 데이터 아카이브)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; orgId: string; unitId: string } }
@@ -73,7 +105,52 @@ export async function DELETE(
   }
 
   try {
-    // 하위 단위들 먼저 삭제 (재귀적으로)
+    // 1. 삭제 대상 단위 + 모든 하위 단위 ID 수집
+    const unitIds = await collectDescendantIds(params.unitId)
+
+    // 2. 해당 단위들에 연결된 조사 조회
+    const assessments = await prisma.musculoskeletalAssessment.findMany({
+      where: { organizationUnitId: { in: unitIds } },
+      include: {
+        organizationUnit: { select: { name: true } },
+        elementWorks: {
+          include: { bodyPartScores: true },
+        },
+        improvements: true,
+        attachments: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    let archivedCount = 0
+
+    // 3. 조사가 있으면 아카이브
+    if (assessments.length > 0) {
+      for (const assessment of assessments) {
+        const unitPath = await buildUnitPath(assessment.organizationUnitId)
+
+        await prisma.archivedAssessment.create({
+          data: {
+            workplaceId: params.id,
+            unitName: assessment.organizationUnit.name,
+            unitPath,
+            assessmentData: JSON.parse(JSON.stringify(assessment)),
+            year: assessment.year,
+            assessmentType: assessment.assessmentType,
+            originalAssessmentId: assessment.id,
+            archivedReason: '조직 단위 삭제',
+          },
+        })
+        archivedCount++
+      }
+
+      // 4. 조사 삭제 (cascade로 elementWorks, bodyPartScores, improvements, attachments도 삭제)
+      await prisma.musculoskeletalAssessment.deleteMany({
+        where: { organizationUnitId: { in: unitIds } },
+      })
+    }
+
+    // 5. 하위 단위들 먼저 삭제 (재귀적으로)
     const deleteChildren = async (parentId: string) => {
       const children = await prisma.organizationUnit.findMany({
         where: { parentId },
@@ -91,7 +168,11 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: '조직 단위 및 하위 단위가 삭제되었습니다.',
+      message:
+        archivedCount > 0
+          ? `조직 단위 및 하위 단위가 삭제되었습니다. (${archivedCount}건의 조사 데이터가 아카이브됨)`
+          : '조직 단위 및 하위 단위가 삭제되었습니다.',
+      archivedCount,
     })
   } catch (error) {
     console.error('[Unit] 삭제 오류:', error)

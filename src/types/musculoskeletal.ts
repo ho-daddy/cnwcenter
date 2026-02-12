@@ -301,7 +301,6 @@ export interface AssessmentSummary {
 export interface AssessmentDetail {
   id: string
   workplaceId: string
-  organizationId: string
   organizationUnitId: string
   year: number
   assessmentType: string

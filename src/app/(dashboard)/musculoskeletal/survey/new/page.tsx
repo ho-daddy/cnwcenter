@@ -28,18 +28,12 @@ export default function NewSurveyPageWrapper() {
   )
 }
 
-interface Organization {
-  id: string
-  name: string
-  year: number
-  isActive: boolean
-}
-
 interface OrganizationUnit {
   id: string
   name: string
   code: string | null
   isLeaf: boolean
+  parentId: string | null
   children?: OrganizationUnit[]
 }
 
@@ -48,22 +42,44 @@ interface Workplace {
   name: string
 }
 
+// Utility function to transform flat array to tree structure
+function buildOrganizationTree(flatUnits: OrganizationUnit[]): OrganizationUnit[] {
+  const unitMap = new Map<string, OrganizationUnit>()
+
+  flatUnits.forEach((unit) => {
+    unitMap.set(unit.id, { ...unit, children: [] })
+  })
+
+  const roots: OrganizationUnit[] = []
+
+  flatUnits.forEach((unit) => {
+    const node = unitMap.get(unit.id)!
+    if (unit.parentId && unitMap.has(unit.parentId)) {
+      const parent = unitMap.get(unit.parentId)!
+      parent.children!.push(node)
+    } else {
+      roots.push(node)
+    }
+  })
+
+  return roots
+}
+
 function NewSurveyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const workplaceId = searchParams.get('workplaceId')
 
   const [workplace, setWorkplace] = useState<Workplace | null>(null)
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [units, setUnits] = useState<OrganizationUnit[]>([])
   const [selectedUnit, setSelectedUnit] = useState<OrganizationUnit | null>(null)
   const [assessmentType, setAssessmentType] = useState<string>('정기조사')
+  const [assessmentYear, setAssessmentYear] = useState<number>(new Date().getFullYear())
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
 
-  // 사업장 정보 및 조직도 목록 조회
+  // 사업장 정보 및 단일 조직도 조회
   useEffect(() => {
     if (!workplaceId) {
       router.push('/musculoskeletal/survey')
@@ -79,17 +95,34 @@ function NewSurveyPage() {
           setWorkplace(wpData.workplace)
         }
 
-        // 조직도 목록
+        // 단일 조직도 조회 (없으면 자동 생성)
         const orgRes = await fetch(`/api/workplaces/${workplaceId}/organizations`)
         if (orgRes.ok) {
           const orgData = await orgRes.json()
-          setOrganizations(orgData.organizations)
-          // 활성 조직도 자동 선택, 없으면 첫 번째 조직도 선택
-          const activeOrg = orgData.organizations.find((o: Organization) => o.isActive)
-          if (activeOrg) {
-            setSelectedOrg(activeOrg)
-          } else if (orgData.organizations.length > 0) {
-            setSelectedOrg(orgData.organizations[0])
+          const org = orgData.organization
+          if (org) {
+            // 조직도 트리 조회
+            const unitsRes = await fetch(
+              `/api/workplaces/${workplaceId}/organizations/${org.id}`
+            )
+            if (unitsRes.ok) {
+              const unitsData = await unitsRes.json()
+              const flatUnits = unitsData.flatUnits || []
+              const treeUnits = buildOrganizationTree(flatUnits)
+              setUnits(treeUnits)
+              // 전체 펼치기
+              const allIds: string[] = []
+              const collectIds = (nodes: OrganizationUnit[]) => {
+                nodes.forEach((n) => {
+                  if (n.children && n.children.length > 0) {
+                    allIds.push(n.id)
+                    collectIds(n.children)
+                  }
+                })
+              }
+              collectIds(treeUnits)
+              setExpandedNodes(new Set(allIds))
+            }
           }
         }
       } catch (error) {
@@ -100,27 +133,6 @@ function NewSurveyPage() {
     }
     fetchData()
   }, [workplaceId, router])
-
-  // 선택된 조직도의 단위 목록 조회 (트리 구조)
-  useEffect(() => {
-    if (!selectedOrg || !workplaceId) return
-
-    const fetchUnits = async () => {
-      try {
-        // 트리 구조로 반환하는 조직도 상세 API 호출
-        const res = await fetch(
-          `/api/workplaces/${workplaceId}/organizations/${selectedOrg.id}`
-        )
-        if (res.ok) {
-          const data = await res.json()
-          setUnits(data.units || [])
-        }
-      } catch (error) {
-        console.error('조직단위 조회 오류:', error)
-      }
-    }
-    fetchUnits()
-  }, [selectedOrg, workplaceId])
 
   // 노드 확장/축소 토글
   const toggleNode = (nodeId: string) => {
@@ -137,7 +149,7 @@ function NewSurveyPage() {
 
   // 조사 생성
   const handleCreate = async () => {
-    if (!selectedUnit || !selectedOrg || !workplaceId) return
+    if (!selectedUnit || !workplaceId) return
 
     setIsCreating(true)
     try {
@@ -145,9 +157,8 @@ function NewSurveyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          organizationId: selectedOrg.id,
           organizationUnitId: selectedUnit.id,
-          year: new Date().getFullYear(),
+          year: assessmentYear,
           assessmentType,
         }),
       })
@@ -216,9 +227,6 @@ function NewSurveyPage() {
               }`}
             >
               {node.name}
-              {node.code && (
-                <span className="text-xs text-gray-400 ml-2">({node.code})</span>
-              )}
             </span>
             {node.isLeaf && (
               <span className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded">
@@ -261,29 +269,10 @@ function NewSurveyPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FolderTree className="w-5 h-5" />
-                  평가대상 선택
-                </CardTitle>
-                {organizations.length > 1 && (
-                  <select
-                    value={selectedOrg?.id || ''}
-                    onChange={(e) => {
-                      const org = organizations.find((o) => o.id === e.target.value)
-                      setSelectedOrg(org || null)
-                      setSelectedUnit(null)
-                    }}
-                    className="px-3 py-1.5 border rounded-lg text-sm"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.year}년 조직도 {org.isActive && '(활성)'}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FolderTree className="w-5 h-5" />
+                평가대상 선택
+              </CardTitle>
               <p className="text-sm text-gray-500 mt-2">
                 파란색으로 표시된 &quot;평가단위&quot;를 클릭하여 선택하세요.
               </p>
@@ -345,9 +334,19 @@ function NewSurveyPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   조사 년도
                 </label>
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <p className="font-medium">{new Date().getFullYear()}년</p>
-                </div>
+                <select
+                  value={assessmentYear}
+                  onChange={(e) => setAssessmentYear(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(
+                    (y) => (
+                      <option key={y} value={y}>
+                        {y}년
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
 
               {/* 생성 버튼 */}

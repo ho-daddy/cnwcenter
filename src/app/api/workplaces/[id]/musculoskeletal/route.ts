@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireWorkplaceAccess, requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess } from '@/lib/auth-utils'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -9,7 +9,6 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // WORKPLACE_USER도 할당된 사업장의 조사 목록 조회 가능
   const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
@@ -19,7 +18,6 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year')
     const status = searchParams.get('status')
-    const organizationId = searchParams.get('organizationId')
 
     const where: any = {
       workplaceId: params.id,
@@ -27,7 +25,6 @@ export async function GET(
 
     if (year) where.year = parseInt(year)
     if (status) where.status = status
-    if (organizationId) where.organizationId = organizationId
 
     const assessments = await prisma.musculoskeletalAssessment.findMany({
       where,
@@ -88,7 +85,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // WORKPLACE_USER도 할당된 사업장에서 조사 생성 가능
   const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
@@ -97,12 +93,12 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions)
     const body = await request.json()
-    const { organizationId, organizationUnitId, year, assessmentType } = body
+    const { organizationUnitId, year, assessmentType } = body
 
     // 필수 필드 검증
-    if (!organizationId || !organizationUnitId || !year || !assessmentType) {
+    if (!organizationUnitId || !year || !assessmentType) {
       return NextResponse.json(
-        { error: '필수 항목이 누락되었습니다.' },
+        { error: '필수 항목이 누락되었습니다. (평가단위, 연도, 조사유형)' },
         { status: 400 }
       )
     }
@@ -127,18 +123,19 @@ export async function POST(
       )
     }
 
-    // 같은 연도, 같은 단위의 조사가 이미 있는지 확인
+    // 같은 연도, 같은 단위, 같은 유형의 조사가 이미 있는지 확인
     const existing = await prisma.musculoskeletalAssessment.findFirst({
       where: {
         workplaceId: params.id,
         organizationUnitId,
         year: parseInt(year),
+        assessmentType,
       },
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: `${year}년도 해당 단위의 조사가 이미 존재합니다.` },
+        { error: `${year}년도 해당 단위의 ${assessmentType}가 이미 존재합니다.` },
         { status: 400 }
       )
     }
@@ -146,7 +143,6 @@ export async function POST(
     const assessment = await prisma.musculoskeletalAssessment.create({
       data: {
         workplaceId: params.id,
-        organizationId,
         organizationUnitId,
         year: parseInt(year),
         assessmentType,
@@ -166,7 +162,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `${unit.name} 근골조사가 생성되었습니다.`,
+      message: `${unit.name} ${assessmentType}가 생성되었습니다.`,
       assessment,
     })
   } catch (error) {

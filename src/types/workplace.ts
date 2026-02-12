@@ -38,12 +38,6 @@ export interface OrganizationUnitFormData {
   isLeaf?: boolean
 }
 
-// 조직도 복사 요청
-export interface OrganizationCopyRequest {
-  targetYear: number
-  newName?: string
-}
-
 // API 응답 타입
 export interface WorkplaceWithRelations {
   id: string
@@ -55,7 +49,7 @@ export interface WorkplaceWithRelations {
   createdAt: Date
   updatedAt: Date
   contacts: WorkplaceContactData[]
-  organizations: OrganizationData[]
+  organization: OrganizationData | null
   _count?: {
     users: number
   }
@@ -77,9 +71,6 @@ export interface WorkplaceContactData {
 export interface OrganizationData {
   id: string
   workplaceId: string
-  year: number
-  name: string
-  isActive: boolean
   createdAt: Date
   updatedAt: Date
   _count?: {

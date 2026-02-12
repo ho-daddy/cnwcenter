@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkplaceAccess } from '@/lib/auth-utils'
 
-// 조직도 조회 (사업장당 1개, 없으면 자동 생성)
+// 아카이브된 조사 목록 조회
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -13,21 +13,26 @@ export async function GET(
   }
 
   try {
-    // 사업장의 조직도를 조회하고, 없으면 자동 생성
-    const organization = await prisma.organization.upsert({
+    const archives = await prisma.archivedAssessment.findMany({
       where: { workplaceId: params.id },
-      update: {},
-      create: { workplaceId: params.id },
-      include: {
-        _count: { select: { units: true } },
+      select: {
+        id: true,
+        unitName: true,
+        unitPath: true,
+        year: true,
+        assessmentType: true,
+        archivedAt: true,
+        archivedReason: true,
+        originalAssessmentId: true,
       },
+      orderBy: { archivedAt: 'desc' },
     })
 
-    return NextResponse.json({ organization })
+    return NextResponse.json({ archives })
   } catch (error) {
-    console.error('[Organizations] 조회 오류:', error)
+    console.error('[ArchivedAssessment] 목록 조회 오류:', error)
     return NextResponse.json(
-      { error: '조직도 조회 중 오류가 발생했습니다.' },
+      { error: '아카이브 목록 조회 중 오류가 발생했습니다.' },
       { status: 500 }
     )
   }

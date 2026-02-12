@@ -23,7 +23,6 @@ interface WorkplaceItem {
   _count: {
     users: number
     contacts: number
-    organizations: number
   }
 }
 
@@ -115,9 +114,6 @@ export default function WorkplacesPage() {
                     <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">
                       담당자
                     </th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">
-                      조직도
-                    </th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">
                       작업
                     </th>
@@ -154,12 +150,6 @@ export default function WorkplacesPage() {
                         <span className="inline-flex items-center gap-1">
                           <Phone className="h-3.5 w-3.5 text-gray-400" />
                           {wp._count.contacts}명
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm">
-                        <span className="inline-flex items-center gap-1">
-                          <FolderTree className="h-3.5 w-3.5 text-gray-400" />
-                          {wp._count.organizations}개
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">

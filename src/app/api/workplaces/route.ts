@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         _count: {
-          select: { users: true, contacts: true, organizations: true },
+          select: { users: true, contacts: true },
         },
       },
       orderBy: { name: 'asc' },

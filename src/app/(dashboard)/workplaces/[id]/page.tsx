@@ -25,7 +25,7 @@ interface WorkplaceDetail {
   address: string | null
   employeeCount: number | null
   contacts: any[]
-  organizations: any[]
+  organization: any | null
 }
 
 export default function WorkplaceDetailPage() {
@@ -290,36 +290,24 @@ export default function WorkplaceDetailPage() {
           </Link>
         </CardHeader>
         <CardContent>
-          {workplace.organizations.length === 0 ? (
+          {workplace.organization ? (
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div className="flex items-center gap-2">
+                <FolderTree className="h-4 w-4 text-gray-400" />
+                <span className="font-medium">조직도</span>
+              </div>
+              <span className="text-sm text-gray-500">
+                {workplace.organization._count?.units || 0}개 단위
+              </span>
+            </div>
+          ) : (
             <p className="text-gray-500 text-sm">
-              등록된 조직도가 없습니다.
+              조직도가 아직 생성되지 않았습니다.
               <Link href={`/workplaces/${workplaceId}/organization`} className="text-blue-600 hover:underline ml-1">
                 조직도 관리
               </Link>
-              에서 추가하세요.
+              에서 단위를 추가하세요.
             </p>
-          ) : (
-            <div className="space-y-2">
-              {workplace.organizations.slice(0, 5).map((org: any) => (
-                <div key={org.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{org.year}년</span>
-                    <span className="text-gray-500">{org.name}</span>
-                    {org.isActive && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                        활성
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-sm text-gray-500">{org._count?.units || 0}개 단위</span>
-                </div>
-              ))}
-              {workplace.organizations.length > 5 && (
-                <p className="text-sm text-gray-500">
-                  외 {workplace.organizations.length - 5}개...
-                </p>
-              )}
-            </div>
           )}
         </CardContent>
       </Card>

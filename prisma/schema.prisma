@@ -101,8 +101,9 @@ model Workplace {
 
   users         WorkplaceUser[]
   contacts      WorkplaceContact[]        // 담당자 (복수)
-  organizations Organization[]            // 연도별 조직도
+  organization  Organization?              // 조직도 (사업장당 1개)
   musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
+  archivedAssessments ArchivedAssessment[]  // 아카이브된 조사
 }
 
 // 담당자 유형
@@ -129,23 +130,15 @@ model WorkplaceContact {
   @@index([contactType])
 }
 
-// 조직도 (연도별 버전 관리)
+// 조직도 (사업장당 1개)
 model Organization {
   id          String   @id @default(cuid())
-  workplaceId String
+  workplaceId String   @unique            // 사업장당 1개 보장
   workplace   Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
-  year        Int                         // 연도 (예: 2024, 2025)
-  name        String   @default("기본 조직도") // 조직도 버전명
-  isActive    Boolean  @default(false)    // 현재 활성화된 조직도
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   units       OrganizationUnit[]
-  musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
-
-  @@unique([workplaceId, year, name])
-  @@index([workplaceId])
-  @@index([year])
 }
 
 // 조직 단위 (부서-공정-작업 등 5단계 계층)
@@ -371,13 +364,11 @@ enum BodyPart {
   KNEE_ANKLE      // 무릎/발목
 }
 
-// 근골조사 메인 모델 (공정당 1개)
+// 근골조사 메인 모델 (공정당 연도+유형별 복수 등록 가능)
 model MusculoskeletalAssessment {
   id                 String        @id @default(cuid())
   workplaceId        String
   workplace          Workplace     @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
-  organizationId     String
-  organization       Organization  @relation(fields: [organizationId], references: [id])
   organizationUnitId String
   organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
 
@@ -427,10 +418,30 @@ model MusculoskeletalAssessment {
   improvements       MSurveyImprovement[]
   attachments        MSurveyAttachment[]
 
+  @@unique([organizationUnitId, year, assessmentType])  // 단위+연도+유형 유니크
   @@index([workplaceId])
   @@index([organizationUnitId])
   @@index([year])
   @@index([status])
+}
+
+// 아카이브된 조사 (조직 단위 삭제 시 백업)
+model ArchivedAssessment {
+  id                   String   @id @default(cuid())
+  workplaceId          String
+  workplace            Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+
+  unitName             String              // 삭제된 조직 단위명
+  unitPath             String              // "생산본부 > 조립팀 > 나사조립"
+  assessmentData       Json                // 조사 전체 데이터 (JSON 스냅샷)
+  year                 Int                 // 조사년도
+  assessmentType       String              // 정기조사, 수시조사
+  originalAssessmentId String              // 원본 조사 ID (참조용)
+  archivedAt           DateTime @default(now())
+  archivedReason       String?             // "조직 단위 삭제" 등
+
+  @@index([workplaceId])
+  @@index([year])
 }
 
 // 요소작업 모델 (요소작업당 1개 = 2,3번시트)

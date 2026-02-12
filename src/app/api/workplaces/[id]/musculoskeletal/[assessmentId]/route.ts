@@ -21,13 +21,6 @@ export async function GET(
             id: true,
             name: true,
             level: true,
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                year: true,
-              },
-            },
           },
         },
         elementWorks: {

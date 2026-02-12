@@ -33,8 +33,7 @@ export async function GET(
         contacts: {
           orderBy: [{ contactType: 'asc' }, { isPrimary: 'desc' }, { name: 'asc' }],
         },
-        organizations: {
-          orderBy: [{ year: 'desc' }, { name: 'asc' }],
+        organization: {
           include: {
             _count: { select: { units: true } },
           },
