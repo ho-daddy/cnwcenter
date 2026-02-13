@@ -59,7 +59,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { documentNo, problem, improvement, source } = body
+    const { elementWorkId, documentNo, problem, improvement, source } = body
 
     if (!problem || !improvement) {
       return NextResponse.json(
@@ -90,6 +90,7 @@ export async function POST(
     const newImprovement = await prisma.mSurveyImprovement.create({
       data: {
         assessmentId: params.assessmentId,
+        elementWorkId: elementWorkId || null,
         documentNo,
         problem,
         improvement,

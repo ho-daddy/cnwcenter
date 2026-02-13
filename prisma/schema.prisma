@@ -423,6 +423,10 @@ model MusculoskeletalAssessment {
   managementLevel    String?       // 상/중상/중/하
   overallComment     String?       @db.Text
 
+  // 생략 옵션
+  skipSheet2         Boolean       @default(false)  // 2번시트(부위별점수) 생략
+  skipSheet3         Boolean       @default(false)  // 3번시트(RULA/REBA) 생략
+
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   createdById        String?
@@ -496,11 +500,15 @@ model ElementWork {
   kneePosture      String?                // 무릎 자세 (0~30도/30~60도 등)
   handleQuality    String?                // 손잡이 상태 (양호/보통/불충분)
 
+  // 4번시트: 요소작업별 평가결과
+  evaluationResult String?       @db.Text  // 종합평가 시 주관식 평가결과
+
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
   // 관계
   bodyPartScores   BodyPartScore[]
+  improvements     MSurveyImprovement[]
 
   @@index([assessmentId])
 }
@@ -537,6 +545,9 @@ model MSurveyImprovement {
   assessmentId  String
   assessment    MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
+  elementWorkId String?
+  elementWork   ElementWork?  @relation(fields: [elementWorkId], references: [id], onDelete: SetNull)
+
   documentNo    String?                   // 참조 문서번호
   problem       String        @db.Text    // 주요 문제점
   improvement   String        @db.Text    // 개선 검토 방향
@@ -546,6 +557,7 @@ model MSurveyImprovement {
   updatedAt     DateTime      @updatedAt
 
   @@index([assessmentId])
+  @@index([elementWorkId])
 }
 
 // 첨부파일 모델 (사진/영상)

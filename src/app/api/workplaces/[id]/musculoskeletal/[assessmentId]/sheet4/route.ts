@@ -50,6 +50,7 @@ export async function GET(
       id: work.id,
       name: work.name,
       sortOrder: work.sortOrder,
+      evaluationResult: work.evaluationResult,
       rulaScore: work.rulaScore,
       rulaLevel: work.rulaLevel,
       rebaScore: work.rebaScore,
@@ -67,6 +68,8 @@ export async function GET(
         unitName: assessment.organizationUnit.name,
         managementLevel: assessment.managementLevel,
         overallComment: assessment.overallComment,
+        skipSheet2: assessment.skipSheet2,
+        skipSheet3: assessment.skipSheet3,
         scoreSummary,
         improvements: assessment.improvements,
       },
@@ -92,7 +95,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { managementLevel, overallComment } = body
+    const { managementLevel, evaluationResults } = body
 
     const existing = await prisma.musculoskeletalAssessment.findUnique({
       where: { id: params.assessmentId },
@@ -122,18 +125,28 @@ export async function PATCH(
       )
     }
 
+    // 관리등급 저장
     const assessment = await prisma.musculoskeletalAssessment.update({
       where: { id: params.assessmentId },
       data: {
         managementLevel: managementLevel ?? undefined,
-        overallComment: overallComment ?? undefined,
       },
       select: {
         id: true,
         managementLevel: true,
-        overallComment: true,
       },
     })
+
+    // 요소작업별 평가결과 저장
+    if (evaluationResults && Array.isArray(evaluationResults)) {
+      for (const item of evaluationResults) {
+        const { elementWorkId, result } = item as { elementWorkId: string; result: string }
+        await prisma.elementWork.update({
+          where: { id: elementWorkId },
+          data: { evaluationResult: result || null },
+        })
+      }
+    }
 
     return NextResponse.json({
       success: true,

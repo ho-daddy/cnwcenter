@@ -81,7 +81,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { status, assessmentType } = body
+    const { status, assessmentType, skipSheet2, skipSheet3 } = body
 
     const existing = await prisma.musculoskeletalAssessment.findUnique({
       where: { id: params.assessmentId },
@@ -105,6 +105,8 @@ export async function PATCH(
     const updateData: any = {}
     if (status) updateData.status = status
     if (assessmentType) updateData.assessmentType = assessmentType
+    if (typeof skipSheet2 === 'boolean') updateData.skipSheet2 = skipSheet2
+    if (typeof skipSheet3 === 'boolean') updateData.skipSheet3 = skipSheet3
 
     const assessment = await prisma.musculoskeletalAssessment.update({
       where: { id: params.assessmentId },

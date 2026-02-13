@@ -30,6 +30,9 @@ export async function GET(
             },
           },
         },
+        improvements: {
+          orderBy: { createdAt: 'asc' },
+        },
         createdBy: {
           select: { name: true, email: true },
         },

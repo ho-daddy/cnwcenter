@@ -338,11 +338,12 @@ export interface Sheet3FormData {
 // 4번시트 (종합평가카드) 폼 데이터
 export interface Sheet4FormData {
   managementLevel: string
-  overallComment: string
+  evaluationResults: { elementWorkId: string; result: string }[]
 }
 
 // 개선사항 폼 데이터
 export interface ImprovementFormData {
+  elementWorkId: string
   documentNo: string
   problem: string
   improvement: string
@@ -419,6 +420,10 @@ export interface AssessmentDetail {
   managementLevel: string | null
   overallComment: string | null
 
+  // 생략 옵션
+  skipSheet2: boolean
+  skipSheet3: boolean
+
   // 관계 데이터
   organizationUnit: {
     id: string
@@ -471,6 +476,8 @@ export interface ElementWorkDetail {
   kneePosture: string | null
   handleQuality: string | null
 
+  evaluationResult: string | null
+
   bodyPartScores: BodyPartScoreDetail[]
 }
 
@@ -486,6 +493,7 @@ export interface BodyPartScoreDetail {
 
 export interface ImprovementDetail {
   id: string
+  elementWorkId: string | null
   documentNo: string | null
   problem: string
   improvement: string

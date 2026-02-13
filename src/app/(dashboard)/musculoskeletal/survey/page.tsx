@@ -136,6 +136,8 @@ interface Assessment {
   reference: string | null
   managementLevel: string | null
   overallComment: string | null
+  skipSheet2: boolean
+  skipSheet3: boolean
   organizationUnit: {
     id: string
     name: string
@@ -145,8 +147,18 @@ interface Assessment {
     name: string
   }
   elementWorks: ElementWork[]
+  improvements: Improvement[]
   createdAt: string
   updatedAt: string
+}
+
+interface Improvement {
+  id: string
+  elementWorkId: string | null
+  documentNo: string | null
+  problem: string
+  improvement: string
+  source: string | null
 }
 
 interface ElementWork {
@@ -154,12 +166,15 @@ interface ElementWork {
   sortOrder: number
   name: string
   description: string | null
+  evaluationResult: string | null
   bodyPartScores: {
     bodyPart: string
     totalScore: number
   }[]
   rulaScore: number | null
   rebaScore: number | null
+  pushPullArm: string | null
+  pushPullHand: string | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -1040,7 +1055,9 @@ function AssessmentDetail({
         {activeTab === 'sheet2' && (
           <Sheet2Content
             assessment={assessment}
+            workplaceId={workplaceId}
             onOpenSheet2={onOpenSheet2}
+            onUpdate={onUpdate}
           />
         )}
 
@@ -1048,7 +1065,9 @@ function AssessmentDetail({
         {activeTab === 'sheet3' && (
           <Sheet3Content
             assessment={assessment}
+            workplaceId={workplaceId}
             onOpenSheet3={onOpenSheet3}
+            onUpdate={onUpdate}
           />
         )}
 
@@ -1121,12 +1140,14 @@ function OverviewContent({
             <SheetProgress
               label="부위별점수"
               completed={assessment.elementWorks.some((w) => w.bodyPartScores.length > 0)}
+              skipped={assessment.skipSheet2}
             />
             <SheetProgress
               label="RULA/REBA"
               completed={assessment.elementWorks.some(
                 (w) => w.rulaScore !== null || w.rebaScore !== null
               )}
+              skipped={assessment.skipSheet3}
             />
             <SheetProgress
               label="종합평가"
@@ -1236,18 +1257,18 @@ function OverviewContent({
   )
 }
 
-function SheetProgress({ label, completed }: { label: string; completed: boolean }) {
+function SheetProgress({ label, completed, skipped }: { label: string; completed: boolean; skipped?: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <div
         className={`w-4 h-4 rounded-full flex items-center justify-center ${
-          completed ? 'bg-green-500' : 'bg-gray-200'
+          skipped ? 'bg-gray-400' : completed ? 'bg-green-500' : 'bg-gray-200'
         }`}
       >
-        {completed && <CheckCircle className="w-3 h-3 text-white" />}
+        {(completed || skipped) && <CheckCircle className="w-3 h-3 text-white" />}
       </div>
-      <span className={`text-sm ${completed ? 'text-gray-900' : 'text-gray-500'}`}>
-        {label}
+      <span className={`text-sm ${skipped ? 'text-gray-400 line-through' : completed ? 'text-gray-900' : 'text-gray-500'}`}>
+        {label}{skipped ? ' (생략)' : ''}
       </span>
     </div>
   )
@@ -1621,67 +1642,122 @@ function Sheet1Content({
 // Sheet2 Content
 function Sheet2Content({
   assessment,
+  workplaceId,
   onOpenSheet2,
+  onUpdate,
 }: {
   assessment: Assessment
+  workplaceId: string
   onOpenSheet2: (work: ElementWork) => void
+  onUpdate: (data: Partial<Assessment>) => void
 }) {
-  if (assessment.elementWorks.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-        <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
-      </div>
-    )
+  const [isToggling, setIsToggling] = useState(false)
+
+  const handleToggleSkip = async () => {
+    setIsToggling(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skipSheet2: !assessment.skipSheet2 }),
+        }
+      )
+      if (res.ok) {
+        onUpdate({ skipSheet2: !assessment.skipSheet2 })
+      }
+    } catch (error) {
+      console.error('생략 토글 오류:', error)
+    } finally {
+      setIsToggling(false)
+    }
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">
-        각 요소작업을 선택하여 부위별 점수를 입력하세요.
-      </p>
-      {assessment.elementWorks
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((work, index) => (
-          <div
-            key={work.id}
-            className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
-          >
-            <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
-              {index + 1}
+      {/* 생략 토글 */}
+      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <span className="text-sm text-gray-700">이 단계 생략</span>
+        <button
+          onClick={handleToggleSkip}
+          disabled={isToggling}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            assessment.skipSheet2 ? 'bg-gray-400' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              assessment.skipSheet2 ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
+      {assessment.skipSheet2 ? (
+        <div className="text-center py-8 text-gray-400">
+          <AlertCircle className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+          <p className="text-sm">부위별 점수 입력이 생략되었습니다.</p>
+          <p className="text-xs mt-1">생략을 해제하면 입력할 수 있습니다.</p>
+        </div>
+      ) : (
+        <>
+          {assessment.elementWorks.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+              <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
             </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm">{work.name}</p>
-              <div className="flex gap-2 mt-1">
-                {BODY_PARTS.map((part) => {
-                  const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
-                  return (
-                    <span
-                      key={part.id}
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        score
-                          ? score.totalScore >= 7
-                            ? 'bg-red-100 text-red-700'
-                            : score.totalScore >= 5
-                              ? 'bg-orange-100 text-orange-700'
-                              : score.totalScore >= 3
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {score ? score.totalScore : '-'}
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-            <Button size="sm" onClick={() => onOpenSheet2(work)}>
-              <Edit className="w-4 h-4 mr-1" />
-              입력
-            </Button>
-          </div>
-        ))}
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">
+                각 요소작업을 선택하여 부위별 점수를 입력하세요.
+              </p>
+              {assessment.elementWorks
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((work, index) => (
+                  <div
+                    key={work.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
+                  >
+                    <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{work.name}</p>
+                      <div className="flex gap-2 mt-1">
+                        {BODY_PARTS.map((part) => {
+                          const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
+                          return (
+                            <span
+                              key={part.id}
+                              className={`text-xs px-1.5 py-0.5 rounded ${
+                                score
+                                  ? score.totalScore >= 7
+                                    ? 'bg-red-100 text-red-700'
+                                    : score.totalScore >= 5
+                                      ? 'bg-orange-100 text-orange-700'
+                                      : score.totalScore >= 3
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-400'
+                              }`}
+                            >
+                              {score ? score.totalScore : '-'}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => onOpenSheet2(work)}>
+                      <Edit className="w-4 h-4 mr-1" />
+                      입력
+                    </Button>
+                  </div>
+                ))}
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -1689,64 +1765,119 @@ function Sheet2Content({
 // Sheet3 Content
 function Sheet3Content({
   assessment,
+  workplaceId,
   onOpenSheet3,
+  onUpdate,
 }: {
   assessment: Assessment
+  workplaceId: string
   onOpenSheet3: (work: ElementWork) => void
+  onUpdate: (data: Partial<Assessment>) => void
 }) {
-  if (assessment.elementWorks.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-        <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
-      </div>
-    )
+  const [isToggling, setIsToggling] = useState(false)
+
+  const handleToggleSkip = async () => {
+    setIsToggling(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skipSheet3: !assessment.skipSheet3 }),
+        }
+      )
+      if (res.ok) {
+        onUpdate({ skipSheet3: !assessment.skipSheet3 })
+      }
+    } catch (error) {
+      console.error('생략 토글 오류:', error)
+    } finally {
+      setIsToggling(false)
+    }
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">
-        각 요소작업을 선택하여 RULA/REBA 평가를 진행하세요.
-      </p>
-      {assessment.elementWorks
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((work, index) => (
-          <div
-            key={work.id}
-            className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
-          >
-            <div className="w-7 h-7 flex items-center justify-center bg-purple-100 text-purple-600 font-bold rounded-full text-sm">
-              {index + 1}
+      {/* 생략 토글 */}
+      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <span className="text-sm text-gray-700">이 단계 생략</span>
+        <button
+          onClick={handleToggleSkip}
+          disabled={isToggling}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            assessment.skipSheet3 ? 'bg-gray-400' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              assessment.skipSheet3 ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
+      {assessment.skipSheet3 ? (
+        <div className="text-center py-8 text-gray-400">
+          <AlertCircle className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+          <p className="text-sm">RULA/REBA 평가가 생략되었습니다.</p>
+          <p className="text-xs mt-1">생략을 해제하면 평가할 수 있습니다.</p>
+        </div>
+      ) : (
+        <>
+          {assessment.elementWorks.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <ClipboardList className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+              <p className="text-sm">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
             </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm">{work.name}</p>
-              <div className="flex gap-2 mt-1">
-                {work.rulaScore !== null && (
-                  <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
-                    RULA {work.rulaScore}
-                  </span>
-                )}
-                {work.rebaScore !== null && (
-                  <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded">
-                    REBA {work.rebaScore}
-                  </span>
-                )}
-                {work.rulaScore === null && work.rebaScore === null && (
-                  <span className="text-xs text-gray-400">평가 미실시</span>
-                )}
-              </div>
-            </div>
-            <Button size="sm" onClick={() => onOpenSheet3(work)}>
-              <BarChart3 className="w-4 h-4 mr-1" />
-              평가
-            </Button>
-          </div>
-        ))}
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">
+                각 요소작업을 선택하여 RULA/REBA 평가를 진행하세요.
+              </p>
+              {assessment.elementWorks
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((work, index) => (
+                  <div
+                    key={work.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
+                  >
+                    <div className="w-7 h-7 flex items-center justify-center bg-purple-100 text-purple-600 font-bold rounded-full text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{work.name}</p>
+                      <div className="flex gap-2 mt-1">
+                        {work.rulaScore !== null && (
+                          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
+                            RULA {work.rulaScore}
+                          </span>
+                        )}
+                        {work.rebaScore !== null && (
+                          <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded">
+                            REBA {work.rebaScore}
+                          </span>
+                        )}
+                        {work.rulaScore === null && work.rebaScore === null && (
+                          <span className="text-xs text-gray-400">평가 미실시</span>
+                        )}
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => onOpenSheet3(work)}>
+                      <BarChart3 className="w-4 h-4 mr-1" />
+                      평가
+                    </Button>
+                  </div>
+                ))}
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
-// Sheet4 Content
+// Sheet4 Content - 종합평가 (재설계)
 function Sheet4Content({
   assessment,
   workplaceId,
@@ -1756,11 +1887,21 @@ function Sheet4Content({
   workplaceId: string
   onUpdate: (data: Partial<Assessment>) => void
 }) {
-  const [formData, setFormData] = useState({
-    managementLevel: assessment.managementLevel || '',
-    overallComment: assessment.overallComment || '',
-  })
+  const [managementLevel, setManagementLevel] = useState(assessment.managementLevel || '')
+  const [evaluationResults, setEvaluationResults] = useState<Record<string, string>>(
+    Object.fromEntries(
+      assessment.elementWorks.map((w) => [w.id, w.evaluationResult || ''])
+    )
+  )
+  const [improvements, setImprovements] = useState<Improvement[]>(assessment.improvements || [])
   const [isSaving, setIsSaving] = useState(false)
+  const [isAddingImprovement, setIsAddingImprovement] = useState(false)
+  const [newImprovement, setNewImprovement] = useState({
+    elementWorkId: '',
+    problem: '',
+    improvement: '',
+    source: '',
+  })
 
   const maxScore = Math.max(
     ...assessment.elementWorks.flatMap((w) => w.bodyPartScores.map((s) => s.totalScore)),
@@ -1768,6 +1909,15 @@ function Sheet4Content({
   )
   const recommendedLevel =
     maxScore >= 7 ? '상' : maxScore >= 5 ? '중상' : maxScore >= 3 ? '중' : '하'
+
+  const getScoreColor = (score: number) =>
+    score >= 7
+      ? 'bg-red-100 text-red-700'
+      : score >= 5
+        ? 'bg-orange-100 text-orange-700'
+        : score >= 3
+          ? 'bg-yellow-100 text-yellow-700'
+          : 'bg-green-100 text-green-700'
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -1777,13 +1927,18 @@ function Sheet4Content({
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            managementLevel,
+            evaluationResults: Object.entries(evaluationResults).map(([elementWorkId, result]) => ({
+              elementWorkId,
+              result,
+            })),
+          }),
         }
       )
 
       if (res.ok) {
-        const data = await res.json()
-        onUpdate(data.assessment)
+        onUpdate({ managementLevel })
         alert('저장되었습니다.')
       }
     } catch (error) {
@@ -1794,121 +1949,307 @@ function Sheet4Content({
     }
   }
 
+  const handleAddImprovement = async () => {
+    if (!newImprovement.problem || !newImprovement.improvement) {
+      alert('주요 문제점과 개선검토 방향은 필수입니다.')
+      return
+    }
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/improvements`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newImprovement),
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setImprovements([...improvements, data.improvement])
+        setNewImprovement({ elementWorkId: '', problem: '', improvement: '', source: '' })
+        setIsAddingImprovement(false)
+      }
+    } catch (error) {
+      console.error('개선사항 추가 오류:', error)
+    }
+  }
+
+  const handleDeleteImprovement = async (improvementId: string) => {
+    if (!confirm('이 개선사항을 삭제하시겠습니까?')) return
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/improvements/${improvementId}`,
+        { method: 'DELETE' }
+      )
+      if (res.ok) {
+        setImprovements(improvements.filter((i) => i.id !== improvementId))
+      }
+    } catch (error) {
+      console.error('개선사항 삭제 오류:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Score Summary Table */}
+      {/* 1. 관리등급 */}
+      <div>
+        <h4 className="font-medium text-gray-800 mb-3">관리등급</h4>
+        {maxScore > 0 && (
+          <p className="text-sm text-blue-600 mb-2">
+            권장: <strong>{recommendedLevel}</strong> (최고점 {maxScore}점)
+          </p>
+        )}
+        <div className="grid grid-cols-4 gap-2">
+          {MANAGEMENT_LEVELS.map((level) => (
+            <button
+              key={level.value}
+              onClick={() => setManagementLevel(level.value)}
+              className={`p-3 rounded-lg border-2 text-center text-sm transition-all ${
+                managementLevel === level.value
+                  ? level.color + ' border-current'
+                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {level.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. 요소작업별 평가 카드 */}
       {assessment.elementWorks.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-800 mb-3">점수 요약</h4>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="text-left p-2">요소작업</th>
-                  {BODY_PARTS.map((part) => (
-                    <th key={part.id} className="text-center p-2 whitespace-nowrap">
-                      {part.name}
-                    </th>
-                  ))}
-                  <th className="text-center p-2">최고점</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assessment.elementWorks
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map((work) => {
-                    const workMaxScore = Math.max(
-                      ...work.bodyPartScores.map((s) => s.totalScore),
-                      0
-                    )
-                    return (
-                      <tr key={work.id} className="border-b">
-                        <td className="p-2 font-medium">{work.name}</td>
-                        {BODY_PARTS.map((part) => {
-                          const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
-                          return (
-                            <td key={part.id} className="text-center p-2">
-                              {score ? (
-                                <span
-                                  className={`inline-block w-7 h-7 leading-7 rounded-full text-xs font-medium ${
-                                    score.totalScore >= 7
-                                      ? 'bg-red-100 text-red-700'
-                                      : score.totalScore >= 5
-                                        ? 'bg-orange-100 text-orange-700'
-                                        : score.totalScore >= 3
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-green-100 text-green-700'
-                                  }`}
-                                >
-                                  {score.totalScore}
-                                </span>
-                              ) : (
-                                <span className="text-gray-300">-</span>
-                              )}
-                            </td>
-                          )
-                        })}
-                        <td className="text-center p-2">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                              workMaxScore >= 7
-                                ? 'bg-red-100 text-red-700'
-                                : workMaxScore >= 5
-                                  ? 'bg-orange-100 text-orange-700'
-                                  : workMaxScore >= 3
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-green-100 text-green-700'
-                            }`}
-                          >
-                            {workMaxScore > 0 ? workMaxScore : '-'}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </table>
+          <h4 className="font-medium text-gray-800 mb-3">요소작업별 평가</h4>
+          <div className="space-y-4">
+            {assessment.elementWorks
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((work) => {
+                const scoredParts = work.bodyPartScores.filter((s) => s.totalScore > 0)
+                const hasRulaReba =
+                  work.rulaScore !== null || work.rebaScore !== null ||
+                  work.pushPullArm !== null || work.pushPullHand !== null
+
+                return (
+                  <div key={work.id} className="border rounded-lg p-4 space-y-3">
+                    <h5 className="font-medium text-gray-900">{work.name}</h5>
+
+                    {/* 부위별 점수 (skipSheet2=false이고 데이터 있을 때만) */}
+                    {!assessment.skipSheet2 && scoredParts.length > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1.5">부위별 점수</p>
+                        <div className="flex flex-wrap gap-2">
+                          {scoredParts.map((s) => {
+                            const partInfo = BODY_PARTS.find((p) => p.id === s.bodyPart)
+                            return (
+                              <span
+                                key={s.bodyPart}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(s.totalScore)}`}
+                              >
+                                {partInfo?.name || s.bodyPart} {s.totalScore}점
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* RULA/REBA/Push-Pull (skipSheet3=false이고 데이터 있을 때만) */}
+                    {!assessment.skipSheet3 && hasRulaReba && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1.5">RULA/REBA 평가</p>
+                        <div className="flex flex-wrap gap-2">
+                          {work.rulaScore !== null && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              RULA {work.rulaScore}점
+                            </span>
+                          )}
+                          {work.rebaScore !== null && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                              REBA {work.rebaScore}점
+                            </span>
+                          )}
+                          {work.pushPullArm && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              밀기/당기기(팔) {work.pushPullArm}
+                            </span>
+                          )}
+                          {work.pushPullHand && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              밀기/당기기(손) {work.pushPullHand}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 평가결과 입력 */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">평가결과</p>
+                      <textarea
+                        value={evaluationResults[work.id] || ''}
+                        onChange={(e) =>
+                          setEvaluationResults({
+                            ...evaluationResults,
+                            [work.id]: e.target.value,
+                          })
+                        }
+                        rows={3}
+                        className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                        placeholder="이 요소작업에 대한 평가결과를 입력하세요..."
+                      />
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}
 
-      {/* Management Level and Comment */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h4 className="font-medium text-gray-800 mb-3">관리등급</h4>
-          {maxScore > 0 && (
-            <p className="text-sm text-blue-600 mb-2">
-              권장: <strong>{recommendedLevel}</strong> (최고점 {maxScore}점)
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            {MANAGEMENT_LEVELS.map((level) => (
-              <button
-                key={level.value}
-                onClick={() => setFormData({ ...formData, managementLevel: level.value })}
-                className={`p-3 rounded-lg border-2 text-center text-sm transition-all ${
-                  formData.managementLevel === level.value
-                    ? level.color + ' border-current'
-                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                {level.label}
-              </button>
-            ))}
+      {/* 3. 개선방안 */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-medium text-gray-800">개선방안</h4>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsAddingImprovement(true)}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            추가
+          </Button>
+        </div>
+
+        {/* 기존 개선사항 목록 */}
+        {improvements.length > 0 && (
+          <div className="space-y-3 mb-3">
+            {improvements.map((imp, idx) => {
+              const linkedWork = assessment.elementWorks.find((w) => w.id === imp.elementWorkId)
+              return (
+                <div key={imp.id} className="border rounded-lg p-3 text-sm space-y-1">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">#{idx + 1}</span>
+                      {linkedWork && (
+                        <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                          {linkedWork.name}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteImprovement(imp.id)}
+                      className="text-red-500 hover:text-red-600 h-6 w-6 p-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">문제점:</span>{' '}
+                    <span className="text-gray-800">{imp.problem}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">개선방향:</span>{' '}
+                    <span className="text-gray-800">{imp.improvement}</span>
+                  </div>
+                  {imp.source && (
+                    <div>
+                      <span className="text-gray-500">수집경로:</span>{' '}
+                      <span className="text-gray-800">{imp.source}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
-        </div>
-        <div>
-          <h4 className="font-medium text-gray-800 mb-3">종합 의견</h4>
-          <textarea
-            value={formData.overallComment}
-            onChange={(e) => setFormData({ ...formData, overallComment: e.target.value })}
-            rows={5}
-            className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-            placeholder="조사 결과에 대한 종합적인 의견..."
-          />
-        </div>
+        )}
+
+        {improvements.length === 0 && !isAddingImprovement && (
+          <div className="text-center py-6 text-gray-400 text-sm">
+            등록된 개선방안이 없습니다.
+          </div>
+        )}
+
+        {/* 새 개선사항 입력 폼 */}
+        {isAddingImprovement && (
+          <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">요소작업</label>
+              <select
+                value={newImprovement.elementWorkId}
+                onChange={(e) =>
+                  setNewImprovement({ ...newImprovement, elementWorkId: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              >
+                <option value="">전체(공통)</option>
+                {assessment.elementWorks.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                주요 문제점 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={newImprovement.problem}
+                onChange={(e) =>
+                  setNewImprovement({ ...newImprovement, problem: e.target.value })
+                }
+                rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                placeholder="주요 문제점을 입력하세요..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                개선검토 방향(안) <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={newImprovement.improvement}
+                onChange={(e) =>
+                  setNewImprovement({ ...newImprovement, improvement: e.target.value })
+                }
+                rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                placeholder="개선검토 방향을 입력하세요..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">수집경로</label>
+              <input
+                type="text"
+                value={newImprovement.source}
+                onChange={(e) =>
+                  setNewImprovement({ ...newImprovement, source: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+                placeholder="수집경로를 입력하세요..."
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsAddingImprovement(false)
+                  setNewImprovement({ elementWorkId: '', problem: '', improvement: '', source: '' })
+                }}
+              >
+                취소
+              </Button>
+              <Button size="sm" onClick={handleAddImprovement}>
+                추가
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* 저장 버튼 */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
