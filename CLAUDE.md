@@ -1,54 +1,97 @@
-# 새움터 (CNW Center)
+# CLAUDE.md
 
-산업재해 예방 및 상담 통합 업무관리시스템
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 기술 스택
+## Project Overview
 
-- **프레임워크**: Next.js 14 (App Router)
-- **언어**: TypeScript
-- **DB**: PostgreSQL 15 (Docker 컨테이너, `docker compose up -d`)
-- **ORM**: Prisma
-- **스타일**: Tailwind CSS + shadcn/ui 스타일 컴포넌트
-- **상태관리**: Zustand (사이드바 등 클라이언트 상태)
-- **아이콘**: lucide-react
-- **스크래핑**: cheerio
-- **날짜**: date-fns (한국어 locale)
+새움터 (CNW Center) — 산업재해 예방 및 상담 통합 업무관리시스템 (Industrial accident prevention and counseling management system). Built with Next.js 14 App Router, TypeScript, PostgreSQL, and Prisma.
 
-## 프로젝트 구조
+## Commands
 
+```bash
+# Development
+npm run dev                   # Dev server (localhost:3000)
+npm run build                 # Production build
+npm run lint                  # ESLint
+
+# Database (requires PostgreSQL running)
+docker compose up -d          # Start PostgreSQL 15 container
+npm run db:push               # Sync Prisma schema to database
+npm run db:generate           # Regenerate Prisma client
+npm run db:studio             # Prisma Studio (DB GUI, localhost:5555)
+npm run db:seed               # Create initial admin user (tsx prisma/seed.ts)
 ```
-src/
-├── app/
-│   ├── (dashboard)/          # Route group - 사이드바 레이아웃 적용
-│   │   ├── layout.tsx        # 클라이언트 컴포넌트 (Sidebar + Header)
-│   │   ├── page.tsx          # 대시보드 (서버 컴포넌트, DB에서 브리핑 조회)
-│   │   └── settings/
-│   │       └── page.tsx      # 설정 페이지 (브리핑 소스 관리)
-│   └── api/
-│       └── briefing/
-│           ├── route.ts          # GET: 브리핑 목록
-│           ├── collect/route.ts  # POST: 수집 트리거
-│           └── sources/
-│               ├── route.ts      # GET/POST: 소스 CRUD
-│               └── [id]/route.ts # DELETE/PATCH: 개별 소스
-├── components/
-│   ├── layout/               # Sidebar, Header
-│   ├── dashboard/            # WorkStatusWidget, ScheduleWidget, BriefingWidget
-│   ├── settings/             # AddSourceForm, SourceList, CollectButton, SourceTypeBadge
-│   └── ui/                   # Button, Card 등 기본 UI
-├── lib/
-│   ├── briefing/
-│   │   ├── collector.ts      # 수집 오케스트레이터
-│   │   └── scrapers/         # base, website, telegram, factory
-│   ├── prisma.ts             # Prisma 클라이언트 싱글톤
-│   └── utils.ts              # cn(), formatDate(), formatDateTime()
-├── stores/
-│   └── sidebar-store.ts      # Zustand 사이드바 상태
-└── types/
-    ├── briefing.ts           # ScrapingConfig, CollectedArticle 타입
-    ├── dashboard.ts          # NavItem, WorkStatusItem 등
-    └── index.ts              # 공통 타입
-```
+
+No test framework is configured.
+
+## Environment Setup
+
+Copy `.env.example` to `.env`. Key variables:
+- `DATABASE_URL` — PostgreSQL connection string (default: `postgresql://cnwuser:cnwpass@localhost:5432/cnwcenter`)
+- `NEXTAUTH_SECRET` — Required for NextAuth JWT
+- `BRIEFING_COLLECT_SECRET` — API key for external cron to trigger briefing collection
+- `ANTHROPIC_API_KEY` — Claude API for AI briefing analysis
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Optional Google OAuth
+
+## Architecture
+
+### Route Groups and Layouts
+
+The app uses Next.js route groups to apply different layouts:
+
+- `(auth)/` — Login, register, pending-approval pages. No sidebar.
+- `(dashboard)/` — All authenticated pages. Shares a client-component layout with collapsible sidebar + header.
+
+Pages within `(dashboard)/`: dashboard home, `calendar/`, `workplaces/`, `musculoskeletal/`, `settings/`, `admin/`.
+
+### Authentication & Authorization
+
+NextAuth.js with JWT strategy (`src/lib/auth.ts`). Two providers: CredentialsProvider (email/password with bcrypt) and GoogleProvider (optional).
+
+**User lifecycle**: Register → PENDING status → Admin approves → APPROVED. PENDING users are redirected to `/pending-approval`. REJECTED/SUSPENDED users are blocked at login.
+
+**RBAC** (enforced in `src/middleware.ts`):
+- `SUPER_ADMIN` — Full access including `/settings` and `/admin/users`
+- `STAFF` — All features except system settings
+- `WORKPLACE_USER` — Limited to assigned workplaces' risk assessments and musculoskeletal surveys
+
+API routes handle their own auth checks (middleware passes non-auth API routes through).
+
+### Briefing System (News Collection)
+
+Automated news/press release scraping system:
+
+- **Source definitions**: `src/lib/briefing/sources.ts` — Hardcoded list of government/media sources (MOEL, KOSHA, policy sites, news)
+- **Scrapers**: `src/lib/briefing/scrapers/` — ~15 scraper implementations. Base class in `base.ts`, factory pattern in `factory.ts`. Uses cheerio for HTML parsing, Playwright for JS-rendered sites.
+- **Collector**: `src/lib/briefing/collector.ts` — Orchestrates scraping across all active sources
+- **Keywords**: `src/lib/briefing/keywords.ts` — Priority classification (critical/high/medium/low/none)
+- **AI Analysis**: `src/lib/briefing/analysis-service.ts` — Uses Anthropic Claude API to generate daily analysis reports
+- **API**: `POST /api/briefing/collect` (protected by `BRIEFING_COLLECT_SECRET`)
+
+### Musculoskeletal Assessment (근골격계유해요인조사)
+
+The most complex domain model. Implements a 4-sheet survey form:
+- Sheet 1: Management card (worker info, work conditions, risk factors)
+- Sheet 2-3: Element work analysis (per-task RULA/REBA scoring, body part assessments)
+- Sheet 4: Overall evaluation and improvement recommendations
+
+Key schema relationships: `Workplace` → `Organization` → `OrganizationUnit` (5-level hierarchy) → `MusculoskeletalAssessment` → `ElementWork` → `BodyPartScore`
+
+Unique constraint: one assessment per organization unit per year per assessment type.
+
+### Workplace & Organization
+
+`Workplace` has a single `Organization` which contains a tree of `OrganizationUnit` nodes (self-referencing, up to 5 levels deep). When an organization unit is deleted, any linked assessments are archived to `ArchivedAssessment` as JSON snapshots.
+
+### State Management
+
+- **Server Components** are the default for data fetching (direct Prisma queries)
+- **Zustand** for client-side UI state (sidebar toggle in `src/stores/sidebar-store.ts`)
+- **NextAuth session** for auth state propagated via `SessionProvider` wrapper
+
+### UI Components
+
+Uses shadcn/ui patterns: components in `src/components/ui/` (Button, Card, etc.) built with `class-variance-authority`, `clsx`, and `tailwind-merge`. The `cn()` utility in `src/lib/utils.ts` merges Tailwind classes.
 
 ## 한국어 용어 규칙
 
@@ -56,43 +99,9 @@ src/
 - 대시보드 타이틀: **오늘의 새움터**
 - "근골격계 조사" 사용 금지 → **근골격계유해요인조사** (정식) / **근골조사** (줄임)
 
-## 주요 명령어
+## Caveats
 
-```bash
-docker compose up -d          # PostgreSQL 시작
-npx prisma db push            # 스키마 동기화
-npx prisma studio             # DB GUI
-npm run dev                   # 개발 서버 (localhost:3000)
-npm run build                 # 프로덕션 빌드
-```
-
-## 구현 완료
-
-- [x] 대시보드 레이아웃 (사이드바 + 헤더 + 반응형)
-- [x] 일일 브리핑 시스템 (소스 관리, 웹사이트/텔레그램 스크래핑, 수집 트리거)
-- [x] 설정 페이지 (소스 추가/삭제/활성화 토글)
-- [x] 대시보드 위젯 3종 (업무현황, 일정, 브리핑)
-
-## 미구현 / 예정
-
-- [ ] 업무현황 위젯 실데이터 연동 (현재 mock)
-- [ ] 일정 위젯 실데이터 연동 (현재 mock)
-- [ ] 상담 관리 페이지 (/counseling)
-- [ ] 위험성평가 페이지 (/risk-assessment)
-- [ ] 근골조사 페이지 (/musculoskeletal)
-- [ ] 사용자 인증 (NextAuth)
-- [ ] kosha.or.kr 스크래핑 (JS 렌더링 필요 - 보류)
-- [ ] VPS 배포 + cron 스케줄링
-
-## 배포 계획
-
-- **VPS** 가상서버호스팅 사용 예정
-- PostgreSQL은 Docker로 운영
-- 브리핑 수집: 시스템 cron으로 매일 1회 (`curl -X POST` + API 키 인증)
-- 환경변수 `BRIEFING_COLLECT_SECRET`으로 수집 API 보호
-
-## 주의사항
-
-- `npm run build` 후 스타일이 깨지면: node 프로세스 전체 종료 → `.next` 삭제 → `npm run dev` 재시작
-- SQLite 사용 불가 (enum, @db.Text 사용 중)
-- kosha.or.kr은 JS 렌더링 사이트라 cheerio로 스크래핑 불가
+- SQLite cannot be substituted — schema uses PostgreSQL enums and `@db.Text`
+- If styles break after `npm run build`: kill all Node processes → delete `.next/` → restart `npm run dev`
+- kosha.or.kr requires JS rendering; cheerio-only scraping does not work for it
+- Prisma client singleton pattern in `src/lib/prisma.ts` — always import from there
