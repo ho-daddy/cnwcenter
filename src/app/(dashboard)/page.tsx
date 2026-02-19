@@ -4,6 +4,7 @@ import { WorkStatusWidget } from '@/components/dashboard/work-status-widget'
 import { ScheduleWidget } from '@/components/dashboard/schedule-widget'
 import { BriefingWidget } from '@/components/dashboard/briefing-widget'
 import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card'
+import { NoticeWidget } from '@/components/dashboard/notice-widget'
 
 // 항상 최신 데이터를 조회하도록 동적 렌더링 강제
 export const dynamic = 'force-dynamic'
@@ -36,11 +37,14 @@ export default async function DashboardPage() {
       {/* AI 브리핑 카드 (오늘 리포트가 있을 경우) */}
       {todayReport && <DailyBriefingCard report={todayReport} />}
 
-      {/* 일정 + 브리핑 - 2열 배치 */}
+      {/* 공지사항 + 일정 - 2열 배치 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <NoticeWidget />
         <ScheduleWidget />
-        <BriefingWidget items={briefings} />
       </div>
+
+      {/* 브리핑 - 전체 너비 */}
+      <BriefingWidget items={briefings} />
     </div>
   )
 }

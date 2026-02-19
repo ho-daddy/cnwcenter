@@ -18,6 +18,7 @@ import {
   UserCog,
   ChevronDown,
   ChevronRight,
+  Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -28,6 +29,7 @@ import { UserRole } from '@prisma/client'
 const getNavItems = (role?: UserRole): NavItem[] => {
   const items: NavItem[] = [
     { title: '오늘의 새움터', href: '/', icon: LayoutDashboard },
+    { title: '공지사항', href: '/notices', icon: Bell },
     { title: '일정 관리', href: '/calendar', icon: Calendar },
   ]
 
@@ -36,8 +38,20 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
   }
 
-  // 모든 사용자: 위험성평가
-  items.push({ title: '위험성평가', href: '/risk-assessment', icon: AlertTriangle })
+  // 위험성평가 서브메뉴
+  items.push({
+    title: '위험성평가',
+    href: '/risk-assessment',
+    icon: AlertTriangle,
+    subItems: [
+      { title: '대시보드',   href: '/risk-assessment' },
+      { title: '평가 실시',  href: '/risk-assessment/conduct' },
+      { title: '모아 보기',  href: '/risk-assessment/view' },
+      { title: '보고서 생성', href: '/risk-assessment/report' },
+      { title: '개선작업',   href: '/risk-assessment/improvement' },
+      { title: '사전등록',   href: '/risk-assessment/registration' },
+    ],
+  })
 
   // 근골조사 서브메뉴
   items.push({

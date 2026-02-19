@@ -12,6 +12,9 @@ const ROLE_ACCESS: Record<string, string[]> = {
   '/calendar/new': ['SUPER_ADMIN', 'STAFF'],
   '/calendar/edit': ['SUPER_ADMIN', 'STAFF'],
   '/workplaces': ['SUPER_ADMIN', 'STAFF'],
+  '/notices/new': ['SUPER_ADMIN', 'STAFF'],
+  '/notices/edit': ['SUPER_ADMIN', 'STAFF'],
+  '/counseling': ['SUPER_ADMIN', 'STAFF'],
 }
 
 // 공개 경로 (로그인 없이 접근 가능)
@@ -25,6 +28,7 @@ const PUBLIC_PATHS = [
 // 승인된 사용자만 접근 가능한 경로
 const PROTECTED_PATHS = [
   '/',
+  '/notices',
   '/calendar',
   '/counseling',
   '/risk-assessment',

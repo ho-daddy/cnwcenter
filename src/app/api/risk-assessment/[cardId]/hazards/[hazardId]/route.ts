@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
+import { HazardCategory } from '@prisma/client'
+
+type Params = { params: { cardId: string; hazardId: string } }
+
+function calcRiskScore(category: HazardCategory, severity: number, likelihood: number, additional: number) {
+  if (category === 'ABSOLUTE') return 16
+  return severity * likelihood + additional
+}
+
+// GET /api/risk-assessment/[cardId]/hazards/[hazardId]
+export async function GET(req: NextRequest, { params }: Params) {
+  const auth = await requireAuth()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+
+  const hazard = await prisma.riskHazard.findUnique({
+    where: { id: params.hazardId },
+    include: {
+      chemicalProduct: { select: { id: true, name: true } },
+      improvements: { orderBy: { createdAt: 'desc' } },
+    },
+  })
+
+  if (!hazard || hazard.cardId !== params.cardId) {
+    return NextResponse.json({ error: '유해요인을 찾을 수 없습니다.' }, { status: 404 })
+  }
+
+  const access = await requireWorkplaceAccess(hazard.workplaceId)
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
+
+  return NextResponse.json(hazard)
+}
+
+// PUT /api/risk-assessment/[cardId]/hazards/[hazardId]
+export async function PUT(req: NextRequest, { params }: Params) {
+  const auth = await requireAuth()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+
+  const hazard = await prisma.riskHazard.findUnique({ where: { id: params.hazardId } })
+  if (!hazard || hazard.cardId !== params.cardId) {
+    return NextResponse.json({ error: '유해요인을 찾을 수 없습니다.' }, { status: 404 })
+  }
+
+  const access = await requireWorkplaceAccess(hazard.workplaceId)
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
+
+  const body = await req.json()
+  const category = (body.hazardCategory ?? hazard.hazardCategory) as HazardCategory
+  const severity = parseInt(body.severityScore ?? hazard.severityScore)
+  const likelihood = parseInt(body.likelihoodScore ?? hazard.likelihoodScore)
+  const additional = parseInt(body.additionalPoints ?? hazard.additionalPoints)
+  const riskScore = calcRiskScore(category, severity, likelihood, additional)
+
+  const updated = await prisma.riskHazard.update({
+    where: { id: params.hazardId },
+    data: {
+      hazardCategory: category,
+      hazardFactor: body.hazardFactor,
+      severityScore: severity,
+      likelihoodScore: likelihood,
+      additionalPoints: additional,
+      riskScore,
+      improvementPlan: body.improvementPlan || null,
+      chemicalProductId: category === 'CHEMICAL' ? (body.chemicalProductId || null) : null,
+    },
+    include: {
+      chemicalProduct: { select: { id: true, name: true } },
+    },
+  })
+
+  return NextResponse.json(updated)
+}
+
+// DELETE /api/risk-assessment/[cardId]/hazards/[hazardId]
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const auth = await requireAuth()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+
+  const hazard = await prisma.riskHazard.findUnique({ where: { id: params.hazardId } })
+  if (!hazard || hazard.cardId !== params.cardId) {
+    return NextResponse.json({ error: '유해요인을 찾을 수 없습니다.' }, { status: 404 })
+  }
+
+  const access = await requireWorkplaceAccess(hazard.workplaceId)
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
+
+  await prisma.riskHazard.delete({ where: { id: params.hazardId } })
+  return NextResponse.json({ success: true })
+}

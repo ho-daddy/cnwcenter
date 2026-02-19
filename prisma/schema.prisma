@@ -32,6 +32,8 @@ model User {
   schedules       Schedule[]
   workplaces      WorkplaceUser[]
   musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사 (작성자)
+  notices         Notice[]                               // 공지사항 작성
+  noticeComments  NoticeComment[]                        // 공지사항 댓글
 }
 
 enum UserRole {
@@ -104,6 +106,8 @@ model Workplace {
   organization  Organization?              // 조직도 (사업장당 1개)
   musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
   archivedAssessments ArchivedAssessment[]  // 아카이브된 조사
+  riskAssessmentCards        RiskAssessmentCard[]         // 위험성평가 관리카드
+  chemicalProducts           ChemicalProduct[]            // 화학제품
 }
 
 // 담당자 유형
@@ -159,6 +163,9 @@ model OrganizationUnit {
   updatedAt      DateTime @updatedAt
 
   musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사
+  riskAssessmentCards        RiskAssessmentCard[]         // 위험성평가 관리카드
+  noiseMeasurements          NoiseMeasurement[]           // 소음 측정값
+  chemicalProductUnits       ChemicalProductUnit[]        // 사용 화학물질
 
   @@index([organizationId])
   @@index([parentId])
@@ -329,17 +336,359 @@ model DailyReport {
   @@index([date])
 }
 
-// 위험성평가 (추후 확장)
-model RiskAssessment {
-  id          String   @id @default(cuid())
-  companyName String
-  assessDate  DateTime
-  assessor    String
-  status      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ==========================================
+// 위험성평가 시스템
+// ==========================================
 
-  @@index([assessDate])
+enum HazardCategory {
+  ACCIDENT         // 사고성재해
+  MUSCULOSKELETAL  // 근골격계질환
+  CHEMICAL         // 유해화학물질
+  NOISE            // 소음
+  ABSOLUTE         // 절대기준
+  OTHER            // 기타위험
+}
+
+enum RiskEvaluationType {
+  REGULAR      // 정기조사
+  OCCASIONAL   // 수시조사
+}
+
+enum ImprovementStatus {
+  PLANNED    // 예정
+  COMPLETED  // 완료
+}
+
+// 관리카드 (공정별 위험성평가 기본정보, 기존 assessment_cards)
+model RiskAssessmentCard {
+  id                 String             @id @default(cuid())
+  workplaceId        String
+  workplace          Workplace          @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  organizationUnitId String
+  organizationUnit   OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
+
+  year               Int
+  evaluationType     RiskEvaluationType
+  evaluationReason   String?            @db.Text  // 수시조사 사유
+  evaluationNumber   String                       // 자동생성 평가번호
+  workerName         String
+  evaluatorName      String
+
+  dailyWorkingHours  String?
+  dailyProduction    String?
+  annualWorkingDays  String?
+  workCycle          String?
+  workDescription    String             @db.Text
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  hazards            RiskHazard[]
+  photos             RiskCardPhoto[]
+
+  @@unique([organizationUnitId, year, evaluationType])
+  @@index([workplaceId])
+  @@index([organizationUnitId])
+  @@index([year])
+}
+
+// 관리카드 사진 (기존 assessment_card_photos)
+model RiskCardPhoto {
+  id            String             @id @default(cuid())
+  cardId        String
+  card          RiskAssessmentCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  photoPath     String
+  thumbnailPath String?
+  width         Int?
+  height        Int?
+  photoType     String             @default("work_photo")  // work_photo | hazard_photo
+  description   String?            @db.Text
+
+  createdAt     DateTime           @default(now())
+
+  @@index([cardId])
+}
+
+// 유해위험요인 (기존 assessments)
+model RiskHazard {
+  id                String             @id @default(cuid())
+  cardId            String
+  card              RiskAssessmentCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  workplaceId       String
+
+  hazardCategory    HazardCategory
+  hazardFactor      String             @db.Text
+
+  // 위험성 점수 구성 (riskScore = severity × likelihood + additional)
+  severityScore     Int                // 중대성 1~5
+  likelihoodScore   Int                // 가능성 1~5
+  additionalPoints  Int                @default(0)  // 가점 0~3
+  riskScore         Int                // 앱에서 계산 후 저장
+
+  improvementPlan   String?            @db.Text
+  year              Int
+
+  // 유해화학물질 카테고리일 때 화학제품 직접 연결
+  chemicalProductId String?
+  chemicalProduct   ChemicalProduct?   @relation(fields: [chemicalProductId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  photos            RiskHazardPhoto[]
+  improvements      RiskImprovementRecord[]
+
+  @@index([cardId])
+  @@index([workplaceId])
+  @@index([hazardCategory])
+  @@index([year])
+  @@index([riskScore])
+  @@index([chemicalProductId])
+}
+
+// 유해위험요인 사진 (기존 assessment_photos)
+model RiskHazardPhoto {
+  id            String     @id @default(cuid())
+  hazardId      String
+  hazard        RiskHazard @relation(fields: [hazardId], references: [id], onDelete: Cascade)
+
+  photoPath     String
+  thumbnailPath String?
+  width         Int?
+  height        Int?
+
+  createdAt     DateTime   @default(now())
+
+  @@index([hazardId])
+}
+
+// 개선작업 이력 (기존 improvement_records)
+model RiskImprovementRecord {
+  id                 String            @id @default(cuid())
+  hazardId           String
+  hazard             RiskHazard        @relation(fields: [hazardId], references: [id], onDelete: Cascade)
+
+  status             ImprovementStatus
+  updateDate         DateTime          @db.Date   // 예정일 또는 완료일
+  improvementContent String            @db.Text
+  responsiblePerson  String
+
+  // 개선 후 위험성 점수
+  severityScore      Int
+  likelihoodScore    Int
+  additionalPoints   Int               @default(0)
+  riskScore          Int               // 앱에서 계산 후 저장
+
+  remarks            String?           @db.Text
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  photos             RiskImprovementPhoto[]
+  files              RiskImprovementFile[]
+
+  @@index([hazardId])
+  @@index([status])
+  @@index([updateDate])
+}
+
+// 개선작업 사진 (기존 improvement_record_photos)
+model RiskImprovementPhoto {
+  id            String                @id @default(cuid())
+  recordId      String
+  record        RiskImprovementRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  photoPath     String
+  thumbnailPath String?
+  width         Int?
+  height        Int?
+
+  createdAt     DateTime              @default(now())
+
+  @@index([recordId])
+}
+
+// 개선작업 첨부파일 (기존 improvement_record_files)
+model RiskImprovementFile {
+  id        String                @id @default(cuid())
+  recordId  String
+  record    RiskImprovementRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  fileName  String
+  filePath  String
+  fileSize  Int?
+
+  createdAt DateTime              @default(now())
+
+  @@index([recordId])
+}
+
+// ==========================================
+// 화학물질 관리 (MSDS)
+// ==========================================
+
+// 화학 성분 마스터 DB (전역 - CAS 번호 기반, 기존 chemical_components)
+model ChemicalComponent {
+  id          String             @id @default(cuid())
+  casNumber   String             @unique  // CAS 번호
+  name        String
+  hazards     String?            @db.Text  // 유해성 정보 (MSDS B02 섹션)
+  regulations String?            @db.Text  // 규제사항 (MSDS O02 섹션)
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  products    ProductComponent[]
+
+  @@index([casNumber])
+  @@index([name])
+}
+
+// 화학제품 (사업장별, 기존 chemical_products)
+model ChemicalProduct {
+  id            String              @id @default(cuid())
+  workplaceId   String
+  workplace     Workplace           @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+
+  name          String
+  manufacturer  String?
+  description   String?             @db.Text
+  severityScore Int?                // 구성성분 중 최대 중대성점수 (자동산정)
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  components    ProductComponent[]
+  hazardUsages  RiskHazard[]        // 이 화학물질이 참조된 평가항목
+  unitLinks     ChemicalProductUnit[] // 사용 공정/부서 연결 ← 핵심
+
+  @@index([workplaceId])
+  @@index([name])
+  @@index([severityScore])
+}
+
+// 제품-성분 연결 (기존 product_components)
+model ProductComponent {
+  id            String            @id @default(cuid())
+  productId     String
+  product       ChemicalProduct   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  componentId   String
+  component     ChemicalComponent @relation(fields: [componentId], references: [id])
+
+  concentration String?           // 함유량: "30", "모름", "영업비밀"
+  severityScore Int?              // 이 성분의 중대성점수 (MSDS 룰 자동산정)
+
+  @@unique([productId, componentId])
+  @@index([productId])
+  @@index([componentId])
+}
+
+// 화학물질-조직단위 연결
+// 기존 department_products + process_products 두 테이블을 단일 테이블로 통합.
+// OrganizationUnit이 부서/공정을 모두 표현하므로 레벨 구분 없이 하나의 관계로 충분.
+//
+// 연결 시점:
+//   1. [자동] 유해화학물질 RiskHazard 저장 시 해당 관리카드의 OrganizationUnit 자동 연결
+//   2. [수동] 화학제품 등록/수정 화면에서 부서/공정 직접 지정
+//
+// 지원 쿼리:
+//   - "이 화학물질을 사용하는 부서/공정은?" → filter by chemicalProductId
+//   - "이 공정에서 사용하는 화학물질은?"    → filter by organizationUnitId
+model ChemicalProductUnit {
+  chemicalProductId  String
+  chemicalProduct    ChemicalProduct  @relation(fields: [chemicalProductId], references: [id], onDelete: Cascade)
+  organizationUnitId String
+  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id], onDelete: Cascade)
+
+  linkedAt           DateTime         @default(now())
+
+  @@id([chemicalProductId, organizationUnitId])
+  @@index([chemicalProductId])
+  @@index([organizationUnitId])
+}
+
+// ==========================================
+// 소음 측정값
+// ==========================================
+
+enum NoisePeriod {
+  recent    // 최근 측정값
+  previous  // 전회 측정값
+}
+
+// 소음 측정값 (공정별·연도별, 기존 noise_measurements)
+// OrganizationUnit(공정 레벨)에 연결. 평가 시 중대성점수 자동 제안에 활용.
+model NoiseMeasurement {
+  id                 String           @id @default(cuid())
+  organizationUnitId String
+  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id], onDelete: Cascade)
+
+  year               Int
+  period             NoisePeriod
+  measurementValue   Decimal          @db.Decimal(5, 2)  // dB 값 (소수점 1자리)
+  notes              String?          @db.Text
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([organizationUnitId, year, period])
+  @@index([organizationUnitId])
+  @@index([year])
+}
+
+// ==========================================
+// 공지사항
+// ==========================================
+
+// 공지사항 (기존 notices)
+model Notice {
+  id        String          @id @default(cuid())
+  title     String
+  content   String?         @db.Text
+  authorId  String
+  author    User            @relation(fields: [authorId], references: [id])
+  isPinned  Boolean         @default(false)
+
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  comments  NoticeComment[]
+  images    NoticeImage[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([isPinned])
+}
+
+// 공지사항 댓글 (기존 comments)
+model NoticeComment {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([noticeId])
+  @@index([authorId])
+}
+
+// 공지사항 본문 이미지 (기존 notice_image_upload.php로 업로드)
+model NoticeImage {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  imagePath String
+  fileName  String
+  fileSize  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([noticeId])
 }
 
 // ==========================================
