@@ -1053,8 +1053,16 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
   const [selectedChemical, setSelectedChemical] = useState<ChemicalProduct | null>(
     initialData?.chemicalProduct ? { id: initialData.chemicalProduct.id, name: initialData.chemicalProduct.name, severityScore: initialData.severityScore } : null
   )
+  const [problemDesc, setProblemDesc] = useState(() => {
+    // 수정 시 hazardFactor에서 문제점 추출 ("제품명: 문제점" 형식)
+    if (initialData?.hazardFactor && initialData.hazardFactor.includes(': ')) {
+      return initialData.hazardFactor.split(': ').slice(1).join(': ')
+    }
+    return initialData?.hazardFactor || ''
+  })
+  const [componentInfo, setComponentInfo] = useState<Array<{ name: string; concentration: string | null; hazards: string | null; severityScore: number | null }>>([])
   const [likelihood, setLikelihood] = useState(initialData?.likelihoodScore || 0)
-  const [management, setManagement] = useState(initialData ? -1 : -1) // will derive from additionalPoints if editing
+  const [management, setManagement] = useState(-1)
   const [ventilation, setVentilation] = useState(-1)
   const [complaint, setComplaint] = useState(-1)
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
@@ -1062,13 +1070,7 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
   const TOTAL = 6
 
   useEffect(() => {
-    // Derive additional breakdowns from additionalPoints when editing
-    if (initialData && initialData.additionalPoints > 0) {
-      // We can't know exact breakdown, default to 0 for all
-      setManagement(0); setVentilation(0); setComplaint(0)
-    } else if (initialData) {
-      setManagement(0); setVentilation(0); setComplaint(0)
-    }
+    if (initialData) { setManagement(0); setVentilation(0); setComplaint(0) }
   }, [])
 
   useEffect(() => {
@@ -1079,50 +1081,125 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
       })
   }, [workplaceId])
 
-  const filteredChemicals = chemicals.filter(c => !chemSearch || c.name.toLowerCase().includes(chemSearch.toLowerCase()))
+  // 선택 시 구성성분 정보 로드
+  const loadComponents = async (chemId: string) => {
+    try {
+      const res = await fetch(`/api/risk-assessment/chemicals/${chemId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setComponentInfo((data.components || []).map((pc: { component: { name: string; hazards: string | null }; concentration: string | null; severityScore: number | null }) => ({
+          name: pc.component.name,
+          concentration: pc.concentration,
+          hazards: pc.component.hazards,
+          severityScore: pc.severityScore,
+        })))
+      }
+    } catch { setComponentInfo([]) }
+  }
 
+  const handleSelectChemical = (c: ChemicalProduct) => {
+    setSelectedChemical(c)
+    if (c.id !== '미등록물질' && c.id !== '미확인물질') loadComponents(c.id)
+    else setComponentInfo([])
+  }
+
+  const addSpecialChemical = (type: '미등록물질' | '미확인물질') => {
+    const special: ChemicalProduct = { id: type, name: type, severityScore: 5 }
+    setSelectedChemical(special)
+    setComponentInfo([])
+  }
+
+  const filteredChemicals = chemicals.filter(c => !chemSearch || c.name.toLowerCase().includes(chemSearch.toLowerCase()))
   const additional = (management > 0 ? 1 : 0) + (ventilation > 0 ? 1 : 0) + (complaint > 0 ? 1 : 0)
 
   const steps = [
-    // Step 0: 화학물질 선택
+    // Step 0: 화학물질 선택 + 문제점
     <div key="0" className="space-y-3">
       <p className="text-sm font-medium text-gray-700">취급하는 화학물질을 선택하세요.</p>
       {isLoadingChemicals ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
-      ) : chemicals.length === 0 ? (
-        <div className="text-center py-6 text-gray-500 text-sm">
-          <p>등록된 화학물질이 없습니다.</p>
-          <p className="text-xs text-gray-400 mt-1">사전등록 메뉴에서 화학물질을 먼저 등록해 주세요.</p>
-        </div>
       ) : (
         <>
           <input type="text" placeholder="화학물질 검색..." value={chemSearch}
             onChange={e => setChemSearch(e.target.value)}
             className="w-full text-sm border rounded px-3 py-2" />
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {filteredChemicals.map(c => (
-              <button key={c.id} onClick={() => setSelectedChemical(c)}
-                className={`w-full flex items-center justify-between p-2.5 rounded border text-left text-sm transition-colors ${selectedChemical?.id === c.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                <span className="font-medium">{c.name}</span>
-                <span className="text-xs text-gray-500">중대성 {c.severityScore}점</span>
-              </button>
-            ))}
+          {chemicals.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              <p>등록된 화학물질이 없습니다.</p>
+              <a href="/risk-assessment/chemicals/new" target="_blank" className="text-blue-600 hover:underline text-xs mt-1 inline-block">화학물질 등록하기</a>
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {filteredChemicals.map(c => (
+                <button key={c.id} onClick={() => handleSelectChemical(c)}
+                  className={`w-full flex items-center justify-between p-2.5 rounded border text-left text-sm transition-colors ${selectedChemical?.id === c.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <span className="font-medium">{c.name}</span>
+                  <span className="text-xs text-gray-500">중대성 {c.severityScore ?? '—'}점</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => addSpecialChemical('미등록물질')}
+              className={`px-3 py-1.5 text-xs rounded border ${selectedChemical?.id === '미등록물질' ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              미등록물질 (5점)
+            </button>
+            <button type="button" onClick={() => addSpecialChemical('미확인물질')}
+              className={`px-3 py-1.5 text-xs rounded border ${selectedChemical?.id === '미확인물질' ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              미확인물질 (5점)
+            </button>
+          </div>
+          {selectedChemical && (
+            <div className="bg-purple-50 rounded-lg p-3 space-y-1.5">
+              <p className="text-sm font-medium text-purple-800">{selectedChemical.name} — 중대성 {selectedChemical.severityScore}점</p>
+              {(selectedChemical.id === '미등록물질' || selectedChemical.id === '미확인물질') && (
+                <p className="text-xs text-amber-600">미확인 물질은 5점으로 자동 처리됩니다.</p>
+              )}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">화학물질로 인한 문제점 *</p>
+            <textarea value={problemDesc} onChange={e => setProblemDesc(e.target.value)}
+              placeholder="이 화학물질로 인한 위험 요인을 구체적으로 입력하세요..." rows={3}
+              className="w-full text-sm border rounded px-3 py-2 resize-none" />
           </div>
         </>
       )}
     </div>,
-    // Step 1: 화학물질 정보
+    // Step 1: 화학물질 구성성분 정보
     <div key="1" className="space-y-3">
-      <p className="text-sm font-medium text-gray-700">선택한 화학물질 정보</p>
+      <p className="text-sm font-medium text-gray-700">화학물질 구성성분 정보</p>
       {selectedChemical && (
-        <div className="bg-purple-50 rounded-lg p-4 space-y-2">
+        <div className="bg-purple-50 rounded-lg p-3">
           <p className="font-medium text-purple-900">{selectedChemical.name}</p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-purple-600">중대성 점수:</span>
-            <span className="text-sm font-bold text-purple-700">{selectedChemical.severityScore}점</span>
-            <span className="text-xs text-purple-500">(성분 유해성 기준 자동 산정)</span>
-          </div>
+          <p className="text-xs text-purple-600 mt-0.5">중대성 점수: {selectedChemical.severityScore}점</p>
         </div>
+      )}
+      {componentInfo.length > 0 ? (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-gray-500">성분명</th>
+                <th className="px-3 py-2 text-center text-gray-500">함유량</th>
+                <th className="px-3 py-2 text-left text-gray-500">유해성</th>
+                <th className="px-3 py-2 text-center text-gray-500">중대성</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {componentInfo.map((comp, i) => (
+                <tr key={i}>
+                  <td className="px-3 py-2 font-medium">{comp.name}</td>
+                  <td className="px-3 py-2 text-center">{comp.concentration === '모름' ? '모름' : comp.concentration === '영업비밀' ? '영업비밀' : comp.concentration ? `${comp.concentration}%` : '—'}</td>
+                  <td className="px-3 py-2 text-gray-600 max-w-[200px] truncate">{comp.hazards || '—'}</td>
+                  <td className="px-3 py-2 text-center font-bold">{comp.severityScore ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400">구성성분 정보가 없습니다.</p>
       )}
       <p className="text-xs text-gray-500">다음 단계에서 노출 빈도(가능성)와 관리 현황을 입력합니다.</p>
     </div>,
@@ -1135,27 +1212,27 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
     </div>,
     // Step 3: 관리상태
     <div key="3" className="space-y-3">
-      <p className="text-sm font-medium text-gray-700">화학물질 관리 상태가 불량합니까?</p>
-      <p className="text-xs text-gray-500">보관·취급·표지 등 관리가 미흡하면 +1점 추가됩니다.</p>
+      <p className="text-sm font-medium text-gray-700">취급물질 관리실태가 불량합니까?</p>
+      <p className="text-xs text-gray-500">교육, MSDS비치, 경고표지 부착 및 정기적 관리가 미흡하면 +1점 추가됩니다.</p>
       <div className="flex gap-3">
         <YesNoButton label="예 (+1점)" value={1} selected={management === 1} onClick={() => setManagement(1)} />
         <YesNoButton label="아니오" value={0} selected={management === 0} onClick={() => setManagement(0)} />
       </div>
     </div>,
-    // Step 4: 환기
+    // Step 4: 국소배기장치
     <div key="4" className="space-y-3">
-      <p className="text-sm font-medium text-gray-700">해당 작업장의 환기 상태가 불량합니까?</p>
-      <p className="text-xs text-gray-500">환기가 불량하면 +1점 추가됩니다.</p>
+      <p className="text-sm font-medium text-gray-700">실효성 있는 국소배기장치가 가동되고 있습니까?</p>
+      <p className="text-xs text-gray-500">국소배기장치가 필요하지만 미설치 또는 실효성 없으면 +1점 추가됩니다.</p>
       <div className="flex gap-3">
-        <YesNoButton label="예 (+1점)" value={1} selected={ventilation === 1} onClick={() => setVentilation(1)} />
-        <YesNoButton label="아니오" value={0} selected={ventilation === 0} onClick={() => setVentilation(0)} />
+        <YesNoButton label="미흡 (+1점)" value={1} selected={ventilation === 1} onClick={() => setVentilation(1)} />
+        <YesNoButton label="양호 / 불필요" value={0} selected={ventilation === 0} onClick={() => setVentilation(0)} />
       </div>
     </div>,
     // Step 5: 작업자 호소 + 개선방안
     <div key="5" className="space-y-3">
       <div className="space-y-3">
-        <p className="text-sm font-medium text-gray-700">작업자가 이상 증상(두통, 어지러움 등)을 호소합니까?</p>
-        <p className="text-xs text-gray-500">이상 증상 호소 시 +1점 추가됩니다.</p>
+        <p className="text-sm font-medium text-gray-700">취급 물질로 인한 불편이나 불안감이 있습니까?</p>
+        <p className="text-xs text-gray-500">작업자 호소 시 +1점 추가됩니다.</p>
         <div className="flex gap-3">
           <YesNoButton label="예 (+1점)" value={1} selected={complaint === 1} onClick={() => setComplaint(1)} />
           <YesNoButton label="아니오" value={0} selected={complaint === 0} onClick={() => setComplaint(0)} />
@@ -1176,7 +1253,7 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
   ]
 
   const canNext = [
-    selectedChemical !== null,
+    selectedChemical !== null && problemDesc.trim().length > 0,
     true,
     likelihood > 0,
     management >= 0,
@@ -1186,13 +1263,14 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
 
   const handleBack = step === 0 ? onBack : () => setStep(s => s - 1)
   const handleNext = () => setStep(s => s + 1)
+  const hazardFactor = selectedChemical ? `${selectedChemical.name}: ${problemDesc.trim()}` : problemDesc.trim()
   const handleSubmit = () => onComplete({
-    hazardFactor: selectedChemical?.name || '',
+    hazardFactor,
     severityScore: selectedChemical?.severityScore || 1,
     likelihoodScore: likelihood,
     additionalPoints: additional,
     improvementPlan,
-    chemicalProductId: selectedChemical?.id,
+    chemicalProductId: (selectedChemical?.id === '미등록물질' || selectedChemical?.id === '미확인물질') ? undefined : selectedChemical?.id,
   })
 
   return (

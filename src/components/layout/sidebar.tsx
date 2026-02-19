@@ -49,6 +49,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
       { title: '모아 보기',  href: '/risk-assessment/view' },
       { title: '보고서 생성', href: '/risk-assessment/report' },
       { title: '개선작업',   href: '/risk-assessment/improvement' },
+      { title: '화학물질',   href: '/risk-assessment/chemicals' },
       { title: '사전등록',   href: '/risk-assessment/registration' },
     ],
   })
