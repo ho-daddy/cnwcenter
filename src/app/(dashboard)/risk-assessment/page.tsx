@@ -241,8 +241,8 @@ export default async function RiskAssessmentDashboard() {
             </Link>
             <Link href="/risk-assessment/registration" className="p-4 rounded-lg border hover:bg-gray-50 transition-colors text-center">
               <Database className="w-8 h-8 mx-auto text-teal-600" />
-              <p className="mt-2 font-medium text-gray-900 text-sm">사전등록</p>
-              <p className="text-xs text-gray-500">소음·화학물질 등록</p>
+              <p className="mt-2 font-medium text-gray-900 text-sm">소음 등록</p>
+              <p className="text-xs text-gray-500">소음 측정값 등록</p>
             </Link>
           </div>
         </CardContent>
