@@ -194,9 +194,9 @@ export default function ConductPage() {
       if (res.ok) {
         const newHazard = await res.json()
         setHazards(prev => [...prev, { ...newHazard, improvements: [], photos: [] }])
-        setSelectedCard(prev => prev ? { ...prev, _count: { hazards: prev._count.hazards + 1 } } : prev)
+        setSelectedCard(prev => prev ? { ...prev, _count: { hazards: (prev._count?.hazards ?? 0) + 1 } } : prev)
         setCards(prev => prev.map(c => c.id === selectedCard.id
-          ? { ...c, _count: { hazards: c._count.hazards + 1 } } : c))
+          ? { ...c, _count: { hazards: (c._count?.hazards ?? 0) + 1 } } : c))
       }
     }
     setWizardState({ open: false, category: '', editing: null })
@@ -207,9 +207,9 @@ export default function ConductPage() {
     const res = await fetch(`/api/risk-assessment/${selectedCard.id}/hazards/${hazardId}`, { method: 'DELETE' })
     if (res.ok) {
       setHazards(prev => prev.filter(h => h.id !== hazardId))
-      setSelectedCard(prev => prev ? { ...prev, _count: { hazards: Math.max(0, prev._count.hazards - 1) } } : prev)
+      setSelectedCard(prev => prev ? { ...prev, _count: { hazards: Math.max(0, (prev._count?.hazards ?? 0) - 1) } } : prev)
       setCards(prev => prev.map(c => c.id === selectedCard.id
-        ? { ...c, _count: { hazards: Math.max(0, c._count.hazards - 1) } } : c))
+        ? { ...c, _count: { hazards: Math.max(0, (c._count?.hazards ?? 0) - 1) } } : c))
     }
   }, [selectedCard])
 
@@ -319,7 +319,7 @@ export default function ConductPage() {
               <div className="flex gap-0 mt-3 border-b -mb-3">
                 {[
                   { key: 'overview', label: '개요/관리카드' },
-                  { key: 'hazards', label: `유해위험요인 (${selectedCard._count.hazards})` },
+                  { key: 'hazards', label: `유해위험요인 (${selectedCard._count?.hazards ?? 0})` },
                 ].map(tab => (
                   <button key={tab.key}
                     onClick={() => setActiveTab(tab.key as 'overview' | 'hazards')}
