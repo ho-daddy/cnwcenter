@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Search, Loader2 } from 'lucide-react'
 import { calculateComponentSeverity, calculateProductSeverity } from '@/lib/msds-rules'
+import MsdsUploadSection, { type MsdsParseResult } from './MsdsUploadSection'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,13 +46,14 @@ function emptyComponent(): ComponentData {
 // ─── Component Entry ─────────────────────────────────────────────────────────
 
 function ComponentEntry({
-  comp, index, onChange, onRemove, canRemove,
+  comp, index, onChange, onRemove, canRemove, isAutoSearching,
 }: {
   comp: ComponentData
   index: number
   onChange: (index: number, data: Partial<ComponentData>) => void
   onRemove: (index: number) => void
   canRemove: boolean
+  isAutoSearching?: boolean
 }) {
   const [isSearching, setIsSearching] = useState(false)
 
@@ -106,10 +108,20 @@ function ComponentEntry({
     1: 'bg-gray-100 text-gray-600 border-gray-300',
   }
 
+  const searching = isSearching || isAutoSearching
+
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white space-y-3">
+    <div className={`border rounded-lg p-4 bg-white space-y-3 ${isAutoSearching ? 'border-blue-300 ring-1 ring-blue-200' : 'border-gray-200'}`}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">구성성분 #{index + 1}</span>
+        <span className="text-sm font-semibold text-gray-700">
+          구성성분 #{index + 1}
+          {isAutoSearching && (
+            <span className="ml-2 text-xs font-normal text-blue-500 inline-flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              KOSHA 조회 중...
+            </span>
+          )}
+        </span>
         {canRemove && (
           <button type="button" onClick={() => onRemove(index)} className="text-gray-400 hover:text-red-500">
             <X className="w-4 h-4" />
@@ -127,9 +139,9 @@ function ComponentEntry({
               readOnly={comp.isTradeSecret}
               className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm bg-white disabled:bg-gray-50"
               placeholder="예: 7647-01-0" />
-            <button type="button" onClick={handleCasSearch} disabled={isSearching || comp.isTradeSecret}
+            <button type="button" onClick={handleCasSearch} disabled={searching || comp.isTradeSecret}
               className="px-2 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1 shrink-0">
-              {isSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+              {searching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
               검색
             </button>
           </div>
@@ -208,6 +220,13 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     initial?.components?.length ? initial.components : [emptyComponent()]
   )
 
+  // KOSHA 자동검색 진행 상태
+  const [koshaProgress, setKoshaProgress] = useState<{
+    total: number
+    completed: number
+    currentIndex: number // 현재 검색 중인 component index
+  } | null>(null)
+
   const productSeverity = useMemo(
     () => calculateProductSeverity(components.map(c => c.severityScore)),
     [components]
@@ -222,6 +241,84 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     if (components.length <= 1) { alert('구성성분은 최소 1개 이상 필요합니다.'); return }
     setComponents(prev => prev.filter((_, i) => i !== index))
   }
+
+  // ─── MSDS 파싱 결과 처리 + KOSHA 자동검색 ────────────────────────
+  const handleMsdsParsed = useCallback(async (result: MsdsParseResult) => {
+    // 1. 기본 정보 입력
+    setName(result.productName || '')
+    setManufacturer(result.manufacturer || '')
+    setDescription(result.description || '')
+
+    // 2. 성분 데이터 생성
+    const newComponents: ComponentData[] = result.components.map(c => {
+      const concLower = (c.concentration || '').toLowerCase()
+      const isTradeSecret = concLower === '영업비밀' || c.casNumber === '영업비밀'
+      const isUnknown = concLower === '모름' || concLower === '미확인' || concLower === '비공개'
+
+      return {
+        key: crypto.randomUUID(),
+        casNumber: c.casNumber || '',
+        name: c.name || '',
+        concentration: c.concentration || '',
+        hazards: '',
+        regulations: '',
+        severityScore: 1,
+        isTradeSecret,
+        isConcentrationUnknown: isUnknown,
+      }
+    })
+
+    if (newComponents.length === 0) {
+      newComponents.push(emptyComponent())
+    }
+
+    setComponents(newComponents)
+
+    // 3. KOSHA 자동검색 (CAS 번호가 있는 성분만)
+    const searchTargets = newComponents
+      .map((c, i) => ({ index: i, cas: c.casNumber }))
+      .filter(t => t.cas && t.cas !== '영업비밀' && /^\d/.test(t.cas))
+
+    if (searchTargets.length === 0) return
+
+    setKoshaProgress({ total: searchTargets.length, completed: 0, currentIndex: searchTargets[0].index })
+
+    for (let si = 0; si < searchTargets.length; si++) {
+      const target = searchTargets[si]
+      setKoshaProgress(prev => prev ? { ...prev, completed: si, currentIndex: target.index } : null)
+
+      try {
+        const res = await fetch(`/api/risk-assessment/kosha?cas=${encodeURIComponent(target.cas)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (!data.error) {
+            const hazards = data.hazards || ''
+            const severity = hazards ? calculateComponentSeverity(hazards) : 1
+            setComponents(prev => prev.map((c, i) =>
+              i === target.index ? {
+                ...c,
+                name: data.name || c.name,
+                hazards,
+                regulations: data.regulations || '',
+                severityScore: severity,
+              } : c
+            ))
+          }
+        }
+      } catch {
+        // 개별 KOSHA 검색 실패는 무시 (사용자가 수동 검색 가능)
+      }
+
+      // KOSHA API 부하 방지 (300ms 간격)
+      if (si < searchTargets.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+    }
+
+    setKoshaProgress(prev => prev ? { ...prev, completed: searchTargets.length, currentIndex: -1 } : null)
+    // 완료 후 잠시 뒤 progress 숨기기
+    setTimeout(() => setKoshaProgress(null), 2000)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -286,6 +383,11 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* MSDS 자동 입력 (신규 등록 모드에서만) */}
+      {mode === 'new' && (
+        <MsdsUploadSection onParsed={handleMsdsParsed} />
+      )}
+
       {/* Product Info */}
       <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
         <h2 className="text-base font-semibold text-gray-800">기본 정보</h2>
@@ -333,9 +435,32 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
           </button>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
-          CAS 번호 입력 후 "검색" 버튼을 클릭하면 KOSHA MSDS 데이터에서 성분명, 유해성, 규제사항을 자동으로 불러오고 중대성 점수가 자동 계산됩니다.
-        </div>
+        {/* KOSHA 자동검색 진행률 */}
+        {koshaProgress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs text-blue-700">
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              <span className="font-medium">
+                {koshaProgress.completed >= koshaProgress.total
+                  ? 'KOSHA MSDS 데이터 조회 완료!'
+                  : `KOSHA MSDS 데이터 조회 중... (${koshaProgress.completed + 1}/${koshaProgress.total})`
+                }
+              </span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-1.5">
+              <div
+                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${Math.round((koshaProgress.completed / koshaProgress.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {!koshaProgress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+            CAS 번호 입력 후 &quot;검색&quot; 버튼을 클릭하면 KOSHA MSDS 데이터에서 성분명, 유해성, 규제사항을 자동으로 불러오고 중대성 점수가 자동 계산됩니다.
+          </div>
+        )}
 
         <div className="space-y-3">
           {components.map((comp, idx) => (
@@ -346,6 +471,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
               onChange={handleComponentChange}
               onRemove={removeComponent}
               canRemove={components.length > 1}
+              isAutoSearching={koshaProgress !== null && koshaProgress.currentIndex === idx}
             />
           ))}
         </div>
@@ -357,7 +483,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
           className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
           취소
         </button>
-        <button type="submit" disabled={isSaving}
+        <button type="submit" disabled={isSaving || (koshaProgress !== null && koshaProgress.completed < koshaProgress.total)}
           className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
           {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
           {mode === 'new' ? '제품 등록' : '수정 저장'}
