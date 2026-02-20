@@ -31,8 +31,8 @@ export default function MsdsUploadSection({ onParsed }: Props) {
 
   const handleFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (!ext || !['pdf', 'docx', 'doc'].includes(ext)) {
-      setErrorMsg('PDF, DOCX, DOC 파일만 지원합니다.')
+    if (!ext || !['pdf', 'docx', 'doc', 'rtf', 'hwp'].includes(ext)) {
+      setErrorMsg('PDF, DOCX, DOC, RTF, HWP 파일만 지원합니다.')
       setStatus('error')
       return
     }
@@ -166,14 +166,14 @@ export default function MsdsUploadSection({ onParsed }: Props) {
                 MSDS 파일을 드래그하거나 클릭하여 선택
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                PDF, DOCX, DOC 지원 · 이미지 PDF는 AI OCR로 추출
+                PDF, DOCX, DOC, HWP 지원 · 이미지 PDF는 AI OCR로 추출
               </p>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.doc"
+              accept=".pdf,.docx,.doc,.rtf,.hwp"
               onChange={handleInputChange}
               className="hidden"
             />

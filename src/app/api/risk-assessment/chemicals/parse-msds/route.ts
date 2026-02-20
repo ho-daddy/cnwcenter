@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth-utils'
 import { getAnthropicClient } from '@/lib/anthropic'
 import * as iconv from 'iconv-lite'
 
-const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'doc', 'rtf']
+const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'doc', 'rtf', 'hwp']
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
 const TEXT_SPARSE_THRESHOLD = 200 // chars
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
   if (!ALLOWED_EXTENSIONS.includes(ext)) {
     return NextResponse.json(
-      { error: 'PDF, DOCX, DOC, RTF 파일만 지원합니다.' },
+      { error: 'PDF, DOCX, DOC, RTF, HWP 파일만 지원합니다.' },
       { status: 400 }
     )
   }
@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
       result = await processPdf(buffer)
     } else if (ext === 'docx') {
       result = await processDocx(buffer)
+    } else if (ext === 'hwp') {
+      result = await processHwp(buffer)
     } else {
       // doc, rtf — 실제 파일 매직 바이트로 포맷 감지
       result = await processDocOrRtf(buffer)
@@ -154,6 +156,94 @@ async function processDocx(buffer: Buffer): Promise<MsdsExtractedData> {
   return await extractWithClaudeText(text)
 }
 
+// ─── HWP Processing (한글 문서) ──────────────────────
+async function processHwp(buffer: Buffer): Promise<MsdsExtractedData> {
+  const text = extractTextFromHwp(buffer)
+  if (text.replace(/\s+/g, '').length < TEXT_SPARSE_THRESHOLD) {
+    throw new Error('HWP 문서에서 충분한 텍스트를 추출할 수 없습니다.')
+  }
+  return await extractWithClaudeText(text)
+}
+
+function extractTextFromHwp(buffer: Buffer): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const CFB = require('cfb')
+  const zlib = require('zlib')
+
+  const cfb = CFB.read(buffer)
+
+  // 1차: BodyText/Section0에서 본문 텍스트 추출 시도
+  const section = CFB.find(cfb, '/BodyText/Section0')
+  if (section && section.content && section.content.length > 0) {
+    // FileHeader에서 압축 여부 확인 (offset 36, bit 0)
+    const header = CFB.find(cfb, '/FileHeader')
+    const compressed = header?.content
+      ? !!(header.content[36] & 1)
+      : false
+
+    let data: Buffer
+    try {
+      data = compressed
+        ? zlib.inflateRawSync(Buffer.from(section.content))
+        : Buffer.from(section.content)
+    } catch {
+      // 압축 해제 실패 시 PrvText로 폴백
+      return extractPrvText(cfb, CFB)
+    }
+
+    const texts: string[] = []
+    let offset = 0
+
+    while (offset < data.length - 4) {
+      const header32 = data.readUInt32LE(offset)
+      const tagId = header32 & 0x3FF
+      let size = (header32 >> 20) & 0xFFF
+      offset += 4
+
+      if (size === 0xFFF) {
+        if (offset + 4 > data.length) break
+        size = data.readUInt32LE(offset)
+        offset += 4
+      }
+      if (offset + size > data.length) break
+
+      // HWPTAG_PARA_TEXT = 67
+      if (tagId === 67 && size > 0) {
+        let str = ''
+        for (let i = 0; i + 1 < size; i += 2) {
+          const charCode = data[offset + i] | (data[offset + i + 1] << 8)
+          if (charCode === 0) break
+          if (charCode < 32) {
+            // HWP 확장 컨트롤 (2~13): 추가 14바이트 건너뛰기
+            if (charCode >= 2 && charCode <= 13) { i += 14; continue }
+            if (charCode === 24 || charCode === 13 || charCode === 10) { str += '\n'; continue }
+            continue
+          }
+          str += String.fromCharCode(charCode)
+        }
+        if (str.trim()) texts.push(str.trim())
+      }
+      offset += size
+    }
+
+    if (texts.length > 0) {
+      return texts.join('\n')
+    }
+  }
+
+  // 2차: PrvText (미리보기 텍스트) 폴백
+  return extractPrvText(cfb, CFB)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPrvText(cfb: any, CFB: any): string {
+  const prvText = CFB.find(cfb, '/PrvText')
+  if (prvText && prvText.content && prvText.content.length > 0) {
+    return Buffer.from(prvText.content).toString('utf16le')
+  }
+  return ''
+}
+
 // ─── DOC/RTF Processing ──────────────────────────────
 async function processDocOrRtf(buffer: Buffer): Promise<MsdsExtractedData> {
   const header = buffer.subarray(0, 5).toString('ascii')
@@ -167,9 +257,19 @@ async function processDocOrRtf(buffer: Buffer): Promise<MsdsExtractedData> {
     throw new Error('RTF 문서에서 충분한 텍스트를 추출할 수 없습니다.')
   }
 
-  // OLE Compound Document (실제 .doc) 감지 — 0xD0CF11E0
+  // OLE Compound Document (실제 .doc 또는 .hwp) 감지 — 0xD0CF11E0
   if (buffer[0] === 0xD0 && buffer[1] === 0xCF) {
-    // mammoth 시도
+    // HWP 파일인지 확인 (OLE 스트림에 FileHeader, BodyText 존재)
+    try {
+      const hwpText = extractTextFromHwp(buffer)
+      if (hwpText.replace(/\s+/g, '').length >= TEXT_SPARSE_THRESHOLD) {
+        return await extractWithClaudeText(hwpText)
+      }
+    } catch {
+      // HWP 아님 — mammoth로 .doc 시도
+    }
+
+    // mammoth 시도 (.doc)
     try {
       const mammoth = (await import('mammoth')).default
       const result = await mammoth.extractRawText({ buffer })
