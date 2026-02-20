@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
   const body = await req.json()
-  const { hazardCategory, hazardFactor, severityScore, likelihoodScore, additionalPoints, improvementPlan, chemicalProductId } = body
+  const { hazardCategory, hazardFactor, severityScore, likelihoodScore, additionalPoints, additionalDetails, improvementPlan, chemicalProductId } = body
 
   if (!hazardCategory || !hazardFactor || severityScore == null || likelihoodScore == null) {
     return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       severityScore: severity,
       likelihoodScore: likelihood,
       additionalPoints: additional,
+      additionalDetails: additionalDetails || null,
       riskScore,
       improvementPlan: improvementPlan || null,
       year: card.year,

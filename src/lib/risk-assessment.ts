@@ -69,40 +69,59 @@ export const LIKELIHOOD_OPTIONS = [
 export const ADDITIONAL_SCORE_CONFIG: Record<string, {
   label: string
   max: number
-  fields: { key: string; label: string; max: number }[]
+  fields: { key: string; label: string; shortLabel: string; max: number }[]
 }> = {
   ACCIDENT: {
     label: '재해 관련 추가점수 (최대 2점)',
     max: 2,
     fields: [
-      { key: 'accidentJudgement', label: '재해 유발 가능성 있음 (+1점)', max: 1 },
-      { key: 'accidentExperience', label: '과거 재해 발생 이력 있음 (+1점)', max: 1 },
+      { key: 'accidentExperience', label: '과거 재해 발생 이력 있음 (+1점)', shortLabel: '사고경험', max: 1 },
+      { key: 'accidentJudgement', label: '재해 유발 가능성 있음 (+1점)', shortLabel: '사고우려', max: 1 },
     ],
   },
   CHEMICAL: {
     label: '화학물질 관리 추가점수 (최대 3점)',
     max: 3,
     fields: [
-      { key: 'managementStatus',  label: '관리상태 불량 (+1점)', max: 1 },
-      { key: 'ventilationStatus', label: '환기 불량 (+1점)', max: 1 },
-      { key: 'workerComplaint',   label: '작업자 이상 증상 호소 (+1점)', max: 1 },
+      { key: 'managementStatus',  label: '관리상태 불량 (+1점)', shortLabel: '관리미비', max: 1 },
+      { key: 'ventilationStatus', label: '국소배기장치 미비 (+1점)', shortLabel: '배기장치미비', max: 1 },
+      { key: 'workerComplaint',   label: '작업자 불안감 호소 (+1점)', shortLabel: '작업자불안', max: 1 },
     ],
   },
   MUSCULOSKELETAL: {
     label: '근골격계 추가점수 (최대 2점)',
     max: 2,
     fields: [
-      { key: 'experience',  label: '해당 작업 경험 1년 이상 (+1점)', max: 1 },
-      { key: 'currentPain', label: '현재 통증 호소 (+1점)', max: 1 },
+      { key: 'experience',  label: '치료 경험 또는 치료 권고 이력 있음 (+1점)', shortLabel: '치료경험', max: 1 },
+      { key: 'currentPain', label: '현재 통증 호소 (+1점)', shortLabel: '통증여부', max: 1 },
     ],
   },
   NOISE: {
-    label: '소음 추가점수 (최대 2점)',
-    max: 2,
+    label: '소음 추가점수 (최대 3점)',
+    max: 3,
     fields: [
-      { key: 'workerComplaint', label: '작업자 청력 이상 호소 (0~2점)', max: 2 },
+      { key: 'noiseStress', label: '소음 스트레스 또는 청각저하 우려 (+1점)', shortLabel: '스트레스', max: 1 },
+      { key: 'hearingLoss', label: '특수건강검진 난청 소견 (+2점)', shortLabel: '난청소견', max: 2 },
     ],
   },
   OTHER:    { label: '추가점수 없음', max: 0, fields: [] },
   ABSOLUTE: { label: '절대기준 (항상 16점)', max: 0, fields: [] },
+}
+
+// 가점 상세를 한글 레이블로 변환
+export function formatAdditionalDetails(
+  category: string,
+  details: Record<string, number> | null | undefined
+): string[] {
+  if (!details) return []
+  const config = ADDITIONAL_SCORE_CONFIG[category]
+  if (!config) return []
+  const labels: string[] = []
+  for (const field of config.fields) {
+    const val = details[field.key]
+    if (val && val > 0) {
+      labels.push(`${field.shortLabel}(+${val})`)
+    }
+  }
+  return labels
 }

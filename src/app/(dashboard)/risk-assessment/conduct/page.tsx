@@ -10,7 +10,7 @@ import {
 import { format } from 'date-fns'
 import {
   EVALUATION_TYPE_LABELS, HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS,
-  getRiskLevel, calcRiskScore,
+  getRiskLevel, calcRiskScore, formatAdditionalDetails,
   SEVERITY_OPTIONS, LIKELIHOOD_OPTIONS, ADDITIONAL_SCORE_CONFIG,
 } from '@/lib/risk-assessment'
 import { PhotoUploader } from '@/components/ui/photo-uploader'
@@ -37,6 +37,7 @@ interface HazardPhoto {
 interface RiskHazard {
   id: string; hazardCategory: string; hazardFactor: string
   severityScore: number; likelihoodScore: number; additionalPoints: number
+  additionalDetails: Record<string, number> | null
   riskScore: number; improvementPlan: string | null
   chemicalProductId: string | null
   chemicalProduct: { id: string; name: string } | null
@@ -56,7 +57,8 @@ interface ImprovementRecord {
 
 interface WizardResult {
   hazardFactor: string; severityScore: number; likelihoodScore: number
-  additionalPoints: number; improvementPlan: string
+  additionalPoints: number; additionalDetails?: Record<string, number>
+  improvementPlan: string
   chemicalProductId?: string
   category?: string
 }
@@ -176,6 +178,7 @@ export default function ConductPage() {
       severityScore: result.severityScore,
       likelihoodScore: result.likelihoodScore,
       additionalPoints: result.additionalPoints,
+      additionalDetails: result.additionalDetails || null,
       improvementPlan: result.improvementPlan || null,
       chemicalProductId: result.chemicalProductId || null,
     }
@@ -803,6 +806,11 @@ function HazardListTab({
                       <p className="text-xs text-gray-400 mt-0.5">
                         {h.hazardCategory === 'ABSOLUTE' ? '절대기준' : `${h.severityScore}×${h.likelihoodScore}+${h.additionalPoints}`}
                       </p>
+                      {h.additionalDetails && h.additionalPoints > 0 && (
+                        <p className="text-xs text-blue-500 mt-0.5">
+                          {formatAdditionalDetails(h.hazardCategory, h.additionalDetails).join(', ')}
+                        </p>
+                      )}
                     </td>
                     <td className="py-2 px-3">
                       <p className="text-xs text-gray-600 line-clamp-2">{h.improvementPlan || <span className="text-gray-300">-</span>}</p>
@@ -1038,8 +1046,8 @@ function AccidentWizard({ initialData, isSaving, onBack, onComplete }: {
   const [hazardFactor, setHazardFactor] = useState(initialData?.hazardFactor || '')
   const [severity, setSeverity] = useState(initialData?.severityScore || 0)
   const [likelihood, setLikelihood] = useState(initialData?.likelihoodScore || 0)
-  const [judgement, setJudgement] = useState(initialData ? (initialData.additionalPoints >= 1 ? 1 : 0) : -1)
-  const [experience, setExperience] = useState(initialData ? (initialData.additionalPoints === 2 ? 1 : 0) : -1)
+  const [judgement, setJudgement] = useState(initialData?.additionalDetails?.accidentJudgement ?? (initialData ? 0 : -1))
+  const [experience, setExperience] = useState(initialData?.additionalDetails?.accidentExperience ?? (initialData ? 0 : -1))
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
   const TOTAL = 6
 
@@ -1106,11 +1114,16 @@ function AccidentWizard({ initialData, isSaving, onBack, onComplete }: {
 
   const handleBack = step === 0 ? onBack : () => setStep(s => s - 1)
   const handleNext = () => setStep(s => s + 1)
-  const handleSubmit = () => onComplete({
-    hazardFactor, severityScore: severity, likelihoodScore: likelihood,
-    additionalPoints: (judgement > 0 ? 1 : 0) + (experience > 0 ? 1 : 0),
-    improvementPlan,
-  })
+  const handleSubmit = () => {
+    const accExp = experience > 0 ? 1 : 0
+    const accJdg = judgement > 0 ? 1 : 0
+    onComplete({
+      hazardFactor, severityScore: severity, likelihoodScore: likelihood,
+      additionalPoints: accExp + accJdg,
+      additionalDetails: { accidentExperience: accExp, accidentJudgement: accJdg },
+      improvementPlan,
+    })
+  }
 
   return (
     <>
@@ -1150,15 +1163,15 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
   })
   const [componentInfo, setComponentInfo] = useState<Array<{ name: string; concentration: string | null; hazards: string | null; severityScore: number | null }>>([])
   const [likelihood, setLikelihood] = useState(initialData?.likelihoodScore || 0)
-  const [management, setManagement] = useState(-1)
-  const [ventilation, setVentilation] = useState(-1)
-  const [complaint, setComplaint] = useState(-1)
+  const [management, setManagement] = useState(initialData?.additionalDetails?.managementStatus ?? -1)
+  const [ventilation, setVentilation] = useState(initialData?.additionalDetails?.ventilationStatus ?? -1)
+  const [complaint, setComplaint] = useState(initialData?.additionalDetails?.workerComplaint ?? -1)
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
   const [chemSearch, setChemSearch] = useState('')
   const TOTAL = 6
 
   useEffect(() => {
-    if (initialData) { setManagement(0); setVentilation(0); setComplaint(0) }
+    if (initialData && !initialData.additionalDetails) { setManagement(0); setVentilation(0); setComplaint(0) }
   }, [])
 
   useEffect(() => {
@@ -1352,14 +1365,20 @@ function ChemicalWizard({ initialData, workplaceId, isSaving, onBack, onComplete
   const handleBack = step === 0 ? onBack : () => setStep(s => s - 1)
   const handleNext = () => setStep(s => s + 1)
   const hazardFactor = selectedChemical ? `${selectedChemical.name}: ${problemDesc.trim()}` : problemDesc.trim()
-  const handleSubmit = () => onComplete({
-    hazardFactor,
-    severityScore: selectedChemical?.severityScore || 1,
-    likelihoodScore: likelihood,
-    additionalPoints: additional,
-    improvementPlan,
-    chemicalProductId: (selectedChemical?.id === '미등록물질' || selectedChemical?.id === '미확인물질') ? undefined : selectedChemical?.id,
-  })
+  const handleSubmit = () => {
+    const mgmt = management > 0 ? 1 : 0
+    const vent = ventilation > 0 ? 1 : 0
+    const comp = complaint > 0 ? 1 : 0
+    onComplete({
+      hazardFactor,
+      severityScore: selectedChemical?.severityScore || 1,
+      likelihoodScore: likelihood,
+      additionalPoints: mgmt + vent + comp,
+      additionalDetails: { managementStatus: mgmt, ventilationStatus: vent, workerComplaint: comp },
+      improvementPlan,
+      chemicalProductId: (selectedChemical?.id === '미등록물질' || selectedChemical?.id === '미확인물질') ? undefined : selectedChemical?.id,
+    })
+  }
 
   return (
     <>
@@ -1404,8 +1423,8 @@ function MusculoskeletalWizard({ initialData, isSaving, onBack, onComplete }: {
   const [borg, setBorg] = useState(12)
   const [workType, setWorkType] = useState<'REGULAR' | 'IRREGULAR'>('REGULAR')
   const [likelihood, setLikelihood] = useState(initialData?.likelihoodScore || 0)
-  const [experience, setExperience] = useState(-1)
-  const [currentPain, setCurrentPain] = useState(-1)
+  const [experience, setExperience] = useState(initialData?.additionalDetails?.experience ?? -1)
+  const [currentPain, setCurrentPain] = useState(initialData?.additionalDetails?.currentPain ?? -1)
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
   const TOTAL = 6
 
@@ -1520,10 +1539,16 @@ function MusculoskeletalWizard({ initialData, isSaving, onBack, onComplete }: {
 
   const handleBack = step === 0 ? onBack : () => setStep(s => s - 1)
   const handleNext = () => setStep(s => s + 1)
-  const handleSubmit = () => onComplete({
-    hazardFactor, severityScore: severity, likelihoodScore: likelihood,
-    additionalPoints: additional, improvementPlan,
-  })
+  const handleSubmit = () => {
+    const exp = experience > 0 ? 1 : 0
+    const pain = currentPain > 0 ? 1 : 0
+    onComplete({
+      hazardFactor, severityScore: severity, likelihoodScore: likelihood,
+      additionalPoints: exp + pain,
+      additionalDetails: { experience: exp, currentPain: pain },
+      improvementPlan,
+    })
+  }
 
   return (
     <>
@@ -1550,12 +1575,6 @@ const NOISE_LIKELIHOOD = [
   { v: 4, label: '4점', desc: '하루 8-10시간 노출' },
   { v: 5, label: '5점', desc: '하루 10시간 이상 노출' },
 ]
-const NOISE_COMPLAINT = [
-  { v: 0, label: '0점', desc: '자연스럽게 대화 가능 (이상 없음)' },
-  { v: 1, label: '1점', desc: '소음으로 인한 스트레스 또는 청각저하 우려' },
-  { v: 2, label: '2점', desc: '특수건강검진 결과 난청 소견' },
-]
-
 function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
   initialData: RiskHazard | null; isSaving: boolean
   onBack?: () => void; onComplete: (r: WizardResult) => void
@@ -1564,9 +1583,12 @@ function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
   const [hazardFactor, setHazardFactor] = useState(initialData?.hazardFactor || '')
   const [severity, setSeverity] = useState(initialData?.severityScore || 0)
   const [likelihood, setLikelihood] = useState(initialData?.likelihoodScore || 0)
-  const [complaint, setComplaint] = useState(initialData?.additionalPoints ?? -1)
+  const [noiseStress, setNoiseStress] = useState(initialData?.additionalDetails?.noiseStress ?? -1)
+  const [hearingLoss, setHearingLoss] = useState(initialData?.additionalDetails?.hearingLoss != null ? (initialData.additionalDetails.hearingLoss > 0 ? 1 : 0) : -1)
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
-  const TOTAL = 5
+  const TOTAL = 6
+
+  const additional = (noiseStress > 0 ? 1 : 0) + (hearingLoss > 0 ? 2 : 0)
 
   const steps = [
     // Step 0: 소음원
@@ -1590,16 +1612,27 @@ function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
         <OptionButton key={o.v} label={o.label} desc={o.desc} selected={likelihood === o.v} onClick={() => setLikelihood(o.v)} />
       ))}
     </div>,
-    // Step 3: 작업자 호소
-    <div key="3" className="space-y-2">
-      <p className="text-sm font-medium text-gray-700">작업자의 청력 이상 호소 수준은?</p>
-      {NOISE_COMPLAINT.map(o => (
-        <OptionButton key={o.v} label={o.label} desc={o.desc} selected={complaint === o.v} onClick={() => setComplaint(o.v)} />
-      ))}
+    // Step 3: 소음 스트레스
+    <div key="3" className="space-y-3">
+      <p className="text-sm font-medium text-gray-700">소음으로 인한 스트레스나 청각저하 우려가 있습니까?</p>
+      <p className="text-xs text-gray-500">스트레스 호소 시 +1점 추가됩니다.</p>
+      <div className="flex gap-3">
+        <YesNoButton label="예 (+1점)" value={1} selected={noiseStress === 1} onClick={() => setNoiseStress(1)} />
+        <YesNoButton label="아니오" value={0} selected={noiseStress === 0} onClick={() => setNoiseStress(0)} />
+      </div>
     </div>,
-    // Step 4: 개선방안 + 결과
+    // Step 4: 난청 소견
     <div key="4" className="space-y-3">
-      <ScorePreview severity={severity} likelihood={likelihood} additional={Math.max(0, complaint)} category="NOISE" />
+      <p className="text-sm font-medium text-gray-700">특수건강검진 결과 난청 소견이 있습니까?</p>
+      <p className="text-xs text-gray-500">난청 소견이 있으면 +2점 추가됩니다.</p>
+      <div className="flex gap-3">
+        <YesNoButton label="예 (+2점)" value={1} selected={hearingLoss === 1} onClick={() => setHearingLoss(1)} />
+        <YesNoButton label="아니오" value={0} selected={hearingLoss === 0} onClick={() => setHearingLoss(0)} />
+      </div>
+    </div>,
+    // Step 5: 개선방안 + 결과
+    <div key="5" className="space-y-3">
+      <ScorePreview severity={severity} likelihood={likelihood} additional={additional} category="NOISE" />
       <div>
         <p className="text-sm font-medium text-gray-700 mb-1">개선방안 (선택)</p>
         <textarea value={improvementPlan} onChange={e => setImprovementPlan(e.target.value)}
@@ -1613,16 +1646,23 @@ function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
     hazardFactor.trim().length > 0,
     severity > 0,
     likelihood > 0,
-    complaint >= 0,
+    noiseStress >= 0,
+    hearingLoss >= 0,
     true,
   ][step]
 
   const handleBack = step === 0 ? onBack : () => setStep(s => s - 1)
   const handleNext = () => setStep(s => s + 1)
-  const handleSubmit = () => onComplete({
-    hazardFactor, severityScore: severity, likelihoodScore: likelihood,
-    additionalPoints: Math.max(0, complaint), improvementPlan,
-  })
+  const handleSubmit = () => {
+    const stress = noiseStress > 0 ? 1 : 0
+    const hearing = hearingLoss > 0 ? 2 : 0
+    onComplete({
+      hazardFactor, severityScore: severity, likelihoodScore: likelihood,
+      additionalPoints: stress + hearing,
+      additionalDetails: { noiseStress: stress, hearingLoss: hearing },
+      improvementPlan,
+    })
+  }
 
   return (
     <>
@@ -1883,7 +1923,12 @@ function ConductAddImprovementForm({
         <label className="text-xs text-gray-600 mb-1 block">
           {status === 'PLANNED' ? '예상 위험성 점수 (개선 후)' : '실제 위험성 점수 (개선 후)'}
         </label>
-        <p className="text-xs text-gray-400 mb-2">최초 위험성: {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints} = {hazard.riskScore}점</p>
+        <p className="text-xs text-gray-400 mb-2">
+          최초 위험성: {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints} = {hazard.riskScore}점
+          {hazard.additionalDetails && hazard.additionalPoints > 0 && (
+            <span className="text-blue-500 ml-1">({formatAdditionalDetails(hazard.hazardCategory, hazard.additionalDetails).join(', ')})</span>
+          )}
+        </p>
         {isAbsolute ? (
           <span className="text-xs text-gray-500">절대기준 — 16점 고정</span>
         ) : (

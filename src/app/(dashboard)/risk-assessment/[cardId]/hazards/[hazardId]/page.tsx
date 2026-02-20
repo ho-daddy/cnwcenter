@@ -9,6 +9,7 @@ import { ArrowLeft, Plus, Trash2, CheckCircle, Clock } from 'lucide-react'
 import { PhotoUploader } from '@/components/ui/photo-uploader'
 import {
   getRiskLevel, HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS, IMPROVEMENT_STATUS_LABELS,
+  formatAdditionalDetails,
 } from '@/lib/risk-assessment'
 import { cn } from '@/lib/utils'
 
@@ -38,6 +39,7 @@ interface Hazard {
   severityScore: number
   likelihoodScore: number
   additionalPoints: number
+  additionalDetails: Record<string, number> | null
   riskScore: number
   improvementPlan: string | null
   chemicalProduct: { name: string } | null
@@ -154,6 +156,11 @@ export default function HazardDetailPage() {
           <div>
             <p className="text-xs text-gray-500">가점</p>
             <p className="text-xl font-bold text-gray-900">+{hazard.additionalPoints}</p>
+            {hazard.additionalDetails && hazard.additionalPoints > 0 && (
+              <p className="text-xs text-blue-500 mt-0.5">
+                {formatAdditionalDetails(hazard.hazardCategory, hazard.additionalDetails).join(', ')}
+              </p>
+            )}
           </div>
         </div>
         {hazard.improvementPlan && (

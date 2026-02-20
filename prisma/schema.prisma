@@ -423,6 +423,7 @@ model RiskHazard {
   severityScore     Int                // 중대성 1~5
   likelihoodScore   Int                // 가능성 1~5
   additionalPoints  Int                @default(0)  // 가점 0~3
+  additionalDetails Json?              // 가점 상세 { key: value } e.g. { "accidentJudgement": 1, "accidentExperience": 0 }
   riskScore         Int                // 앱에서 계산 후 저장
 
   improvementPlan   String?            @db.Text

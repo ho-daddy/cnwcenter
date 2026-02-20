@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       severityScore: severity,
       likelihoodScore: likelihood,
       additionalPoints: additional,
+      additionalDetails: body.additionalDetails !== undefined ? (body.additionalDetails || null) : undefined,
       riskScore,
       improvementPlan: body.improvementPlan || null,
       chemicalProductId: category === 'CHEMICAL' ? (body.chemicalProductId || null) : null,

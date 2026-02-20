@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PhotoLightbox } from '@/components/ui/photo-lightbox'
-import { getRiskLevel, HAZARD_CATEGORY_LABELS, EVALUATION_TYPE_LABELS } from '@/lib/risk-assessment'
+import { getRiskLevel, HAZARD_CATEGORY_LABELS, EVALUATION_TYPE_LABELS, formatAdditionalDetails } from '@/lib/risk-assessment'
 
 // ─── Types ───
 interface Workplace { id: string; name: string }
@@ -25,6 +25,7 @@ interface HazardImprovement {
 interface HazardItem {
   id: string; hazardCategory: string; hazardFactor: string
   severityScore: number; likelihoodScore: number; additionalPoints: number
+  additionalDetails: Record<string, number> | null
   riskScore: number; improvementPlan: string | null
   createdAt?: string
   chemicalProduct: { id: string; name: string } | null
@@ -515,6 +516,11 @@ export default function ViewPage() {
                               ? '절대기준'
                               : `${h.severityScore}×${h.likelihoodScore}+${h.additionalPoints}`}
                           </p>
+                          {h.additionalDetails && h.additionalPoints > 0 && (
+                            <p className="text-xs text-blue-500 mt-0.5">
+                              {formatAdditionalDetails(h.hazardCategory, h.additionalDetails).join(', ')}
+                            </p>
+                          )}
                         </td>
 
                         {/* 개선 후 */}
