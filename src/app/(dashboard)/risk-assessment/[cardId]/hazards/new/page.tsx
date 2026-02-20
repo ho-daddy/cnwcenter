@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { PhotoUploader } from '@/components/ui/photo-uploader'
 import {
   HAZARD_CATEGORY_LABELS, SEVERITY_OPTIONS, LIKELIHOOD_OPTIONS, calcRiskScore, getRiskLevel,
   ADDITIONAL_SCORE_CONFIG,
@@ -25,6 +26,7 @@ export default function NewHazardPage() {
     improvementPlan: '',
     chemicalProductId: '',
   })
+  const [stagedPhotos, setStagedPhotos] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,6 +47,22 @@ export default function NewHazardPage() {
         body: JSON.stringify(form),
       })
       if (res.ok) {
+        const newHazard = await res.json()
+        // staged 사진 업로드
+        if (stagedPhotos.length > 0) {
+          for (const file of stagedPhotos) {
+            try {
+              const formData = new FormData()
+              formData.append('file', file)
+              await fetch(`/api/risk-assessment/${cardId}/hazards/${newHazard.id}/photos`, {
+                method: 'POST',
+                body: formData,
+              })
+            } catch {
+              // 사진 업로드 실패해도 hazard는 이미 생성됨
+            }
+          }
+        }
         router.push(`/risk-assessment/${cardId}`)
       } else {
         const d = await res.json()
@@ -230,6 +248,17 @@ export default function NewHazardPage() {
             rows={2}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
             placeholder="개선 방법 및 계획을 입력하세요"
+          />
+        </div>
+
+        {/* 현장 사진 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">현장 사진 <span className="text-gray-400 text-xs">(선택)</span></label>
+          <PhotoUploader
+            mode="staged"
+            onFilesChange={setStagedPhotos}
+            maxPhotos={10}
+            maxFileSize={10 * 1024 * 1024}
           />
         </div>
 

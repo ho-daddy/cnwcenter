@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unlink } from 'fs/promises'
+import path from 'path'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { HazardCategory } from '@prisma/client'
@@ -20,6 +22,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     include: {
       chemicalProduct: { select: { id: true, name: true } },
       improvements: { orderBy: { createdAt: 'desc' } },
+      photos: { orderBy: { createdAt: 'asc' }, select: { id: true, photoPath: true, thumbnailPath: true } },
     },
   })
 
@@ -85,6 +88,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const access = await requireWorkplaceAccess(hazard.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
+
+  // 연결된 사진 파일 물리 삭제 (DB는 onDelete:Cascade로 자동 정리)
+  const photos = await prisma.riskHazardPhoto.findMany({
+    where: { hazardId: params.hazardId },
+  })
+  for (const photo of photos) {
+    try {
+      await unlink(path.join(process.cwd(), 'public', photo.photoPath))
+    } catch { /* 파일이 이미 없을 수 있음 */ }
+  }
 
   await prisma.riskHazard.delete({ where: { id: params.hazardId } })
   return NextResponse.json({ success: true })

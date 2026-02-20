@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ArrowLeft, Plus, Trash2, CheckCircle, Clock } from 'lucide-react'
+import { PhotoUploader } from '@/components/ui/photo-uploader'
 import {
   getRiskLevel, HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS, IMPROVEMENT_STATUS_LABELS,
 } from '@/lib/risk-assessment'
@@ -24,6 +25,12 @@ interface Improvement {
   remarks: string | null
 }
 
+interface HazardPhoto {
+  id: string
+  photoPath: string
+  thumbnailPath?: string | null
+}
+
 interface Hazard {
   id: string
   hazardCategory: string
@@ -35,6 +42,7 @@ interface Hazard {
   improvementPlan: string | null
   chemicalProduct: { name: string } | null
   improvements: Improvement[]
+  photos: HazardPhoto[]
 }
 
 export default function HazardDetailPage() {
@@ -78,6 +86,17 @@ export default function HazardDetailPage() {
       }
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handlePhotoUploaded = (photo: HazardPhoto) => {
+    setHazard((prev) => prev ? { ...prev, photos: [...prev.photos, photo] } : prev)
+  }
+
+  const handleDeletePhoto = async (photoId: string) => {
+    const res = await fetch(`/api/risk-assessment/${cardId}/hazards/${hazardId}/photos/${photoId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setHazard((prev) => prev ? { ...prev, photos: prev.photos.filter((p) => p.id !== photoId) } : prev)
     }
   }
 
@@ -143,6 +162,19 @@ export default function HazardDetailPage() {
             <p className="text-sm text-gray-800">{hazard.improvementPlan}</p>
           </div>
         )}
+        {/* 현장 사진 */}
+        <div className="pt-3 border-t border-gray-100">
+          <p className="text-xs font-medium text-gray-500 mb-2">현장 사진</p>
+          <PhotoUploader
+            mode="immediate"
+            uploadUrl={`/api/risk-assessment/${cardId}/hazards/${hazardId}/photos`}
+            existingPhotos={hazard.photos}
+            onUploaded={handlePhotoUploaded}
+            onDeleteExisting={handleDeletePhoto}
+            maxPhotos={10}
+            maxFileSize={10 * 1024 * 1024}
+          />
+        </div>
       </div>
 
       {/* 개선이력 */}

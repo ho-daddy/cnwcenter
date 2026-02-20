@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale'
 import { TopIssue } from '@/types/analysis'
 
 interface DailyBriefingCardProps {
-  report: DailyReport
+  report: DailyReport | null
 }
 
 const PRIORITY_ICONS = {
@@ -22,6 +22,24 @@ const PRIORITY_COLORS = {
 }
 
 export function DailyBriefingCard({ report }: DailyBriefingCardProps) {
+  if (!report) {
+    return (
+      <Card className="border border-purple-200 bg-gradient-to-r from-purple-50 to-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            오늘의 AI 브리핑
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-400 text-center py-4">
+            오늘의 브리핑 리포트가 아직 생성되지 않았습니다
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const topIssues: TopIssue[] = JSON.parse(report.topIssuesJson)
   const dateStr = format(report.date, 'M월 d일 (EEEE)', { locale: ko })
 

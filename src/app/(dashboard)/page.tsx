@@ -34,17 +34,17 @@ export default async function DashboardPage() {
       {/* 통합 업무 현황 - 전체 너비 */}
       <WorkStatusWidget />
 
-      {/* AI 브리핑 카드 (오늘 리포트가 있을 경우) */}
-      {todayReport && <DailyBriefingCard report={todayReport} />}
-
       {/* 공지사항 + 일정 - 2열 배치 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <NoticeWidget />
         <ScheduleWidget />
       </div>
 
-      {/* 브리핑 - 전체 너비 */}
-      <BriefingWidget items={briefings} />
+      {/* AI 브리핑 + 최근 수집기사 - 2열 배치 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DailyBriefingCard report={todayReport} />
+        <BriefingWidget items={briefings} />
+      </div>
     </div>
   )
 }
