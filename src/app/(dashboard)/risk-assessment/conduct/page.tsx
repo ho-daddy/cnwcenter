@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Building2, ChevronRight, ChevronDown, Plus, FolderTree,
   Search, X, AlertTriangle, Loader2, Edit2, Trash2, Check,
-  FileText, ChevronLeft,
+  FileText, ChevronLeft, Camera,
 } from 'lucide-react'
 import { EVALUATION_TYPE_LABELS, HAZARD_CATEGORY_LABELS, getRiskLevel } from '@/lib/risk-assessment'
+import { PhotoUploader } from '@/components/ui/photo-uploader'
 
 // ───────── Types ─────────
 interface Workplace { id: string; name: string }
@@ -25,6 +26,9 @@ interface RiskCard {
   workplace: { id: string; name: string }
   _count: { hazards: number }; updatedAt: string
 }
+interface HazardPhoto {
+  id: string; photoPath: string; thumbnailPath?: string | null
+}
 interface RiskHazard {
   id: string; hazardCategory: string; hazardFactor: string
   severityScore: number; likelihoodScore: number; additionalPoints: number
@@ -32,6 +36,7 @@ interface RiskHazard {
   chemicalProductId: string | null
   chemicalProduct: { id: string; name: string } | null
   improvements: { id: string; status: string }[]
+  photos: HazardPhoto[]
 }
 interface WizardResult {
   hazardFactor: string; severityScore: number; likelihoodScore: number
@@ -171,7 +176,7 @@ export default function ConductPage() {
       })
       if (res.ok) {
         const newHazard = await res.json()
-        setHazards(prev => [...prev, { ...newHazard, improvements: [] }])
+        setHazards(prev => [...prev, { ...newHazard, improvements: [], photos: [] }])
         setSelectedCard(prev => prev ? { ...prev, _count: { hazards: prev._count.hazards + 1 } } : prev)
         setCards(prev => prev.map(c => c.id === selectedCard.id
           ? { ...c, _count: { hazards: c._count.hazards + 1 } } : c))
@@ -308,9 +313,11 @@ export default function ConductPage() {
               ) : (
                 <HazardListTab
                   hazards={hazards} isLoading={isLoadingHazards}
+                  cardId={selectedCard.id}
                   onAdd={() => setWizardState({ open: true, category: '', editing: null })}
                   onEdit={h => setWizardState({ open: true, category: h.hazardCategory, editing: h })}
                   onDelete={handleDeleteHazard}
+                  onHazardsChange={setHazards}
                 />
               )}
             </CardContent>
@@ -657,13 +664,31 @@ const CATEGORY_BADGE: Record<string, string> = {
 }
 
 function HazardListTab({
-  hazards, isLoading, onAdd, onEdit, onDelete,
+  hazards, isLoading, onAdd, onEdit, onDelete, cardId, onHazardsChange,
 }: {
-  hazards: RiskHazard[]; isLoading: boolean
+  hazards: RiskHazard[]; isLoading: boolean; cardId: string
   onAdd: () => void
   onEdit: (h: RiskHazard) => void
   onDelete: (id: string) => void
+  onHazardsChange: (updater: (prev: RiskHazard[]) => RiskHazard[]) => void
 }) {
+  const [expandedPhotoId, setExpandedPhotoId] = useState<string | null>(null)
+
+  const handlePhotoUploaded = (hazardId: string, photo: HazardPhoto) => {
+    onHazardsChange(prev => prev.map(h =>
+      h.id === hazardId ? { ...h, photos: [...h.photos, photo] } : h
+    ))
+  }
+
+  const handleDeletePhoto = async (hazardId: string, photoId: string) => {
+    const res = await fetch(`/api/risk-assessment/${cardId}/hazards/${hazardId}/photos/${photoId}`, { method: 'DELETE' })
+    if (res.ok) {
+      onHazardsChange(prev => prev.map(h =>
+        h.id === hazardId ? { ...h, photos: h.photos.filter(p => p.id !== photoId) } : h
+      ))
+    }
+  }
+
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
 
   return (
@@ -700,8 +725,9 @@ function HazardListTab({
                 const level = getRiskLevel(h.riskScore)
                 const plannedCnt = h.improvements.filter(i => i.status === 'PLANNED').length
                 const completedCnt = h.improvements.filter(i => i.status === 'COMPLETED').length
+                const isPhotoExpanded = expandedPhotoId === h.id
                 return (
-                  <tr key={h.id} className="border-b hover:bg-gray-50">
+                  <tr key={h.id} className="border-b hover:bg-gray-50 group">
                     <td className="py-2 px-3">
                       <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_BADGE[h.hazardCategory]}`}>
                         {HAZARD_CATEGORY_LABELS[h.hazardCategory]}
@@ -712,6 +738,30 @@ function HazardListTab({
                       {h.chemicalProduct && (
                         <p className="text-xs text-purple-600 mt-0.5">{h.chemicalProduct.name}</p>
                       )}
+                      {/* 사진 영역 */}
+                      <div className="mt-1.5">
+                        <button
+                          onClick={() => setExpandedPhotoId(isPhotoExpanded ? null : h.id)}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Camera className="w-3 h-3" />
+                          사진 {h.photos.length > 0 ? `(${h.photos.length})` : ''}
+                          <ChevronDown className={`w-3 h-3 transition-transform ${isPhotoExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isPhotoExpanded && (
+                          <div className="mt-2" onClick={e => e.stopPropagation()}>
+                            <PhotoUploader
+                              mode="immediate"
+                              uploadUrl={`/api/risk-assessment/${cardId}/hazards/${h.id}/photos`}
+                              existingPhotos={h.photos}
+                              onUploaded={(photo) => handlePhotoUploaded(h.id, photo)}
+                              onDeleteExisting={(photoId) => handleDeletePhoto(h.id, photoId)}
+                              maxPhotos={10}
+                              maxFileSize={10 * 1024 * 1024}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-center">
                       <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded ${level.bg} ${level.color}`}>

@@ -27,6 +27,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     include: {
       chemicalProduct: { select: { id: true, name: true } },
       improvements: { orderBy: { createdAt: 'desc' } },
+      photos: { orderBy: { createdAt: 'asc' }, select: { id: true, photoPath: true, thumbnailPath: true } },
     },
   })
 
