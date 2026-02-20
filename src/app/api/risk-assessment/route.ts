@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(card, { status: 201 })
   } catch (e: unknown) {
     if ((e as { code?: string })?.code === 'P2002') {
-      return NextResponse.json({ error: '해당 조직단위/연도/평가구분으로 이미 카드가 존재합니다.' }, { status: 409 })
+      return NextResponse.json({ error: '해당 평가단위/연도/평가구분으로 이미 카드가 존재합니다.' }, { status: 409 })
     }
     throw e
   }

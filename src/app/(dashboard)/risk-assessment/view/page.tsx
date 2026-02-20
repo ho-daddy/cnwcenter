@@ -4,18 +4,22 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Search, X, ChevronDown, ChevronUp, SlidersHorizontal,
-  AlertTriangle, Loader2, ExternalLink, Filter,
+  AlertTriangle, Loader2, ExternalLink, Filter, Camera,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { PhotoLightbox } from '@/components/ui/photo-lightbox'
 import { getRiskLevel, HAZARD_CATEGORY_LABELS, EVALUATION_TYPE_LABELS } from '@/lib/risk-assessment'
 
 // ─── Types ───
 interface Workplace { id: string; name: string }
 
+interface PhotoItem { id: string; photoPath: string; thumbnailPath?: string | null }
+
 interface HazardImprovement {
   id: string; status: string; improvementContent: string
   riskScore: number; severityScore: number; likelihoodScore: number
   additionalPoints: number; updateDate: string
+  photos: PhotoItem[]
 }
 
 interface HazardItem {
@@ -24,6 +28,7 @@ interface HazardItem {
   riskScore: number; improvementPlan: string | null
   createdAt?: string
   chemicalProduct: { id: string; name: string } | null
+  photos: PhotoItem[]
   improvements: HazardImprovement[]
   card: {
     id: string; evaluationNumber: string; year: number; evaluationType: string
@@ -61,15 +66,37 @@ const RISK_LEVELS = [
   { key: '낮음',    color: 'bg-green-100 text-green-700 border-green-200' },
 ]
 
+const IMPROVEMENT_STATUSES = [
+  { key: 'none',      label: '미개선',  color: 'bg-gray-100 text-gray-600 border-gray-200' },
+  { key: 'planned',   label: '예정',    color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  { key: 'completed', label: '완료',    color: 'bg-green-100 text-green-700 border-green-200' },
+]
+
 const SORT_OPTIONS = [
   { value: 'risk_desc',  label: '위험성 높은 순' },
   { value: 'risk_asc',   label: '위험성 낮은 순' },
-  { value: 'unit_asc',   label: '조직단위 가나다순' },
-  { value: 'unit_desc',  label: '조직단위 역순' },
+  { value: 'unit_asc',   label: '평가단위 가나다순' },
+  { value: 'unit_desc',  label: '평가단위 역순' },
   { value: 'category',   label: '유해위험분류순' },
   { value: 'recent',     label: '최근 등록순' },
   { value: 'oldest',     label: '오래된 등록순' },
 ]
+
+// 개선현황 상태 판별
+function getImprovementStatus(h: HazardItem): string {
+  if (h.improvements.length === 0) return 'none'
+  if (h.improvements.some(i => i.status === 'COMPLETED')) return 'completed'
+  return 'planned'
+}
+
+// 위험요인의 전체 사진 (위험요인 사진 + 개선작업 사진)
+function getAllPhotos(h: HazardItem): PhotoItem[] {
+  const photos: PhotoItem[] = [...(h.photos || [])]
+  h.improvements.forEach(imp => {
+    if (imp.photos) photos.push(...imp.photos)
+  })
+  return photos
+}
 
 // ─── Main Page ───
 export default function ViewPage() {
@@ -85,9 +112,14 @@ export default function ViewPage() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<Set<string>>(new Set())
   const [selectedOrgUnits, setSelectedOrgUnits] = useState<Set<string>>(new Set())
+  const [selectedImpStatuses, setSelectedImpStatuses] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState('risk_desc')
   const [showOrgFilter, setShowOrgFilter] = useState(false)
   const orgFilterRef = useRef<HTMLDivElement>(null)
+
+  // Lightbox state
+  const [lightboxPhotos, setLightboxPhotos] = useState<PhotoItem[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => setWorkplaces(d.workplaces || []))
@@ -142,6 +174,9 @@ export default function ViewPage() {
     if (selectedOrgUnits.size > 0) {
       result = result.filter(h => selectedOrgUnits.has(h.card.organizationUnit.id))
     }
+    if (selectedImpStatuses.size > 0) {
+      result = result.filter(h => selectedImpStatuses.has(getImprovementStatus(h)))
+    }
     if (searchText.trim()) {
       const t = searchText.toLowerCase()
       result = result.filter(h =>
@@ -165,33 +200,32 @@ export default function ViewPage() {
         default:          return b.riskScore - a.riskScore
       }
     })
-  }, [allHazards, selectedCategories, selectedRiskLevels, selectedOrgUnits, searchText, sortBy])
+  }, [allHazards, selectedCategories, selectedRiskLevels, selectedOrgUnits, selectedImpStatuses, searchText, sortBy])
 
   // Stats from filtered hazards
   const stats = useMemo(() => {
     const byRisk: Record<string, number> = { '매우높음': 0, '높음': 0, '보통': 0, '낮음': 0 }
     const byCategory: Record<string, number> = {}
-    let withImprovement = 0
-    let completed = 0
+    const byImpStatus: Record<string, number> = { none: 0, planned: 0, completed: 0 }
 
     filteredHazards.forEach(h => {
       const lvl = getRiskLevel(h.riskScore).label
       byRisk[lvl] = (byRisk[lvl] ?? 0) + 1
       byCategory[h.hazardCategory] = (byCategory[h.hazardCategory] ?? 0) + 1
-      if (h.improvements.length > 0) withImprovement++
-      if (h.improvements.some(i => i.status === 'COMPLETED')) completed++
+      byImpStatus[getImprovementStatus(h)]++
     })
 
-    return { total: filteredHazards.length, byRisk, byCategory, withImprovement, completed }
+    return { total: filteredHazards.length, byRisk, byCategory, byImpStatus }
   }, [filteredHazards])
 
   const isFiltered = selectedCategories.size > 0 || selectedRiskLevels.size > 0 ||
-    selectedOrgUnits.size > 0 || searchText.trim().length > 0
+    selectedOrgUnits.size > 0 || selectedImpStatuses.size > 0 || searchText.trim().length > 0
 
   const clearFilters = () => {
     setSelectedCategories(new Set())
     setSelectedRiskLevels(new Set())
     setSelectedOrgUnits(new Set())
+    setSelectedImpStatuses(new Set())
     setSearchText('')
   }
 
@@ -199,6 +233,11 @@ export default function ViewPage() {
     const next = new Set(set)
     next.has(key) ? next.delete(key) : next.add(key)
     return next
+  }
+
+  const openLightbox = (photos: PhotoItem[], startIndex: number) => {
+    setLightboxPhotos(photos)
+    setLightboxIndex(startIndex)
   }
 
   return (
@@ -247,14 +286,14 @@ export default function ViewPage() {
               className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm transition-colors ${selectedOrgUnits.size > 0 ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-300 hover:bg-gray-50 text-gray-600'}`}
             >
               <Filter className="w-3.5 h-3.5" />
-              조직단위
+              평가단위
               {selectedOrgUnits.size > 0 && <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">{selectedOrgUnits.size}</span>}
               {showOrgFilter ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
             {showOrgFilter && (
               <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[220px] max-h-64 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500 font-medium">조직단위 선택</span>
+                  <span className="text-xs text-gray-500 font-medium">평가단위 선택</span>
                   {selectedOrgUnits.size > 0 && (
                     <button onClick={() => setSelectedOrgUnits(new Set())} className="text-xs text-blue-500 hover:underline">초기화</button>
                   )}
@@ -293,7 +332,7 @@ export default function ViewPage() {
         </div>
       </div>
 
-      {/* Category & Risk Level Filter Chips */}
+      {/* Category & Risk Level & Improvement Status Filter Chips */}
       <div className="flex flex-wrap gap-4 items-start">
         {/* Categories */}
         <div className="flex flex-wrap gap-1.5 items-center">
@@ -331,6 +370,24 @@ export default function ViewPage() {
           })}
         </div>
 
+        {/* Improvement Status */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-gray-500 font-medium mr-1">개선:</span>
+          {IMPROVEMENT_STATUSES.map(is => {
+            const count = stats.byImpStatus[is.key] ?? 0
+            const isActive = selectedImpStatuses.has(is.key)
+            return (
+              <button key={is.key}
+                onClick={() => setSelectedImpStatuses(prev => toggleSet(prev, is.key))}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${isActive ? is.color + ' ring-2 ring-offset-1 ring-current' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
+              >
+                {is.label}
+                <span className={`text-xs ${isActive ? 'opacity-80' : 'text-gray-400'}`}>({count})</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* Clear filters */}
         {isFiltered && (
           <button onClick={clearFilters}
@@ -347,7 +404,7 @@ export default function ViewPage() {
         <StatCard label="높음 (9-15)" value={stats.byRisk['높음']} color="text-orange-600" />
         <StatCard label="보통 (5-8)" value={stats.byRisk['보통']} color="text-yellow-600" />
         <StatCard label="낮음 (1-4)" value={stats.byRisk['낮음']} color="text-green-600" />
-        <StatCard label="개선 완료" value={stats.completed} color="text-blue-600" />
+        <StatCard label="개선 완료" value={stats.byImpStatus.completed} color="text-blue-600" />
       </div>
 
       {/* Table */}
@@ -378,13 +435,14 @@ export default function ViewPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[900px]">
+              <table className="w-full text-sm min-w-[1000px]">
                 <thead>
                   <tr className="border-b bg-gray-50 text-xs font-medium text-gray-500">
                     <th className="text-left px-3 py-2.5 w-5">#</th>
-                    <th className="text-left px-3 py-2.5 w-36">조직단위</th>
+                    <th className="text-left px-3 py-2.5 w-36">평가단위</th>
                     <th className="text-left px-3 py-2.5 w-24">분류</th>
                     <th className="text-left px-3 py-2.5">유해위험요인</th>
+                    <th className="text-center px-3 py-2.5 w-16">사진</th>
                     <th className="text-center px-3 py-2.5 w-28">최초 위험성</th>
                     <th className="text-center px-3 py-2.5 w-28">개선 후</th>
                     <th className="text-left px-3 py-2.5 w-40">개선제안</th>
@@ -397,19 +455,18 @@ export default function ViewPage() {
                     const level = getRiskLevel(h.riskScore)
                     const completedImpr = h.improvements.filter(i => i.status === 'COMPLETED')
                     const plannedImpr   = h.improvements.filter(i => i.status === 'PLANNED')
-                    // 가장 최근 개선완료 기록
                     const latestCompleted = completedImpr[0]
-                    // 개선완료가 없으면 전체 최신 기록
                     const latestAny = h.improvements[0]
                     const afterRecord = latestCompleted ?? latestAny
                     const afterLevel = afterRecord ? getRiskLevel(afterRecord.riskScore) : null
+                    const allPhotos = getAllPhotos(h)
 
                     return (
                       <tr key={h.id} className="border-b hover:bg-gray-50 transition-colors">
                         {/* # */}
                         <td className="px-3 py-2.5 text-xs text-gray-400">{idx + 1}</td>
 
-                        {/* 조직단위 */}
+                        {/* 평가단위 */}
                         <td className="px-3 py-2.5">
                           {h.card.organizationUnit.parent && (
                             <p className="text-xs text-gray-400 leading-tight">{h.card.organizationUnit.parent.name}</p>
@@ -429,6 +486,21 @@ export default function ViewPage() {
                           <p className="text-sm text-gray-900">{h.hazardFactor}</p>
                           {h.chemicalProduct && (
                             <p className="text-xs text-purple-600 mt-0.5">{h.chemicalProduct.name}</p>
+                          )}
+                        </td>
+
+                        {/* 사진 */}
+                        <td className="px-3 py-2.5 text-center">
+                          {allPhotos.length > 0 ? (
+                            <button
+                              onClick={() => openLightbox(allPhotos, 0)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              {allPhotos.length}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-300">-</span>
                           )}
                         </td>
 
@@ -500,6 +572,15 @@ export default function ViewPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Photo Lightbox */}
+      {lightboxIndex !== null && lightboxPhotos.length > 0 && (
+        <PhotoLightbox
+          photos={lightboxPhotos}
+          initialIndex={lightboxIndex}
+          onClose={() => { setLightboxIndex(null); setLightboxPhotos([]) }}
+        />
+      )}
     </div>
   )
 }

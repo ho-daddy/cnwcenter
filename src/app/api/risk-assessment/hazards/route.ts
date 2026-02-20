@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
     orderBy: [{ riskScore: 'desc' }, { createdAt: 'asc' }],
     include: {
       chemicalProduct: { select: { id: true, name: true } },
+      photos: {
+        select: { id: true, photoPath: true, thumbnailPath: true },
+        orderBy: { createdAt: 'asc' },
+      },
       improvements: {
         select: {
           id: true,
@@ -41,6 +45,10 @@ export async function GET(req: NextRequest) {
           likelihoodScore: true,
           additionalPoints: true,
           updateDate: true,
+          photos: {
+            select: { id: true, photoPath: true, thumbnailPath: true },
+            orderBy: { createdAt: 'asc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
       },

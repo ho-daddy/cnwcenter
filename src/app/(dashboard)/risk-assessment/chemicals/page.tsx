@@ -161,7 +161,7 @@ export default function ChemicalProductsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">제조사</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">사업장</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">구성성분</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">사용 조직단위</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">사용 평가단위</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">중대성 점수</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">관리</th>
                 </tr>

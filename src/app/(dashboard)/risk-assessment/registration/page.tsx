@@ -126,7 +126,7 @@ export default function RegistrationPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">소음 등록</h1>
-          <p className="text-sm text-gray-500 mt-0.5">조직단위별 소음 측정값 등록 관리</p>
+          <p className="text-sm text-gray-500 mt-0.5">평가단위별 소음 측정값 등록 관리</p>
         </div>
         <Volume2 className="w-6 h-6 text-teal-600 ml-auto" />
       </div>

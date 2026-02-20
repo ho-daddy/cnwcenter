@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Camera, X, ImagePlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PhotoLightbox } from './photo-lightbox'
 
-interface ExistingPhoto {
+export interface ExistingPhoto {
   id: string
   photoPath: string
   thumbnailPath?: string | null
@@ -34,6 +35,63 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 const DEFAULT_MAX_SIZE = 10 * 1024 * 1024 // 10MB
 const DEFAULT_MAX_PHOTOS = 10
 
+// 이미지 최적화: 3000px 초과 또는 2MB 초과 시 리사이즈 + 압축
+const MAX_DIMENSION = 1920
+const COMPRESS_THRESHOLD = 2 * 1024 * 1024 // 2MB
+const DIMENSION_THRESHOLD = 3000
+
+function compressImage(file: File): Promise<File> {
+  // GIF는 애니메이션 깨짐 방지로 원본 유지
+  if (file.type === 'image/gif') return Promise.resolve(file)
+  // 작은 파일은 원본 유지
+  if (file.size <= COMPRESS_THRESHOLD) {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(img.src)
+        if (img.width <= DIMENSION_THRESHOLD && img.height <= DIMENSION_THRESHOLD) {
+          resolve(file)
+        } else {
+          doCompress(file, img).then(resolve)
+        }
+      }
+      img.onerror = () => { URL.revokeObjectURL(img.src); resolve(file) }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => { URL.revokeObjectURL(img.src); doCompress(file, img).then(resolve) }
+    img.onerror = () => { URL.revokeObjectURL(img.src); resolve(file) }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+function doCompress(file: File, img: HTMLImageElement): Promise<File> {
+  return new Promise((resolve) => {
+    let { width, height } = img
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+      const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) { resolve(file); return }
+    ctx.drawImage(img, 0, 0, width, height)
+    canvas.toBlob(
+      (blob) => {
+        if (!blob || blob.size >= file.size) { resolve(file); return }
+        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }))
+      },
+      'image/jpeg',
+      0.8
+    )
+  })
+}
+
 export function PhotoUploader({
   mode,
   uploadUrl,
@@ -49,6 +107,7 @@ export function PhotoUploader({
   const [stagedPreviews, setStagedPreviews] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -93,10 +152,13 @@ export function PhotoUploader({
 
     if (validFiles.length === 0) return
 
+    // 이미지 최적화 적용
+    const optimizedFiles = await Promise.all(validFiles.map(compressImage))
+
     if (mode === 'staged') {
-      const newPreviews = validFiles.map((f) => URL.createObjectURL(f))
+      const newPreviews = optimizedFiles.map((f) => URL.createObjectURL(f))
       setStagedFiles((prev) => {
-        const next = [...prev, ...validFiles]
+        const next = [...prev, ...optimizedFiles]
         onFilesChange?.(next)
         return next
       })
@@ -104,7 +166,7 @@ export function PhotoUploader({
     } else if (mode === 'immediate' && uploadUrl) {
       setIsUploading(true)
       try {
-        for (const file of validFiles) {
+        for (const file of optimizedFiles) {
           const formData = new FormData()
           formData.append('file', file)
           const res = await fetch(uploadUrl, { method: 'POST', body: formData })
@@ -156,10 +218,17 @@ export function PhotoUploader({
     setStagedPreviews((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleDeleteExisting = (photoId: string) => {
+  const handleDeleteExisting = (photoId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!confirm('사진을 삭제하시겠습니까?')) return
     onDeleteExisting?.(photoId)
   }
+
+  // 라이트박스용 사진 배열 (existing + staged)
+  const allPhotosForLightbox = [
+    ...existingPhotos.map(p => ({ id: p.id, photoPath: p.photoPath })),
+    ...stagedPreviews.map((url, i) => ({ id: `staged-${i}`, photoPath: url })),
+  ]
 
   return (
     <div
@@ -170,17 +239,19 @@ export function PhotoUploader({
     >
       <div className="flex flex-wrap gap-2">
         {/* 기존 업로드된 사진 */}
-        {existingPhotos.map((photo) => (
+        {existingPhotos.map((photo, i) => (
           <div key={photo.id} className="relative group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo.thumbnailPath || photo.photoPath}
               alt=""
-              className="w-20 h-20 rounded-lg object-cover border border-gray-200"
+              className="w-20 h-20 rounded-lg object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+              onClick={() => setLightboxIndex(i)}
             />
             {!disabled && (
               <button
                 type="button"
-                onClick={() => handleDeleteExisting(photo.id)}
+                onClick={(e) => handleDeleteExisting(photo.id, e)}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="w-3 h-3" />
@@ -192,10 +263,12 @@ export function PhotoUploader({
         {/* staged 사진 미리보기 */}
         {stagedPreviews.map((url, i) => (
           <div key={url} className="relative group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
               alt=""
-              className="w-20 h-20 rounded-lg object-cover border border-blue-200"
+              className="w-20 h-20 rounded-lg object-cover border border-blue-200 cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+              onClick={() => setLightboxIndex(existingPhotos.length + i)}
             />
             {!disabled && (
               <button
@@ -238,7 +311,7 @@ export function PhotoUploader({
       {!disabled && totalCount < maxPhotos && (
         <p className="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
           <ImagePlus className="w-3 h-3" />
-          촬영, 파일 선택, 또는 붙여넣기(Ctrl+V) · 최대 {maxPhotos}장
+          촬영, 파일 선택, 또는 붙여넣기(Ctrl+V) · 최대 {maxPhotos}장 · 큰 이미지 자동 최적화
         </p>
       )}
 
@@ -257,6 +330,15 @@ export function PhotoUploader({
         onChange={handleFileInput}
         className="hidden"
       />
+
+      {/* 라이트박스 모달 */}
+      {lightboxIndex !== null && allPhotosForLightbox.length > 0 && (
+        <PhotoLightbox
+          photos={allPhotosForLightbox}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   )
 }

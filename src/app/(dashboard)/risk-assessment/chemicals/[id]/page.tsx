@@ -154,7 +154,7 @@ export default function ChemicalProductViewPage() {
       {product.unitLinks.length > 0 && (
         <Card>
           <div className="px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-gray-700">사용 조직단위 ({product.unitLinks.length}개)</h2>
+            <h2 className="text-sm font-semibold text-gray-700">사용 평가단위 ({product.unitLinks.length}개)</h2>
           </div>
           <CardContent className="pt-0">
             <div className="flex flex-wrap gap-2">

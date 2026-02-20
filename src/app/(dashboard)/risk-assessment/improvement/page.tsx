@@ -595,7 +595,7 @@ export default function ImprovementPage() {
         </select>
         <input
           type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
-          placeholder="위험요인 또는 조직단위 검색..."
+          placeholder="위험요인 또는 평가단위 검색..."
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white w-56"
         />
         <span className="text-xs text-gray-400 ml-auto">{filteredHazards.length}건</span>
@@ -615,7 +615,7 @@ export default function ImprovementPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 w-8">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">조직단위</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">평가단위</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">분류</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">유해위험요인</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">최초 위험성</th>

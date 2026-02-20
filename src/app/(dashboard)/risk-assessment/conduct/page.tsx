@@ -595,7 +595,7 @@ function CardOverviewTab({ card, onUpdate }: { card: RiskCard; onUpdate: (c: Ris
           <Field label="평가번호" value={card.evaluationNumber} />
           <Field label="평가연도" value={`${card.year}년`} />
           <Field label="조사구분" value={EVALUATION_TYPE_LABELS[card.evaluationType]} />
-          <Field label="조직단위" value={card.organizationUnit.name} />
+          <Field label="평가단위" value={card.organizationUnit.name} />
         </div>
         {card.evaluationReason && (
           <Field label="수시조사 사유" value={card.evaluationReason} />

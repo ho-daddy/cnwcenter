@@ -116,7 +116,7 @@ export default function NewRiskAssessmentPage() {
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
         )}
 
-        {/* 사업장 + 조직단위 */}
+        {/* 사업장 + 평가단위 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">사업장 <span className="text-red-500">*</span></label>
