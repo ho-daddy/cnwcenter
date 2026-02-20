@@ -162,11 +162,11 @@ function ComponentEntry({
         </div>
 
         <div className="col-span-3">
-          <label className="text-xs text-gray-500 mb-1 block">함유량 (%)</label>
+          <label className="text-xs text-gray-500 mb-1 block">함유량</label>
           <input type="text" value={comp.concentration}
             onChange={e => onChange(index, { concentration: e.target.value })}
             readOnly={comp.isConcentrationUnknown}
-            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" placeholder="0~100" />
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" placeholder="예: 85, 10~30, 비공개" />
           <label className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500 cursor-pointer">
             <input type="checkbox" checked={comp.isConcentrationUnknown}
               onChange={e => handleConcentrationUnknown(e.target.checked)}
@@ -330,13 +330,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
         alert('구성성분의 CAS 번호와 성분명을 입력해주세요.')
         return
       }
-      if (!comp.isConcentrationUnknown && !comp.isTradeSecret && comp.concentration) {
-        const val = parseFloat(comp.concentration)
-        if (isNaN(val) || val < 0 || val > 100) {
-          alert(`함유량은 0~100 사이의 숫자여야 합니다. (${comp.name})`)
-          return
-        }
-      }
+      // 함유량은 자유 텍스트 (범위값, 비공개 등 허용)
     }
 
     setIsSaving(true)

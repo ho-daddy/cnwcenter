@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth-utils'
 import { getAnthropicClient } from '@/lib/anthropic'
+import * as iconv from 'iconv-lite'
 
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'doc', 'rtf']
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
@@ -314,7 +315,7 @@ function decodeRtfHexSequences(rtf: string): string {
     // hex 시퀀스 앞의 텍스트
     if (match.index > lastEnd) {
       if (hexPairs.length > 0) {
-        textParts.push(Buffer.from(hexPairs).toString('euc-kr'))
+        textParts.push(iconv.decode(Buffer.from(hexPairs), 'euc-kr'))
         hexPairs.length = 0
       }
       textParts.push(result.substring(lastEnd, match.index))
@@ -328,7 +329,7 @@ function decodeRtfHexSequences(rtf: string): string {
     lastEnd = match.index + match[0].length
   }
   if (hexPairs.length > 0) {
-    textParts.push(Buffer.from(hexPairs).toString('euc-kr'))
+    textParts.push(iconv.decode(Buffer.from(hexPairs), 'euc-kr'))
   }
   if (lastEnd < result.length) {
     textParts.push(result.substring(lastEnd))
