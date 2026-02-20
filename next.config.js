@@ -4,7 +4,9 @@ const nextConfig = {
   images: {
     domains: [],
   },
-  serverExternalPackages: ['pdf-parse'],
+  experimental: {
+    serverComponentsExternalPackages: ['pdf-parse', 'playwright'],
+  },
 }
 
 module.exports = nextConfig
