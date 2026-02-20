@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, Search, FlaskConical, Trash2, Eye, Pencil } from 'lucide-react'
+import { Plus, Search, FlaskConical, Trash2, Eye, Pencil, FileSpreadsheet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { getRiskLevel } from '@/lib/risk-assessment'
 
@@ -89,12 +89,20 @@ export default function ChemicalProductsPage() {
           <h1 className="text-2xl font-bold text-gray-900">화학물질 관리</h1>
           <p className="text-sm text-gray-500 mt-0.5">사업장에서 사용하는 화학제품 및 구성성분 관리</p>
         </div>
-        <Link
-          href="/risk-assessment/chemicals/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" /> 새 화학제품 등록
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/risk-assessment/chemicals/bulk"
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> 일괄 등록
+          </Link>
+          <Link
+            href="/risk-assessment/chemicals/new"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" /> 새 화학제품 등록
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
