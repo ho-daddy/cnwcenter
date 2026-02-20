@@ -26,6 +26,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const improvements = await prisma.riskImprovementRecord.findMany({
     where: { hazardId: params.hazardId },
     orderBy: { updateDate: 'asc' },
+    include: {
+      photos: { orderBy: { createdAt: 'asc' }, select: { id: true, photoPath: true, thumbnailPath: true } },
+    },
   })
 
   return NextResponse.json({ improvements })

@@ -2,12 +2,20 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { X, Plus, CheckCircle, Clock, AlertCircle, Trash2, Building2, ChevronRight } from 'lucide-react'
+import { X, Plus, CheckCircle, Clock, AlertCircle, Trash2, Building2, ChevronRight, Camera, ChevronDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
-import { HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS, getRiskLevel } from '@/lib/risk-assessment'
+import {
+  HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS, getRiskLevel, calcRiskScore,
+  SEVERITY_OPTIONS, LIKELIHOOD_OPTIONS, ADDITIONAL_SCORE_CONFIG,
+} from '@/lib/risk-assessment'
+import { PhotoUploader } from '@/components/ui/photo-uploader'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+interface ImprovementPhoto {
+  id: string; photoPath: string; thumbnailPath?: string | null
+}
 
 interface ImprovementRecord {
   id: string
@@ -21,6 +29,7 @@ interface ImprovementRecord {
   riskScore: number
   remarks: string | null
   createdAt: string
+  photos: ImprovementPhoto[]
 }
 
 interface HazardImprovement {
@@ -78,11 +87,6 @@ function getCurrentRiskScore(hazard: Pick<Hazard, 'riskScore' | 'improvements'>)
   return { score: hazard.riskScore, isPlan: false }
 }
 
-function calcRiskScore(category: string, severity: number, likelihood: number, additional: number): number {
-  if (category === 'ABSOLUTE') return 16
-  return severity * likelihood + additional
-}
-
 function toHazardImprovement(r: ImprovementRecord): HazardImprovement {
   return {
     id: r.id, status: r.status, riskScore: r.riskScore,
@@ -107,9 +111,10 @@ function AddImprovementForm({ hazard, onSaved }: { hazard: Hazard; onSaved: (rec
   const [updateDate, setUpdateDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [improvementContent, setImprovementContent] = useState('')
   const [responsiblePerson, setResponsiblePerson] = useState('')
-  const [severityScore, setSeverityScore] = useState(1)
-  const [likelihoodScore, setLikelihoodScore] = useState(1)
-  const [additionalPoints, setAdditionalPoints] = useState(0)
+  // 기존 위험요인 점수를 기본값으로 사용
+  const [severityScore, setSeverityScore] = useState(hazard.severityScore)
+  const [likelihoodScore, setLikelihoodScore] = useState(hazard.likelihoodScore)
+  const [additionalPoints, setAdditionalPoints] = useState(hazard.additionalPoints)
   const [remarks, setRemarks] = useState('')
 
   const riskScore = calcRiskScore(hazard.hazardCategory, severityScore, likelihoodScore, additionalPoints)
@@ -117,7 +122,8 @@ function AddImprovementForm({ hazard, onSaved }: { hazard: Hazard; onSaved: (rec
   const reset = () => {
     setStatus('PLANNED'); setUpdateDate(format(new Date(), 'yyyy-MM-dd'))
     setImprovementContent(''); setResponsiblePerson('')
-    setSeverityScore(1); setLikelihoodScore(1); setAdditionalPoints(0); setRemarks('')
+    setSeverityScore(hazard.severityScore); setLikelihoodScore(hazard.likelihoodScore)
+    setAdditionalPoints(hazard.additionalPoints); setRemarks('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,8 +136,8 @@ function AddImprovementForm({ hazard, onSaved }: { hazard: Hazard; onSaved: (rec
       body: JSON.stringify({ status, updateDate, improvementContent, responsiblePerson, severityScore, likelihoodScore, additionalPoints, remarks, riskScore }),
     })
     if (res.ok) {
-      const rec: ImprovementRecord = await res.json()
-      onSaved(rec)
+      const rec = await res.json()
+      onSaved({ ...rec, photos: [] })
       reset()
       setOpen(false)
     }
@@ -151,6 +157,7 @@ function AddImprovementForm({ hazard, onSaved }: { hazard: Hazard; onSaved: (rec
 
   const isAbsolute = hazard.hazardCategory === 'ABSOLUTE'
   const rl = getRiskLevel(riskScore)
+  const additionalConfig = ADDITIONAL_SCORE_CONFIG[hazard.hazardCategory]
 
   return (
     <form onSubmit={handleSubmit} className="border border-blue-200 rounded-lg p-4 space-y-3 bg-blue-50 mt-2">
@@ -192,37 +199,60 @@ function AddImprovementForm({ hazard, onSaved }: { hazard: Hazard; onSaved: (rec
 
       <div>
         <label className="text-xs text-gray-600 mb-1 block">
-          {status === 'PLANNED' ? '예상 위험성 점수' : '실제 위험성 점수'}
+          {status === 'PLANNED' ? '예상 위험성 점수 (개선 후)' : '실제 위험성 점수 (개선 후)'}
         </label>
+        <p className="text-xs text-gray-400 mb-2">최초 위험성: {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints} = {hazard.riskScore}점</p>
         {isAbsolute ? (
           <span className="text-xs text-gray-500">절대기준 — 16점 고정</span>
         ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">심각성</span>
+          <div className="space-y-2">
+            {/* 중대성 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 w-12 shrink-0">중대성</span>
               <select value={severityScore} onChange={e => setSeverityScore(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-14">
-                {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                {SEVERITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
               </select>
+              <span className="text-xs text-gray-400 truncate">{SEVERITY_OPTIONS.find(o => o.value === severityScore)?.desc}</span>
             </div>
-            <span className="text-gray-400 text-xs">×</span>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">가능성</span>
+            {/* 가능성 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 w-12 shrink-0">가능성</span>
               <select value={likelihoodScore} onChange={e => setLikelihoodScore(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-14">
-                {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                {LIKELIHOOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
               </select>
+              <span className="text-xs text-gray-400 truncate">{LIKELIHOOD_OPTIONS.find(o => o.value === likelihoodScore)?.desc}</span>
             </div>
-            <span className="text-gray-400 text-xs">+</span>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">추가</span>
-              <select value={additionalPoints} onChange={e => setAdditionalPoints(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-14">
-                {[0, 1, 2, 3].map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+            {/* 추가점수 */}
+            {additionalConfig && additionalConfig.max > 0 && (
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-12 shrink-0">추가</span>
+                  <select value={additionalPoints} onChange={e => setAdditionalPoints(parseInt(e.target.value))}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                    {Array.from({ length: additionalConfig.max + 1 }, (_, i) => (
+                      <option key={i} value={i}>{i}점</option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-gray-400 truncate">{additionalConfig.label}</span>
+                </div>
+                {additionalConfig.fields.length > 0 && (
+                  <div className="ml-14 mt-1 space-y-0.5">
+                    {additionalConfig.fields.map(f => (
+                      <p key={f.key} className="text-xs text-gray-400">• {f.label}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* 결과 */}
+            <div className="flex items-center gap-2 pt-1 border-t border-gray-200">
+              <span className="text-xs text-gray-500">결과:</span>
+              <span className="text-xs font-mono text-gray-600">{severityScore}×{likelihoodScore}+{additionalPoints}</span>
+              <span className="text-xs text-gray-400">=</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-bold ${rl.bg} ${rl.color}`}>{riskScore}점 ({rl.label})</span>
             </div>
-            <span className="text-gray-400 text-xs">=</span>
-            <span className={`px-2 py-0.5 rounded text-xs font-bold ${rl.bg} ${rl.color}`}>{riskScore}점</span>
           </div>
         )}
       </div>
@@ -255,6 +285,7 @@ function ImprovementPanel({
 }) {
   const [improvements, setImprovements] = useState<ImprovementRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [expandedPhotoId, setExpandedPhotoId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -294,6 +325,21 @@ function ImprovementPanel({
 
   const handleSaved = (rec: ImprovementRecord) => {
     sync([...improvements, rec])
+  }
+
+  const handlePhotoUploaded = (recordId: string, photo: ImprovementPhoto) => {
+    setImprovements(prev => prev.map(r =>
+      r.id === recordId ? { ...r, photos: [...r.photos, photo] } : r
+    ))
+  }
+
+  const handleDeletePhoto = async (recordId: string, photoId: string) => {
+    const res = await fetch(`/api/risk-assessment/improvements/${recordId}/photos/${photoId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setImprovements(prev => prev.map(r =>
+        r.id === recordId ? { ...r, photos: r.photos.filter(p => p.id !== photoId) } : r
+      ))
+    }
   }
 
   const riskLevel = getRiskLevel(hazard.riskScore)
@@ -358,6 +404,7 @@ function ImprovementPanel({
               {improvements.map(rec => {
                 const rl = getRiskLevel(rec.riskScore)
                 const isDone = rec.status === 'COMPLETED'
+                const isPhotoExpanded = expandedPhotoId === rec.id
                 return (
                   <div key={rec.id}
                     className={`rounded-lg border p-3 ${isDone ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
@@ -382,6 +429,31 @@ function ImprovementPanel({
                         <p className="text-sm text-gray-800 font-medium leading-snug">{rec.improvementContent}</p>
                         <p className="text-xs text-gray-500 mt-0.5">담당: {rec.responsiblePerson}</p>
                         {rec.remarks && <p className="text-xs text-gray-400 mt-0.5">비고: {rec.remarks}</p>}
+
+                        {/* 사진 영역 */}
+                        <div className="mt-1.5">
+                          <button
+                            onClick={() => setExpandedPhotoId(isPhotoExpanded ? null : rec.id)}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                          >
+                            <Camera className="w-3 h-3" />
+                            사진 {rec.photos.length > 0 ? `(${rec.photos.length})` : ''}
+                            <ChevronDown className={`w-3 h-3 transition-transform ${isPhotoExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isPhotoExpanded && (
+                            <div className="mt-2" onClick={e => e.stopPropagation()}>
+                              <PhotoUploader
+                                mode="immediate"
+                                uploadUrl={`/api/risk-assessment/improvements/${rec.id}/photos`}
+                                existingPhotos={rec.photos}
+                                onUploaded={(photo) => handlePhotoUploaded(rec.id, photo)}
+                                onDeleteExisting={(photoId) => handleDeletePhoto(rec.id, photoId)}
+                                maxPhotos={10}
+                                maxFileSize={10 * 1024 * 1024}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-col gap-1 items-end shrink-0">
                         {!isDone && (
