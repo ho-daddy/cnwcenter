@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, Search, FlaskConical, Trash2, Eye, Pencil, FileSpreadsheet } from 'lucide-react'
+import { Plus, Search, FlaskConical, Trash2, Eye, Pencil, FileSpreadsheet, Download } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { getRiskLevel } from '@/lib/risk-assessment'
 
@@ -25,6 +25,7 @@ export default function ChemicalProductsPage() {
   const [filterWorkplace, setFilterWorkplace] = useState('')
   const [searchText, setSearchText] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'severity'>('name')
+  const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => setWorkplaces(d.workplaces || []))
@@ -38,6 +39,28 @@ export default function ChemicalProductsPage() {
       .then(r => r.json())
       .then(d => { setChemicals(d.chemicals || []); setIsLoading(false) })
   }, [filterWorkplace])
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterWorkplace) params.set('workplaceId', filterWorkplace)
+      const res = await fetch(`/api/risk-assessment/chemicals/export?${params}`)
+      if (!res.ok) { alert('엑셀 다운로드에 실패했습니다.'); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cd = res.headers.get('Content-Disposition') || ''
+      const match = cd.match(/filename\*=UTF-8''(.+)/)
+      a.download = match ? decodeURIComponent(match[1]) : '화학제품_관리대장.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch { alert('엑셀 다운로드 중 오류가 발생했습니다.') }
+    finally { setIsExporting(false) }
+  }
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`"${name}" 화학제품을 삭제하시겠습니까?\n연결된 구성성분 정보도 함께 삭제됩니다.`)) return
@@ -90,6 +113,13 @@ export default function ChemicalProductsPage() {
           <p className="text-sm text-gray-500 mt-0.5">사업장에서 사용하는 화학제품 및 구성성분 관리</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={isExporting || chemicals.length === 0}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" /> {isExporting ? '다운로드 중...' : '엑셀 다운로드'}
+          </button>
           <Link
             href="/risk-assessment/chemicals/bulk"
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
