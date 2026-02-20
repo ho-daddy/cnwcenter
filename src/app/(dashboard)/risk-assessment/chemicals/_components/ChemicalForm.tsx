@@ -131,13 +131,13 @@ function ComponentEntry({
 
       {/* Row 1: CAS + Name + Concentration + Score */}
       <div className="grid grid-cols-12 gap-3">
-        <div className="col-span-3">
+        <div className="col-span-4">
           <label className="text-xs text-gray-500 mb-1 block">CAS 번호</label>
           <div className="flex gap-1">
             <input type="text" value={comp.casNumber}
               onChange={e => onChange(index, { casNumber: e.target.value })}
               readOnly={comp.isTradeSecret}
-              className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm bg-white disabled:bg-gray-50"
+              className="flex-1 min-w-0 px-2 py-1.5 border border-gray-300 rounded text-sm bg-white disabled:bg-gray-50"
               placeholder="예: 7647-01-0" />
             <button type="button" onClick={handleCasSearch} disabled={searching || comp.isTradeSecret}
               className="px-2 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1 shrink-0">
@@ -166,7 +166,7 @@ function ComponentEntry({
           <input type="text" value={comp.concentration}
             onChange={e => onChange(index, { concentration: e.target.value })}
             readOnly={comp.isConcentrationUnknown}
-            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" placeholder="예: 85, 10~30, 비공개" />
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" placeholder="예: 85, 10~30" />
           <label className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500 cursor-pointer">
             <input type="checkbox" checked={comp.isConcentrationUnknown}
               onChange={e => handleConcentrationUnknown(e.target.checked)}
@@ -175,13 +175,13 @@ function ComponentEntry({
           </label>
         </div>
 
-        <div className="col-span-3">
-          <label className="text-xs text-gray-500 mb-1 block">중대성 점수</label>
+        <div className="col-span-2">
+          <label className="text-xs text-gray-500 mb-1 block">중대성</label>
           <input type="number" value={comp.severityScore} min={1} max={5}
             onChange={e => onChange(index, { severityScore: parseInt(e.target.value) || 1 })}
             readOnly={comp.isTradeSecret}
             className={`w-full px-2 py-1.5 border rounded text-sm font-bold text-center ${severityColors[comp.severityScore] || severityColors[1]}`} />
-          <p className="text-xs text-gray-400 mt-1">자동 계산 / 직접 수정 가능</p>
+          <p className="text-xs text-gray-400 mt-1">자동 / 수정 가능</p>
         </div>
       </div>
 
