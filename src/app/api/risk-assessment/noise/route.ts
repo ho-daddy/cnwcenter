@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
       },
       include: {
-        organizationUnit: { select: { name: true } },
+        organizationUnit: { select: { id: true, name: true } },
       },
     })
     return NextResponse.json(measurement, { status: 201 })
