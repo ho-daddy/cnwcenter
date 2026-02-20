@@ -55,7 +55,6 @@ export async function GET(req: NextRequest) {
       card: {
         select: {
           id: true,
-          evaluationNumber: true,
           year: true,
           evaluationType: true,
           organizationUnit: {

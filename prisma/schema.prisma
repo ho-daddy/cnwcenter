@@ -370,7 +370,6 @@ model RiskAssessmentCard {
   year               Int
   evaluationType     RiskEvaluationType
   evaluationReason   String?            @db.Text  // 수시조사 사유
-  evaluationNumber   String                       // 자동생성 평가번호
   workerName         String
   evaluatorName      String
 

@@ -58,10 +58,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '해당 사업장에 대한 권한이 없습니다.' }, { status: 403 })
   }
 
-  // 평가번호 자동생성: YYYY-RA-NNNN
-  const count = await prisma.riskAssessmentCard.count({ where: { workplaceId, year: parseInt(year) } })
-  const evaluationNumber = `${year}-RA-${String(count + 1).padStart(4, '0')}`
-
   try {
     const card = await prisma.riskAssessmentCard.create({
       data: {
@@ -70,7 +66,6 @@ export async function POST(req: NextRequest) {
         year: parseInt(year),
         evaluationType: evaluationType as RiskEvaluationType,
         evaluationReason: evaluationType === 'OCCASIONAL' ? evaluationReason : null,
-        evaluationNumber,
         workerName,
         evaluatorName,
         dailyWorkingHours: dailyWorkingHours || null,

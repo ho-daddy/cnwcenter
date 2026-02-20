@@ -28,7 +28,6 @@ interface Hazard {
 
 interface Card {
   id: string
-  evaluationNumber: string
   evaluationType: string
   evaluationReason: string | null
   year: number
@@ -94,7 +93,7 @@ export default function RiskAssessmentCardPage() {
             {card.organizationUnit.name}
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {card.workplace.name} · {card.evaluationNumber} · {EVALUATION_TYPE_LABELS[card.evaluationType]} · {card.year}년
+            {card.workplace.name} · {EVALUATION_TYPE_LABELS[card.evaluationType]} · {card.year}년
           </p>
         </div>
         <button onClick={handleDeleteCard} disabled={isDeleting}

@@ -31,7 +31,7 @@ interface HazardItem {
   photos: PhotoItem[]
   improvements: HazardImprovement[]
   card: {
-    id: string; evaluationNumber: string; year: number; evaluationType: string
+    id: string; year: number; evaluationType: string
     organizationUnit: {
       id: string; name: string
       parent: { id: string; name: string } | null
@@ -559,7 +559,7 @@ export default function ViewPage() {
                           <Link href={`/risk-assessment/${h.card.id}`}
                             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline">
                             <ExternalLink className="w-3 h-3" />
-                            {h.card.evaluationNumber}
+                            상세
                           </Link>
                           <p className="text-xs text-gray-400 mt-0.5">{EVALUATION_TYPE_LABELS[h.card.evaluationType]}</p>
                         </td>

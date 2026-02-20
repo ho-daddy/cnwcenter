@@ -22,7 +22,7 @@ interface OrganizationUnit {
   isLeaf: boolean; parentId: string | null; children: OrganizationUnit[]
 }
 interface RiskCard {
-  id: string; evaluationNumber: string; evaluationType: string
+  id: string; evaluationType: string
   evaluationReason: string | null; year: number
   workerName: string; evaluatorName: string; workDescription: string
   dailyWorkingHours: string | null; dailyProduction: string | null
@@ -306,9 +306,9 @@ export default function ConductPage() {
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="w-5 h-5 text-orange-500" />
                   <div>
-                    <CardTitle className="text-base">{selectedCard.evaluationNumber}</CardTitle>
+                    <CardTitle className="text-base">{selectedCard.organizationUnit.name}</CardTitle>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      {selectedCard.organizationUnit.name} · {selectedCard.year}년 · {EVALUATION_TYPE_LABELS[selectedCard.evaluationType]}
+                      {selectedCard.year}년 · {EVALUATION_TYPE_LABELS[selectedCard.evaluationType]}
                     </p>
                   </div>
                 </div>
@@ -591,8 +591,7 @@ function CardOverviewTab({ card, onUpdate }: { card: RiskCard; onUpdate: (c: Ris
             <Edit2 className="w-3.5 h-3.5" />수정
           </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Field label="평가번호" value={card.evaluationNumber} />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Field label="평가연도" value={`${card.year}년`} />
           <Field label="조사구분" value={EVALUATION_TYPE_LABELS[card.evaluationType]} />
           <Field label="평가단위" value={card.organizationUnit.name} />
