@@ -229,6 +229,23 @@ function QuestionStatsCard({
 function QuestionStatsContent({ stat }: { stat: QuestionStats }) {
   const data = stat.data
 
+  // data가 없으면 빈 상태 표시
+  if (data === null || data === undefined) {
+    if (stat.questionType === 'TABLE') {
+      return (
+        <div className="text-sm text-gray-500">
+          <p>표 형태 응답 {stat.responseCount}건이 수집되었습니다.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            상세 분석은 응답 목록에서 개별 확인하세요.
+          </p>
+        </div>
+      )
+    }
+    return (
+      <div className="text-sm text-gray-400">응답 데이터가 없습니다.</div>
+    )
+  }
+
   // RADIO / DROPDOWN / CHECKBOX: horizontal bar chart
   if (['RADIO', 'DROPDOWN', 'CHECKBOX'].includes(stat.questionType)) {
     const entries = Object.entries(data as Record<string, number>).sort(
@@ -244,7 +261,7 @@ function QuestionStatsContent({ stat }: { stat: QuestionStats }) {
           const barWidth = Math.max((count / maxCount) * 100, 2)
           return (
             <div key={label} className="flex items-center gap-3">
-              <span className="text-xs text-gray-700 w-32 truncate shrink-0" title={label}>
+              <span className="text-xs text-gray-700 w-40 truncate shrink-0" title={label}>
                 {label}
               </span>
               <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
@@ -269,11 +286,10 @@ function QuestionStatsContent({ stat }: { stat: QuestionStats }) {
   // NUMBER / RANGE: numeric statistics
   if (['NUMBER', 'RANGE'].includes(stat.questionType)) {
     const numData = data as {
-      values?: number[]
-      min?: number
-      max?: number
-      avg?: number
-      median?: number
+      min?: number | null
+      max?: number | null
+      avg?: number | null
+      median?: number | null
     }
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -288,23 +304,23 @@ function QuestionStatsContent({ stat }: { stat: QuestionStats }) {
         <div className="bg-blue-50 rounded-lg p-3 text-center">
           <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-0.5">평균</p>
           <p className="text-lg font-bold text-blue-700">
-            {numData.avg !== undefined ? numData.avg.toFixed(1) : '-'}
+            {numData.avg != null ? numData.avg.toFixed(1) : '-'}
           </p>
         </div>
         <div className="bg-purple-50 rounded-lg p-3 text-center">
           <p className="text-[10px] text-purple-600 uppercase tracking-wide mb-0.5">중앙값</p>
           <p className="text-lg font-bold text-purple-700">
-            {numData.median !== undefined ? numData.median.toFixed(1) : '-'}
+            {numData.median != null ? numData.median.toFixed(1) : '-'}
           </p>
         </div>
       </div>
     )
   }
 
-  // TEXT: list of responses (collapsible)
+  // TEXT: list of responses
   if (stat.questionType === 'TEXT') {
     const textData = data as Record<string, number>
-    const entries = Object.entries(textData)
+    const entries = Object.entries(textData).sort(([, a], [, b]) => b - a)
 
     return (
       <div className="space-y-1.5 max-h-60 overflow-y-auto">

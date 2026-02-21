@@ -86,7 +86,7 @@ export async function GET(req: NextRequest, { params }: Params) {
           const strVal = String(val)
           counts[strVal] = (counts[strVal] || 0) + 1
         }
-        questionStats[questionId] = { ...baseStat, optionCounts: counts }
+        questionStats[questionId] = { ...baseStat, data: counts }
         break
       }
 
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest, { params }: Params) {
             counts[strItem] = (counts[strItem] || 0) + 1
           }
         }
-        questionStats[questionId] = { ...baseStat, optionCounts: counts }
+        questionStats[questionId] = { ...baseStat, data: counts }
         break
       }
 
@@ -123,79 +123,88 @@ export async function GET(req: NextRequest, { params }: Params) {
 
           questionStats[questionId] = {
             ...baseStat,
-            min: sorted[0],
-            max: sorted[sorted.length - 1],
-            avg: Math.round((sum / numbers.length) * 100) / 100,
-            median,
-            validCount: numbers.length,
+            data: {
+              min: sorted[0],
+              max: sorted[sorted.length - 1],
+              avg: Math.round((sum / numbers.length) * 100) / 100,
+              median,
+            },
           }
         } else {
           questionStats[questionId] = {
             ...baseStat,
-            min: null,
-            max: null,
-            avg: null,
-            median: null,
-            validCount: 0,
+            data: { min: null, max: null, avg: null, median: null },
           }
         }
         break
       }
 
       case 'TEXT': {
-        questionStats[questionId] = {
-          ...baseStat,
-          textValues: values.map((v) => String(v)),
+        // 텍스트 응답을 빈도수 기반 Record로 집계
+        const textCounts: Record<string, number> = {}
+        for (const val of values) {
+          const strVal = String(val)
+          if (strVal && strVal !== 'null' && strVal !== 'undefined') {
+            textCounts[strVal] = (textCounts[strVal] || 0) + 1
+          }
         }
+        questionStats[questionId] = { ...baseStat, data: textCounts }
         break
       }
 
       case 'RANKED_CHOICE': {
-        // 각 순위별로 선택된 값 카운트
-        const rankCounts: Record<string, Record<string, number>> = {}
+        // 가중 점수 방식: 1순위 = N점, 2순위 = N-1점, ...
+        const weightedScores: Record<string, number> = {}
         for (const val of values) {
-          if (Array.isArray(val)) {
+          if (val && typeof val === 'object' && !Array.isArray(val)) {
+            // { "1": "항목A", "2": "항목B", "3": "항목C" } 형태
+            const ranked = val as Record<string, string>
+            const totalRanks = Object.keys(ranked).length
+            for (const [rankStr, item] of Object.entries(ranked)) {
+              const rank = parseInt(rankStr)
+              if (isNaN(rank) || !item) continue
+              const weight = totalRanks - rank + 1
+              weightedScores[item] = (weightedScores[item] || 0) + weight
+            }
+          } else if (Array.isArray(val)) {
+            const totalRanks = val.length
             val.forEach((item, idx) => {
-              const rank = `rank_${idx + 1}`
-              if (!rankCounts[rank]) rankCounts[rank] = {}
               const strItem = String(item)
-              rankCounts[rank][strItem] = (rankCounts[rank][strItem] || 0) + 1
+              const weight = totalRanks - idx
+              weightedScores[strItem] = (weightedScores[strItem] || 0) + weight
             })
           }
         }
-        questionStats[questionId] = { ...baseStat, rankCounts }
+        questionStats[questionId] = { ...baseStat, data: weightedScores }
         break
       }
 
       case 'CONSENT': {
-        let trueCount = 0
-        let falseCount = 0
+        const consentCounts: Record<string, number> = { 'true': 0, 'false': 0 }
         for (const val of values) {
           if (val === true || val === 'true') {
-            trueCount++
+            consentCounts['true']++
           } else {
-            falseCount++
+            consentCounts['false']++
           }
         }
-        questionStats[questionId] = {
-          ...baseStat,
-          trueCount,
-          falseCount,
-        }
+        // 0건인 키 제거
+        if (consentCounts['false'] === 0) delete consentCounts['false']
+        if (consentCounts['true'] === 0) delete consentCounts['true']
+        questionStats[questionId] = { ...baseStat, data: consentCounts }
         break
       }
 
       case 'TABLE': {
-        // TABLE 타입은 복합적이므로 건너뜀
         questionStats[questionId] = {
           ...baseStat,
-          note: 'TABLE 타입은 통계 분석을 지원하지 않습니다.',
+          data: null,
         }
         break
       }
 
       default: {
-        questionStats[questionId] = baseStat
+        questionStats[questionId] = { ...baseStat, data: null }
         break
       }
     }

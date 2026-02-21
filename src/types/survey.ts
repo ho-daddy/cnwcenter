@@ -139,7 +139,7 @@ export interface QuestionStats {
   questionText: string
   questionType: QuestionType
   responseCount: number
-  data: Record<string, number> | { values: number[]; min: number; max: number; avg: number; median: number }
+  data: Record<string, number> | { min: number | null; max: number | null; avg: number | null; median: number | null } | null
 }
 
 export interface SurveyAnalytics {
