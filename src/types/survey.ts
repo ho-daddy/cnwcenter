@@ -142,8 +142,31 @@ export interface QuestionStats {
   data: Record<string, number> | { min: number | null; max: number | null; avg: number | null; median: number | null } | null
 }
 
+export type AssessmentLevel = '정상' | '관리대상자' | '통증호소자'
+
+export interface BodyPartAssessmentSummary {
+  summary: Record<string, Record<AssessmentLevel, number>>
+  totalSummary: Record<AssessmentLevel, number>
+  respondentCount: number
+}
+
+export interface CombinedTenureStat {
+  label: string
+  min: string
+  max: string
+  avg: string
+  median: string
+  count: number
+}
+
 export interface SurveyAnalytics {
   totalResponses: number
   completedResponses: number
   questionStats: Record<string, QuestionStats>
+  bodyPartAssessment?: BodyPartAssessmentSummary
+  combinedStats?: {
+    tenure?: CombinedTenureStat
+    deptTenure?: CombinedTenureStat
+  }
+  hiddenQuestionIds?: string[]
 }

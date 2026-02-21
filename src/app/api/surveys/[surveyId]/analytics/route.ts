@@ -210,9 +210,153 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
   }
 
+  // ─── 추가 분석: 근속기간 합산 + 근골격계 부위별 판정 ───
+
+  const BODY_PARTS = [
+    { key: 'neck', label: '목' },
+    { key: 'shoulder', label: '어깨' },
+    { key: 'arm', label: '팔/팔꿈치' },
+    { key: 'hand', label: '손/손목/손가락' },
+    { key: 'back', label: '허리' },
+    { key: 'leg', label: '다리/발' },
+  ]
+
+  // questionCode → questionId 매핑
+  const codeToId = new Map<string, string>()
+  for (const [qId, q] of questionMap) {
+    if (q.questionCode) codeToId.set(q.questionCode, qId)
+  }
+
+  // 숨길 질문 ID (개별 표시 대신 합산/판정으로 대체)
+  const hiddenCodes = new Set([
+    'S0-serviceYears', 'S0-serviceMonths',
+    'S0-deptYears', 'S0-deptMonths',
+    ...BODY_PARTS.flatMap((bp) => [
+      `Q4-1-${bp.key}-period`,
+      `Q4-1-${bp.key}-level`,
+      `Q4-1-${bp.key}-freq`,
+    ]),
+  ])
+  const hiddenQuestionIds: string[] = []
+  for (const code of hiddenCodes) {
+    const id = codeToId.get(code)
+    if (id) hiddenQuestionIds.push(id)
+  }
+
+  // ─── 근속기간 합산 통계 ───
+  function formatMonths(m: number): string {
+    const years = Math.floor(m / 12)
+    const months = Math.round(m % 12)
+    return `${years}년 ${months}개월`
+  }
+
+  function computeTenure(yearsCode: string, monthsCode: string, label: string) {
+    const totalMonths: number[] = []
+    const yearsId = codeToId.get(yearsCode)
+    const monthsId = codeToId.get(monthsCode)
+
+    for (const response of responses) {
+      if (!response.completedAt) continue
+      const ansMap = new Map(response.answers.map((a) => [a.questionId, a.value]))
+      const y = yearsId ? Number(ansMap.get(yearsId)) : NaN
+      const mo = monthsId ? Number(ansMap.get(monthsId)) : NaN
+      if (!isNaN(y) || !isNaN(mo)) {
+        totalMonths.push((isNaN(y) ? 0 : y) * 12 + (isNaN(mo) ? 0 : mo))
+      }
+    }
+    if (totalMonths.length === 0) return null
+
+    const sorted = [...totalMonths].sort((a, b) => a - b)
+    const sum = sorted.reduce((a, b) => a + b, 0)
+    const mid = Math.floor(sorted.length / 2)
+    const median = sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid]
+
+    return {
+      label,
+      min: formatMonths(sorted[0]),
+      max: formatMonths(sorted[sorted.length - 1]),
+      avg: formatMonths(sum / sorted.length),
+      median: formatMonths(median),
+      count: sorted.length,
+    }
+  }
+
+  const combinedStats = {
+    tenure: computeTenure('S0-serviceYears', 'S0-serviceMonths', '근속기간'),
+    deptTenure: computeTenure('S0-deptYears', 'S0-deptMonths', '부서 근속기간'),
+  }
+
+  // ─── 근골격계 부위별 판정 ───
+  type AssessmentLevel = '정상' | '관리대상자' | '통증호소자'
+
+  function assessBodyPart(
+    level: string | null,
+    period: string | null,
+    freq: string | null
+  ): AssessmentLevel {
+    if (!level) return '정상'
+    const longPeriod = period === '1주일~1달' || period === '1달 이상'
+    const highFreq = freq === '1개월에 1번' || freq === '1주일에 1번' || freq === '매일'
+    if (level === '매우 심함' && longPeriod && highFreq) return '통증호소자'
+    if (level === '중간' && (longPeriod || highFreq)) return '관리대상자'
+    return '정상'
+  }
+
+  const bodyPartSummary: Record<string, Record<AssessmentLevel, number>> = {}
+  const totalSummary: Record<AssessmentLevel, number> = { 정상: 0, 관리대상자: 0, 통증호소자: 0 }
+  let respondentCount = 0
+
+  for (const bp of BODY_PARTS) {
+    bodyPartSummary[bp.label] = { 정상: 0, 관리대상자: 0, 통증호소자: 0 }
+  }
+
+  for (const response of responses) {
+    if (!response.completedAt) continue
+    respondentCount++
+
+    const ansMap = new Map(response.answers.map((a) => [a.questionId, a.value]))
+    const q41Id = codeToId.get('Q4-1')
+    const selectedParts = q41Id ? (ansMap.get(q41Id) as string[] | undefined) || [] : []
+
+    let worstLevel: AssessmentLevel = '정상'
+
+    for (const bp of BODY_PARTS) {
+      if (Array.isArray(selectedParts) && selectedParts.includes(bp.label)) {
+        const periodId = codeToId.get(`Q4-1-${bp.key}-period`)
+        const levelId = codeToId.get(`Q4-1-${bp.key}-level`)
+        const freqId = codeToId.get(`Q4-1-${bp.key}-freq`)
+
+        const period = periodId ? String(ansMap.get(periodId) ?? '') || null : null
+        const level = levelId ? String(ansMap.get(levelId) ?? '') || null : null
+        const freq = freqId ? String(ansMap.get(freqId) ?? '') || null : null
+
+        const result = assessBodyPart(level, period, freq)
+        bodyPartSummary[bp.label][result]++
+
+        if (result === '통증호소자') worstLevel = '통증호소자'
+        else if (result === '관리대상자' && worstLevel !== '통증호소자') worstLevel = '관리대상자'
+      } else {
+        bodyPartSummary[bp.label]['정상']++
+      }
+    }
+
+    totalSummary[worstLevel]++
+  }
+
+  const bodyPartAssessment = {
+    summary: bodyPartSummary,
+    totalSummary,
+    respondentCount,
+  }
+
   return NextResponse.json({
     totalResponses,
     completedResponses,
     questionStats,
+    bodyPartAssessment,
+    combinedStats,
+    hiddenQuestionIds,
   })
 }
