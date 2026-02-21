@@ -32,7 +32,7 @@ export default function SurveyListPage() {
       const res = await fetch(`/api/surveys?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setSurveys(data.surveys ?? [])
+        setSurveys(Array.isArray(data) ? data : data.surveys ?? [])
       }
     } catch {
       // ignore
