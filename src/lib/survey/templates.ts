@@ -130,7 +130,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'S0-workHours',
-          questionText: '평균 노동시간 (잔업, 특근 포함) 주 (시간)',
+          questionText: '1주일 평균 노동시간 (잔업, 특근 포함)',
           questionType: 'NUMBER',
           required: false,
           sortOrder: 10,
@@ -148,7 +148,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'S0-process',
-          questionText: '담당 공정',
+          questionText: '담당 공정 (업무)',
           questionType: 'TEXT',
           required: false,
           sortOrder: 12,
@@ -187,7 +187,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         {
           questionCode: 'Q1-1',
           questionText:
-            '현재 공정에서 일하다가 사고로 다친 (혹은 다칠 뻔했던) 경험이 있다면 해당 내용에 모두 체크하세요.',
+            '현재 공정(업무)에서 일하다가 사고로 다친 (혹은 다칠 뻔했던) 경험이 있다면 해당 내용에 모두 체크하세요.',
           questionType: 'CHECKBOX',
           required: false,
           sortOrder: 0,
@@ -218,7 +218,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         {
           questionCode: 'Q1-2',
           questionText:
-            '현재 공정외 다른 장소에서 사고로 다친 (혹은 다칠 뻔했던) 경험이 있다면 해당 내용에 모두 체크하세요.',
+            '현재 공정(업무)외 다른 장소에서 사고로 다친 (혹은 다칠 뻔했던) 경험이 있다면 해당 내용에 모두 체크하세요.',
           questionType: 'CHECKBOX',
           required: false,
           sortOrder: 2,
@@ -257,7 +257,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         {
           questionCode: 'Q1-3',
           questionText:
-            '그 밖에 본인 공정이나 주변 설비, 시설 등에 사고가 발생할만한 위험이 있다고 생각되는 사안이 있다면 알려주세요. (계단, 난간, 사다리 등의 시설물이나 건물 밖 야외공간도 포함해 생각해 봅시다.)',
+            '그 밖에 본인 공정(업무)이나 주변 설비, 시설 등에 사고가 발생할만한 위험이 있다고 생각되는 사안이 있다면 알려주세요. (계단, 난간, 사다리 등의 시설물이나 건물 밖 야외공간도 포함해 생각해 봅시다.)',
           questionType: 'TEXT',
           required: false,
           sortOrder: 5,
@@ -266,7 +266,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q1-4',
-          questionText: '일하고 있는 공정 혹은 부서에서 사고는 얼마나 자주 일어납니까?',
+          questionText: '일하고 있는 공정(업무) 혹은 부서에서 사고는 얼마나 자주 일어납니까?',
           questionType: 'RADIO',
           required: false,
           sortOrder: 6,
@@ -536,7 +536,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 목 (neck) ──
         {
           questionCode: 'Q4-1-neck-period',
-          questionText: '[목] 통증 지속 기간',
+          questionText: '[목] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 1,
@@ -553,7 +553,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-neck-level',
-          questionText: '[목] 아픈 정도',
+          questionText: '[목] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 2,
@@ -570,7 +570,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-neck-freq',
-          questionText: '[목] 빈도',
+          questionText: '[목] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 3,
@@ -589,7 +589,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 어깨 (shoulder) ──
         {
           questionCode: 'Q4-1-shoulder-period',
-          questionText: '[어깨] 통증 기간',
+          questionText: '[어깨] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 4,
@@ -606,7 +606,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-shoulder-level',
-          questionText: '[어깨] 아픈 정도',
+          questionText: '[어깨] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 5,
@@ -623,7 +623,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-shoulder-freq',
-          questionText: '[어깨] 빈도',
+          questionText: '[어깨] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 6,
@@ -642,7 +642,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 팔/팔꿈치 (arm) ──
         {
           questionCode: 'Q4-1-arm-period',
-          questionText: '[팔/팔꿈치] 통증 기간',
+          questionText: '[팔/팔꿈치] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 7,
@@ -659,7 +659,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-arm-level',
-          questionText: '[팔/팔꿈치] 아픈 정도',
+          questionText: '[팔/팔꿈치] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 8,
@@ -676,7 +676,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-arm-freq',
-          questionText: '[팔/팔꿈치] 빈도',
+          questionText: '[팔/팔꿈치] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 9,
@@ -695,7 +695,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 손/손목/손가락 (hand) ──
         {
           questionCode: 'Q4-1-hand-period',
-          questionText: '[손/손목/손가락] 통증 기간',
+          questionText: '[손/손목/손가락] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 10,
@@ -712,7 +712,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-hand-level',
-          questionText: '[손/손목/손가락] 아픈 정도',
+          questionText: '[손/손목/손가락] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 11,
@@ -729,7 +729,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-hand-freq',
-          questionText: '[손/손목/손가락] 빈도',
+          questionText: '[손/손목/손가락] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 12,
@@ -748,7 +748,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 허리 (back) ──
         {
           questionCode: 'Q4-1-back-period',
-          questionText: '[허리] 통증 기간',
+          questionText: '[허리] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 13,
@@ -765,7 +765,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-back-level',
-          questionText: '[허리] 아픈 정도',
+          questionText: '[허리] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 14,
@@ -782,7 +782,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-back-freq',
-          questionText: '[허리] 빈도',
+          questionText: '[허리] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 15,
@@ -801,7 +801,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         // ── 다리/발 (leg) ──
         {
           questionCode: 'Q4-1-leg-period',
-          questionText: '[다리/발] 통증 기간',
+          questionText: '[다리/발] 통증이 한번 시작되면 얼마나 오래 지속됩니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 16,
@@ -818,7 +818,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-leg-level',
-          questionText: '[다리/발] 아픈 정도',
+          questionText: '[다리/발] 통증은 얼마나 심한가요?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 17,
@@ -835,7 +835,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
         {
           questionCode: 'Q4-1-leg-freq',
-          questionText: '[다리/발] 빈도',
+          questionText: '[다리/발] 얼마나 자주 통증이 발생합니까?',
           questionType: 'DROPDOWN',
           required: false,
           sortOrder: 18,

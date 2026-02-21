@@ -41,11 +41,17 @@ async function main() {
     where: { isDefault: true },
   })
 
-  if (existingTemplate) {
-    console.log('⚠️  기본 설문 템플릿이 이미 존재합니다:', existingTemplate.name)
-  } else {
-    const { DEFAULT_SURVEY_TEMPLATE } = await import('../src/lib/survey/templates')
+  const { DEFAULT_SURVEY_TEMPLATE } = await import('../src/lib/survey/templates')
 
+  if (existingTemplate) {
+    await prisma.surveyTemplate.update({
+      where: { id: existingTemplate.id },
+      data: {
+        structure: DEFAULT_SURVEY_TEMPLATE as unknown as Prisma.InputJsonValue,
+      },
+    })
+    console.log('✅ 기본 설문 템플릿 업데이트 완료:', existingTemplate.name)
+  } else {
     await prisma.surveyTemplate.create({
       data: {
         name: '위험성평가/근골격계 유해요인조사 설문지',
@@ -54,7 +60,6 @@ async function main() {
         isDefault: true,
       },
     })
-
     console.log('✅ 기본 설문 템플릿 생성 완료: 위험성평가/근골격계 유해요인조사 설문지')
   }
 
