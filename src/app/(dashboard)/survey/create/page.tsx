@@ -34,7 +34,7 @@ export default function SurveyCreatePage() {
     // Fetch templates
     fetch('/api/surveys/templates')
       .then((res) => res.json())
-      .then((data) => setTemplates(data.templates ?? []))
+      .then((data) => setTemplates(Array.isArray(data) ? data : data.templates ?? []))
       .catch(() => {})
       .finally(() => setIsLoadingTemplates(false))
 

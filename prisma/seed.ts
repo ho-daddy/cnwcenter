@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -50,7 +50,7 @@ async function main() {
       data: {
         name: '위험성평가/근골격계 유해요인조사 설문지',
         description: '산업안전보건법에 따른 위험성평가 및 근골격계 유해요인조사를 위한 기본 설문지입니다. 개인정보, 사고경험, 질환 및 유해요인, 노동강도, 근골격계질환 5개 섹션으로 구성되어 있습니다.',
-        structure: DEFAULT_SURVEY_TEMPLATE as unknown as Record<string, unknown>,
+        structure: DEFAULT_SURVEY_TEMPLATE as unknown as Prisma.InputJsonValue,
         isDefault: true,
       },
     })
