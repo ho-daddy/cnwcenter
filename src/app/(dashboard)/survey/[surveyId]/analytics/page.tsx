@@ -24,6 +24,7 @@ export default function SurveyAnalyticsPage() {
   const [analytics, setAnalytics] = useState<SurveyAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [collapsedQuestions, setCollapsedQuestions] = useState<Set<string>>(new Set())
+  const [isExporting, setIsExporting] = useState(false)
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
@@ -93,11 +94,39 @@ export default function SurveyAnalyticsPage() {
           </div>
         </div>
         <button
-          disabled
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-400 border border-gray-200 rounded-lg cursor-not-allowed"
-          title="추후 구현 예정"
+          disabled={isExporting || !analytics || analytics.totalResponses === 0}
+          onClick={async () => {
+            setIsExporting(true)
+            try {
+              const res = await fetch(`/api/surveys/${surveyId}/analytics/export`)
+              if (!res.ok) throw new Error('내보내기 실패')
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              const disposition = res.headers.get('Content-Disposition') || ''
+              const match = disposition.match(/filename\*=UTF-8''(.+)/)
+              a.download = match ? decodeURIComponent(match[1]) : '설문_응답데이터.xlsx'
+              a.href = url
+              a.click()
+              URL.revokeObjectURL(url)
+            } catch {
+              alert('Excel 내보내기에 실패했습니다.')
+            } finally {
+              setIsExporting(false)
+            }
+          }}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+            isExporting || !analytics || analytics.totalResponses === 0
+              ? 'text-gray-400 border border-gray-200 cursor-not-allowed'
+              : 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100'
+          )}
         >
-          <Download className="w-4 h-4" />
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
           Excel 내보내기
         </button>
       </div>
