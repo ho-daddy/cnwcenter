@@ -36,6 +36,28 @@ async function main() {
     console.log('   ⚠️  첫 로그인 후 비밀번호를 변경해주세요!')
   }
 
+  // 기본 설문 템플릿 생성
+  const existingTemplate = await prisma.surveyTemplate.findFirst({
+    where: { isDefault: true },
+  })
+
+  if (existingTemplate) {
+    console.log('⚠️  기본 설문 템플릿이 이미 존재합니다:', existingTemplate.name)
+  } else {
+    const { DEFAULT_SURVEY_TEMPLATE } = await import('../src/lib/survey/templates')
+
+    await prisma.surveyTemplate.create({
+      data: {
+        name: '위험성평가/근골격계 유해요인조사 설문지',
+        description: '산업안전보건법에 따른 위험성평가 및 근골격계 유해요인조사를 위한 기본 설문지입니다. 개인정보, 사고경험, 질환 및 유해요인, 노동강도, 근골격계질환 5개 섹션으로 구성되어 있습니다.',
+        structure: DEFAULT_SURVEY_TEMPLATE as unknown as Record<string, unknown>,
+        isDefault: true,
+      },
+    })
+
+    console.log('✅ 기본 설문 템플릿 생성 완료: 위험성평가/근골격계 유해요인조사 설문지')
+  }
+
   console.log('🌱 시드 데이터 생성 완료!')
 }
 
