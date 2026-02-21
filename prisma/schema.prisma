@@ -34,6 +34,7 @@ model User {
   musculoskeletalAssessments MusculoskeletalAssessment[]  // 근골조사 (작성자)
   notices         Notice[]                               // 공지사항 작성
   noticeComments  NoticeComment[]                        // 공지사항 댓글
+  surveys         Survey[]                               // 설문조사 (작성자)
 }
 
 enum UserRole {
@@ -108,6 +109,7 @@ model Workplace {
   archivedAssessments ArchivedAssessment[]  // 아카이브된 조사
   riskAssessmentCards        RiskAssessmentCard[]         // 위험성평가 관리카드
   chemicalProducts           ChemicalProduct[]            // 화학제품
+  surveys                    Survey[]                     // 설문조사
 }
 
 // 담당자 유형
@@ -927,4 +929,147 @@ model MSurveyAttachment {
 
   @@index([assessmentId])
   @@index([elementWorkId])
+}
+
+// ─── 설문조사 (Survey) ───
+
+enum SurveyStatus {
+  DRAFT        // 작성중
+  PUBLISHED    // 배포중
+  CLOSED       // 마감
+}
+
+enum QuestionType {
+  TEXT           // 텍스트 입력
+  NUMBER         // 숫자 입력
+  RADIO          // 단일 선택
+  CHECKBOX       // 다중 선택
+  RANGE          // 범위 슬라이더
+  DROPDOWN       // 드롭다운
+  TABLE          // 표/그리드 입력
+  RANKED_CHOICE  // 순위 선택
+  CONSENT        // 동의 체크
+}
+
+// 설문 템플릿 (재사용 가능)
+model SurveyTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  structure   Json                       // 전체 섹션/질문 구조 JSON
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  surveys     Survey[]
+
+  @@index([isDefault])
+}
+
+// 설문조사
+model Survey {
+  id            String        @id @default(cuid())
+  title         String
+  description   String?       @db.Text
+  year          Int
+  purpose       String?                   // 설문 목적/용도
+  workplaceId   String?
+  workplace     Workplace?    @relation(fields: [workplaceId], references: [id], onDelete: SetNull)
+  templateId    String?
+  template      SurveyTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  status        SurveyStatus  @default(DRAFT)
+  accessToken   String?       @unique     // 공개 URL 토큰
+  publishedAt   DateTime?
+  closedAt      DateTime?
+
+  createdById   String
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sections      SurveySection[]
+  responses     SurveyResponse[]
+
+  @@index([workplaceId])
+  @@index([year])
+  @@index([status])
+  @@index([createdById])
+}
+
+// 설문 섹션
+model SurveySection {
+  id          String   @id @default(cuid())
+  surveyId    String
+  survey      Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?  @db.Text
+  sortOrder   Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions   SurveyQuestion[]
+
+  @@index([surveyId])
+}
+
+// 설문 질문
+model SurveyQuestion {
+  id             String       @id @default(cuid())
+  sectionId      String
+  section        SurveySection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  questionCode   String?                  // 코드 (S0-name, Q1-1 등) - 조건분기 참조용
+  questionText   String       @db.Text
+  questionType   QuestionType
+  required       Boolean      @default(false)
+  sortOrder      Int
+
+  options        Json?                    // 유형별 설정 (선택지, min/max, columns/rows 등)
+  conditionalLogic Json?                  // 조건부 로직 {conditions, logicType}
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  answers        SurveyAnswer[]
+
+  @@index([sectionId])
+  @@index([questionCode])
+}
+
+// 설문 응답 (1명의 응답세트)
+model SurveyResponse {
+  id             String    @id @default(cuid())
+  surveyId       String
+  survey         Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  respondentName String?
+  respondentInfo Json?                   // 인적사항 요약 (부서, 공정 등)
+  completedAt    DateTime?
+
+  createdAt      DateTime  @default(now())
+
+  answers        SurveyAnswer[]
+
+  @@index([surveyId])
+  @@index([completedAt])
+}
+
+// 개별 답변
+model SurveyAnswer {
+  id          String         @id @default(cuid())
+  responseId  String
+  response    SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  value       Json                       // 답변 값 (타입별 형태 상이)
+
+  createdAt   DateTime       @default(now())
+
+  @@unique([responseId, questionId])
+  @@index([responseId])
+  @@index([questionId])
 }

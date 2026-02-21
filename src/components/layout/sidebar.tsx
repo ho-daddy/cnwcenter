@@ -9,6 +9,7 @@ import {
   Users,
   AlertTriangle,
   ClipboardList,
+  ClipboardCheck,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -67,6 +68,19 @@ const getNavItems = (role?: UserRole): NavItem[] => {
       { title: '개선작업', href: '/musculoskeletal/improvement' },
     ],
   })
+
+  // 설문조사 (STAFF 이상)
+  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+    items.push({
+      title: '설문조사',
+      href: '/survey',
+      icon: ClipboardCheck,
+      subItems: [
+        { title: '설문 목록', href: '/survey' },
+        { title: '새 설문', href: '/survey/create' },
+      ],
+    })
+  }
 
   // 관리자 메뉴 (SUPER_ADMIN 또는 STAFF)
   if (role === 'SUPER_ADMIN' || role === 'STAFF') {

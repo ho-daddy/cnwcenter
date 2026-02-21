@@ -15,6 +15,7 @@ const ROLE_ACCESS: Record<string, string[]> = {
   '/notices/new': ['SUPER_ADMIN', 'STAFF'],
   '/notices/edit': ['SUPER_ADMIN', 'STAFF'],
   '/counseling': ['SUPER_ADMIN', 'STAFF'],
+  '/survey': ['SUPER_ADMIN', 'STAFF'],
 }
 
 // 공개 경로 (로그인 없이 접근 가능)
@@ -23,6 +24,7 @@ const PUBLIC_PATHS = [
   '/register',
   '/pending-approval',
   '/api/auth',
+  '/s/',           // 공개 설문 URL
 ]
 
 // 승인된 사용자만 접근 가능한 경로
