@@ -4,6 +4,9 @@ import type { TemplateStructure } from '@/types/survey'
  * 기본 설문 템플릿: 위험성평가/근골격계 유해요인조사 설문지
  * 원본: extra_files/survey.html (사업장명 제외)
  */
+// 섹션 인덱스:
+// 0: 개인 정보, 1: 사고 경험, 2: 질환 및 유해요인, 3: 노동강도, 4: 근골격계질환
+
 export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
   sections: [
     // ────────────────────────────────────────────
@@ -1004,5 +1007,29 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
         },
       ],
     },
+  ],
+}
+
+/**
+ * 위험성평가용 설문 템플릿
+ * 포함 섹션: 개인 정보 + 사고 경험 + 질환 및 유해요인
+ */
+export const RISK_ASSESSMENT_TEMPLATE: TemplateStructure = {
+  sections: [
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[0], sortOrder: 0 },
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[1], sortOrder: 1 },
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[2], sortOrder: 2 },
+  ],
+}
+
+/**
+ * 근골격계 유해요인조사용 설문 템플릿
+ * 포함 섹션: 개인 정보 + 노동강도 + 근골격계질환
+ */
+export const MUSCULOSKELETAL_TEMPLATE: TemplateStructure = {
+  sections: [
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[0], sortOrder: 0 },
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[3], sortOrder: 1 },
+    { ...DEFAULT_SURVEY_TEMPLATE.sections[4], sortOrder: 2 },
   ],
 }
