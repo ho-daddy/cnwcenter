@@ -105,27 +105,25 @@ export default function SurveyCreatePage() {
           {isLoadingTemplates ? (
             <div className="text-sm text-gray-400 py-4 text-center">템플릿 로딩 중...</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {/* Empty survey option */}
               <button
                 type="button"
                 onClick={() => setTemplateId(null)}
                 className={cn(
-                  'flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all',
+                  'flex flex-col items-center text-center p-4 rounded-lg border-2 transition-all h-full',
                   templateId === null
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 )}
               >
-                <div className="p-2 bg-gray-100 rounded-lg shrink-0">
+                <div className="p-2.5 bg-gray-100 rounded-xl mb-2.5">
                   <FileQuestion className="w-5 h-5 text-gray-500" />
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">빈 설문</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    처음부터 직접 설문을 구성합니다.
-                  </p>
-                </div>
+                <p className="text-sm font-medium text-gray-900">빈 설문</p>
+                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                  처음부터 직접 설문을 구성합니다.
+                </p>
               </button>
 
               {/* Template options */}
@@ -135,26 +133,34 @@ export default function SurveyCreatePage() {
                   type="button"
                   onClick={() => setTemplateId(tpl.id)}
                   className={cn(
-                    'flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all',
+                    'flex flex-col items-center text-center p-4 rounded-lg border-2 transition-all h-full',
                     templateId === tpl.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   )}
                 >
-                  <div className="p-2 bg-blue-100 rounded-lg shrink-0">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{tpl.name}</p>
-                    {tpl.description && (
-                      <p className="text-xs text-gray-500 mt-0.5">{tpl.description}</p>
-                    )}
+                  <div className="relative">
+                    <div className={cn(
+                      'p-2.5 rounded-xl mb-2.5',
+                      tpl.isDefault ? 'bg-blue-100' : 'bg-indigo-50'
+                    )}>
+                      <Sparkles className={cn(
+                        'w-5 h-5',
+                        tpl.isDefault ? 'text-blue-600' : 'text-indigo-500'
+                      )} />
+                    </div>
                     {tpl.isDefault && (
-                      <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded font-medium">
+                      <span className="absolute -top-1 -right-3 px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded-full font-medium">
                         기본
                       </span>
                     )}
                   </div>
+                  <p className="text-sm font-medium text-gray-900">{tpl.name}</p>
+                  {tpl.description && (
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                      {tpl.description}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
