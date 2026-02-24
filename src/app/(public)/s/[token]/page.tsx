@@ -291,7 +291,7 @@ function QuestionField({
       {q.questionType === 'CONSENT' && <ConsentField value={value as boolean} onChange={onChange} />}
       {q.questionType === 'TEXT' && <TextField options={q.options as TextOptions} value={value as string} onChange={onChange} />}
       {q.questionType === 'NUMBER' && <NumberField options={q.options as NumberOptions} value={value as number} onChange={onChange} />}
-      {q.questionType === 'RADIO' && <RadioField options={q.options as QuestionOption[]} value={value as string} onChange={onChange} />}
+      {q.questionType === 'RADIO' && <RadioField questionCode={q.questionCode || q.id} options={q.options as QuestionOption[]} value={value as string} onChange={onChange} />}
       {q.questionType === 'CHECKBOX' && <CheckboxField options={q.options as QuestionOption[]} value={value as string[]} onChange={onChange} />}
       {q.questionType === 'DROPDOWN' && <DropdownField options={q.options as QuestionOption[]} value={value as string} onChange={onChange} />}
       {q.questionType === 'RANGE' && <RangeField options={q.options as RangeOptions} value={value as number} onChange={onChange} />}
@@ -337,13 +337,13 @@ function NumberField({ options, value, onChange }: { options: NumberOptions | nu
   )
 }
 
-function RadioField({ options, value, onChange }: { options: QuestionOption[]; value: string; onChange: (v: string) => void }) {
+function RadioField({ questionCode, options, value, onChange }: { questionCode: string; options: QuestionOption[]; value: string; onChange: (v: string) => void }) {
   if (!Array.isArray(options)) return null
   return (
     <div className="space-y-2">
       {options.map(opt => (
         <label key={opt.value} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
-          <input type="radio" name={`radio-${opt.value}`} checked={value === opt.value}
+          <input type="radio" name={`radio-${questionCode}`} checked={value === opt.value}
             onChange={() => onChange(opt.value)}
             className="w-4 h-4 text-blue-600 border-gray-300" />
           <span className="text-sm text-gray-700">{opt.label}</span>

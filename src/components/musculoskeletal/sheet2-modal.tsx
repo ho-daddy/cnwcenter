@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   X,
@@ -260,6 +260,24 @@ export function Sheet2Modal({
     Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }>
   >({})
 
+  // 저장 상태 추적: 부위별 마지막 저장 시점의 데이터 스냅샷
+  const [savedSnapshots, setSavedSnapshots] = useState<Record<string, string>>({})
+
+  const getDataHash = useCallback((partId: string) => {
+    const d = bodyPartData[partId]
+    const fs = forceStaticData[partId]
+    if (!d) return ''
+    return JSON.stringify({ angles: d.angles, factors: d.factors, fs })
+  }, [bodyPartData, forceStaticData])
+
+  // 저장 상태: 'unsaved' | 'saved' | 'modified'
+  const getSaveState = useCallback((partId: string): 'unsaved' | 'saved' | 'modified' => {
+    const snapshot = savedSnapshots[partId]
+    if (!snapshot) return 'unsaved'
+    const current = getDataHash(partId)
+    return current === snapshot ? 'saved' : 'modified'
+  }, [savedSnapshots, getDataHash])
+
   // Initialize body part data — 기존 저장 데이터가 있으면 로드
   useEffect(() => {
     setLocalScores(elementWork.bodyPartScores)
@@ -307,6 +325,19 @@ export function Sheet2Modal({
 
         setBodyPartData(loadedData)
         setForceStaticData(loadedForceStatic)
+
+        // 저장된 부위의 스냅샷 설정
+        const snapshots: Record<string, string> = {}
+        BODY_PARTS.forEach((part) => {
+          if (savedMap.has(part.id)) {
+            snapshots[part.id] = JSON.stringify({
+              angles: loadedData[part.id].angles,
+              factors: loadedData[part.id].factors,
+              fs: loadedForceStatic[part.id],
+            })
+          }
+        })
+        setSavedSnapshots(snapshots)
       })
       .catch(() => {
         // API 실패 시 기본값으로 초기화
@@ -325,6 +356,7 @@ export function Sheet2Modal({
         })
         setBodyPartData(initialData)
         setForceStaticData(initialForceStatic)
+        setSavedSnapshots({})
       })
   }, [elementWork, workplaceId, assessmentId])
 
@@ -455,6 +487,15 @@ export function Sheet2Modal({
           }
           return newScores
         })
+        // 저장 스냅샷 업데이트
+        setSavedSnapshots((prev) => ({
+          ...prev,
+          [partId]: JSON.stringify({
+            angles: bodyPartData[partId].angles,
+            factors: bodyPartData[partId].factors,
+            fs: forceStaticData[partId],
+          }),
+        }))
         onSave()
       } else {
         const error = await res.json()
@@ -533,24 +574,27 @@ export function Sheet2Modal({
               return (
                 <div key={part.id} className="border rounded-lg overflow-hidden">
                   <div
-                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+                      displayTotal != null
+                        ? `${levelInfo?.color || ''} hover:opacity-80`
+                        : 'hover:bg-gray-50'
+                    }`}
                     onClick={() => togglePart(part.id)}
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{part.icon}</span>
-                      <span className="font-medium text-gray-900">{part.name}</span>
+                      <span className="font-medium">{part.name}</span>
                       {displayTotal != null && (
-                        <span className={`text-xs px-2 py-0.5 rounded ${levelInfo?.color || ''}`}>
-                          {displayTotal}점
+                        <span className="text-sm font-bold">
+                          {displayTotal}점 ({levelInfo?.label})
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {existingScore && <CheckCircle className="w-4 h-4 text-green-500" />}
                       {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                        <ChevronDown className="w-4 h-4" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4" />
                       )}
                     </div>
                   </div>
@@ -590,34 +634,12 @@ export function Sheet2Modal({
                                 type="number"
                                 min={field.min}
                                 max={field.max}
-                                step={field.key.includes('Count') ? 10 : 1}
+                                step={field.unit === '°' ? 5 : (field.key.includes('Count') ? 10 : 1)}
                                 value={bodyPartData[part.id]?.angles[field.key] ?? 0}
-                                onChange={(e) =>
-                                  handleAngleChange(part.id, field.key, parseFloat(e.target.value) || 0)
-                                }
+                                onChange={(e) => handleAngleChange(part.id, field.key, parseFloat(e.target.value) || 0)}
                                 className="w-full px-2 py-1 border rounded text-sm"
                               />
                             </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">부가요인</h4>
-                        <div className="grid grid-cols-2 gap-1">
-                          {Object.entries(FACTOR_LABELS[part.id]).map(([key, label]) => (
-                            <label
-                              key={key}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={bodyPartData[part.id]?.factors[key] ?? false}
-                                onChange={(e) => handleFactorChange(part.id, key, e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300"
-                              />
-                              <span className="text-gray-700">{label}</span>
-                            </label>
                           ))}
                         </div>
                       </div>
@@ -667,24 +689,64 @@ export function Sheet2Modal({
                         </div>
                       </div>
 
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">부가요인</h4>
+                        <div className="grid grid-cols-2 gap-1">
+                          {Object.entries(FACTOR_LABELS[part.id]).map(([key, label]) => (
+                            <label
+                              key={key}
+                              className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={bodyPartData[part.id]?.factors[key] ?? false}
+                                onChange={(e) => handleFactorChange(part.id, key, e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300"
+                              />
+                              <span className="text-gray-700">{label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
                       <div className="flex justify-end pt-2 border-t">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveBodyPart(part.id)}
-                          disabled={savingPart === part.id}
-                        >
-                          {savingPart === part.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              저장 중...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="w-4 h-4 mr-1" />
-                              {part.name} 저장
-                            </>
-                          )}
-                        </Button>
+                        {(() => {
+                          const saveState = getSaveState(part.id)
+                          const stateStyles = {
+                            unsaved: 'bg-blue-600 hover:bg-blue-700 text-white',
+                            saved: 'bg-green-600 hover:bg-green-700 text-white',
+                            modified: 'bg-amber-500 hover:bg-amber-600 text-white',
+                          }
+                          const stateLabels = {
+                            unsaved: `${part.name} 저장`,
+                            saved: `${part.name} 저장됨`,
+                            modified: `${part.name} 재저장`,
+                          }
+                          return (
+                            <button
+                              className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 ${stateStyles[saveState]}`}
+                              onClick={() => handleSaveBodyPart(part.id)}
+                              disabled={savingPart === part.id}
+                            >
+                              {savingPart === part.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                  저장 중...
+                                </>
+                              ) : saveState === 'saved' ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  {stateLabels[saveState]}
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4 mr-1" />
+                                  {stateLabels[saveState]}
+                                </>
+                              )}
+                            </button>
+                          )
+                        })()}
                       </div>
                     </div>
                   )}

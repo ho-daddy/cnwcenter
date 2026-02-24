@@ -65,3 +65,5 @@ nul
 
 # Claude local settings
 .claude/settings.local.json
+
+certificates

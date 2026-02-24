@@ -17,15 +17,12 @@ export default async function DashboardPage() {
     where: { date: today },
   })
 
-  // 최근 7일간 기사 조회 (우선순위별 정렬)
+  // 최근 7일간 기사 조회 (최신순 정렬)
   const briefings = await prisma.newsBriefing.findMany({
     where: {
       collectedAt: { gte: subDays(new Date(), 7) },
     },
-    orderBy: [
-      { priority: 'asc' }, // critical -> high -> medium -> low -> none
-      { publishedAt: 'desc' },
-    ],
+    orderBy: { publishedAt: 'desc' },
     take: 10,
   })
 
