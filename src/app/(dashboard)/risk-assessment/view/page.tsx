@@ -562,10 +562,10 @@ export default function ViewPage() {
 
                         {/* 평가카드 */}
                         <td className="px-3 py-2.5 text-center">
-                          <Link href={`/risk-assessment/${h.card.id}`}
+                          <Link href={`/risk-assessment/conduct?cardId=${h.card.id}`}
                             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline">
                             <ExternalLink className="w-3 h-3" />
-                            상세
+                            평가실시
                           </Link>
                           <p className="text-xs text-gray-400 mt-0.5">{EVALUATION_TYPE_LABELS[h.card.evaluationType]}</p>
                         </td>

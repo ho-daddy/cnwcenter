@@ -87,7 +87,7 @@ export default function NewRiskAssessmentPage() {
       })
       if (res.ok) {
         const card = await res.json()
-        router.push(`/risk-assessment/${card.id}`)
+        router.push(`/risk-assessment/conduct?cardId=${card.id}`)
       } else {
         const d = await res.json()
         setError(d.error ?? '저장 중 오류가 발생했습니다.')

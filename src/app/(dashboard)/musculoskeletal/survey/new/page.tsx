@@ -165,7 +165,7 @@ function NewSurveyPage() {
 
       if (res.ok) {
         const data = await res.json()
-        router.push(`/musculoskeletal/survey/${data.assessment.id}`)
+        router.push(`/musculoskeletal/survey?assessmentId=${data.assessment.id}`)
       } else {
         const error = await res.json()
         alert(error.error || '조사 생성에 실패했습니다.')

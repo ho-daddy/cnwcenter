@@ -272,7 +272,7 @@ export default function ViewPage() {
                         ))}
                         <td className="text-center py-3 px-2">
                           <Link
-                            href={`/musculoskeletal/survey/${assessment.id}`}
+                            href={`/musculoskeletal/survey?assessmentId=${assessment.id}`}
                             className="inline-flex items-center text-blue-600 hover:text-blue-700"
                           >
                             <Eye className="w-4 h-4" />

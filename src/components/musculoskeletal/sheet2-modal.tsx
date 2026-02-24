@@ -260,25 +260,73 @@ export function Sheet2Modal({
     Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }>
   >({})
 
-  // Initialize body part data
+  // Initialize body part data — 기존 저장 데이터가 있으면 로드
   useEffect(() => {
-    const initialData: Record<string, { angles: Record<string, number>; factors: Record<string, boolean> }> = {}
-    const initialForceStatic: Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }> = {}
-    BODY_PARTS.forEach((part) => {
-      initialData[part.id] = {
-        angles: { ...DEFAULT_ANGLES[part.id] },
-        factors: { ...DEFAULT_FACTORS[part.id] },
-      }
-      initialForceStatic[part.id] = {
-        forceChecked: false,
-        staticOver1min: false,
-        repetitionChecked: false,
-      }
-    })
-    setBodyPartData(initialData)
-    setForceStaticData(initialForceStatic)
     setLocalScores(elementWork.bodyPartScores)
-  }, [elementWork])
+
+    // 서버에서 부위별 상세 데이터 로드
+    fetch(
+      `/api/workplaces/${workplaceId}/musculoskeletal/${assessmentId}/element-works/${elementWork.id}/sheet2`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const savedScores: BodyPartScore[] = data?.bodyPartScores || []
+        const savedMap = new Map(savedScores.map((s: BodyPartScore) => [s.bodyPart, s]))
+
+        const loadedData: Record<string, { angles: Record<string, number>; factors: Record<string, boolean> }> = {}
+        const loadedForceStatic: Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }> = {}
+
+        BODY_PARTS.forEach((part) => {
+          const saved = savedMap.get(part.id)
+          if (saved && saved.angles && saved.additionalFactors) {
+            // 저장된 데이터 복원
+            const { _forceStatic, ...pureFactors } = saved.additionalFactors as Record<string, unknown>
+            loadedData[part.id] = {
+              angles: { ...DEFAULT_ANGLES[part.id], ...(saved.angles as Record<string, number>) },
+              factors: { ...DEFAULT_FACTORS[part.id], ...(pureFactors as Record<string, boolean>) },
+            }
+            const fs = (_forceStatic || {}) as Record<string, boolean>
+            loadedForceStatic[part.id] = {
+              forceChecked: !!fs.forceChecked,
+              staticOver1min: !!fs.staticOver1min,
+              repetitionChecked: !!fs.repetitionChecked,
+            }
+          } else {
+            // 미입력: 초기값
+            loadedData[part.id] = {
+              angles: { ...DEFAULT_ANGLES[part.id] },
+              factors: { ...DEFAULT_FACTORS[part.id] },
+            }
+            loadedForceStatic[part.id] = {
+              forceChecked: false,
+              staticOver1min: false,
+              repetitionChecked: false,
+            }
+          }
+        })
+
+        setBodyPartData(loadedData)
+        setForceStaticData(loadedForceStatic)
+      })
+      .catch(() => {
+        // API 실패 시 기본값으로 초기화
+        const initialData: Record<string, { angles: Record<string, number>; factors: Record<string, boolean> }> = {}
+        const initialForceStatic: Record<string, { forceChecked: boolean; staticOver1min: boolean; repetitionChecked: boolean }> = {}
+        BODY_PARTS.forEach((part) => {
+          initialData[part.id] = {
+            angles: { ...DEFAULT_ANGLES[part.id] },
+            factors: { ...DEFAULT_FACTORS[part.id] },
+          }
+          initialForceStatic[part.id] = {
+            forceChecked: false,
+            staticOver1min: false,
+            repetitionChecked: false,
+          }
+        })
+        setBodyPartData(initialData)
+        setForceStaticData(initialForceStatic)
+      })
+  }, [elementWork, workplaceId, assessmentId])
 
   if (!isOpen) return null
 

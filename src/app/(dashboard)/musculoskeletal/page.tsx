@@ -194,7 +194,7 @@ export default async function MusculoskeletalDashboard() {
                 {stats.recentAssessments.map((assessment) => (
                   <Link
                     key={assessment.id}
-                    href={`/musculoskeletal/survey/${assessment.id}`}
+                    href={`/musculoskeletal/survey?assessmentId=${assessment.id}`}
                     className="block p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center justify-between">

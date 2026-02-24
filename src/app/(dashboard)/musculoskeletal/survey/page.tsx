@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -208,6 +209,18 @@ const MANAGEMENT_LEVELS = [
 ]
 
 export default function SurveyListPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-gray-500">로딩중...</div>}>
+      <SurveyListPageInner />
+    </Suspense>
+  )
+}
+
+function SurveyListPageInner() {
+  const searchParams = useSearchParams()
+  const deepLinkAssessmentId = searchParams.get('assessmentId')
+  const pendingAssessmentIdRef = useRef<string | null>(deepLinkAssessmentId)
+
   // State for top section
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
   const [selectedWorkplace, setSelectedWorkplace] = useState<Workplace | null>(null)
@@ -240,7 +253,28 @@ export default function SurveyListPage() {
         const res = await fetch('/api/workplaces')
         if (res.ok) {
           const data = await res.json()
-          setWorkplaces(data.workplaces)
+          const wps = data.workplaces
+          setWorkplaces(wps)
+          // Deep-link: assessmentId가 URL에 있으면 해당 조사의 사업장을 자동 선택
+          if (pendingAssessmentIdRef.current) {
+            const aRes = await fetch(`/api/musculoskeletal/${pendingAssessmentIdRef.current}`)
+            if (aRes.ok) {
+              const aData = await aRes.json()
+              const assessment = aData.assessment
+              if (assessment) {
+                const wp = wps.find((w: Workplace) => w.id === assessment.workplace.id)
+                if (wp) {
+                  setSelectedWorkplace(wp)
+                } else {
+                  pendingAssessmentIdRef.current = null
+                }
+              } else {
+                pendingAssessmentIdRef.current = null
+              }
+            } else {
+              pendingAssessmentIdRef.current = null
+            }
+          }
         }
       } catch (error) {
         console.error('사업장 조회 오류:', error)
@@ -302,6 +336,17 @@ export default function SurveyListPage() {
         if (res.ok) {
           const data = await res.json()
           setAssessments(data.assessments || [])
+          // Deep-link: 조사 목록 로드 후 대기 중인 assessmentId 자동 선택
+          if (pendingAssessmentIdRef.current) {
+            const targetId = pendingAssessmentIdRef.current
+            pendingAssessmentIdRef.current = null
+            // 조사 상세 직접 로드
+            setIsLoadingAssessment(true)
+            fetch(`/api/musculoskeletal/${targetId}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(d => { if (d?.assessment) setSelectedAssessment(d.assessment) })
+              .finally(() => setIsLoadingAssessment(false))
+          }
         }
       } catch (error) {
         console.error('조사 목록 조회 오류:', error)

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Building2, ChevronRight, ChevronDown, Plus, FolderTree,
@@ -80,6 +81,17 @@ function buildOrganizationTree(flatUnits: OrganizationUnit[]): OrganizationUnit[
 
 // ───────── Main Page ─────────
 export default function ConductPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-gray-500">로딩중...</div>}>
+      <ConductPageInner />
+    </Suspense>
+  )
+}
+
+function ConductPageInner() {
+  const searchParams = useSearchParams()
+  const deepLinkCardId = searchParams.get('cardId')
+  const pendingCardIdRef = useRef<string | null>(deepLinkCardId)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
   const [selectedWorkplace, setSelectedWorkplace] = useState<Workplace | null>(null)
@@ -99,8 +111,23 @@ export default function ConductPage() {
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => {
-      setWorkplaces(d.workplaces || [])
+      const wps = d.workplaces || []
+      setWorkplaces(wps)
       setIsLoading(false)
+      // Deep-link: cardId가 URL에 있으면 해당 카드의 사업장을 자동 선택
+      if (pendingCardIdRef.current) {
+        fetch(`/api/risk-assessment/${pendingCardIdRef.current}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(card => {
+            if (!card) { pendingCardIdRef.current = null; return }
+            const wp = wps.find((w: Workplace) => w.id === card.workplaceId)
+            if (wp) {
+              setSelectedWorkplace(wp)
+            } else {
+              pendingCardIdRef.current = null
+            }
+          })
+      }
     })
   }, [])
 
@@ -117,7 +144,19 @@ export default function ConductPage() {
         } else { setOrgUnits([]) }
       })
     fetch(`/api/risk-assessment?workplaceId=${selectedWorkplace.id}`)
-      .then(r => r.json()).then(d => setCards(d.cards || []))
+      .then(r => r.json()).then(d => {
+        const loadedCards = d.cards || []
+        setCards(loadedCards)
+        // Deep-link: 카드 로드 후 대기 중인 cardId 자동 선택
+        if (pendingCardIdRef.current) {
+          const target = loadedCards.find((c: RiskCard) => c.id === pendingCardIdRef.current)
+          if (target) {
+            setSelectedCard(target)
+            setActiveTab('hazards')
+          }
+          pendingCardIdRef.current = null
+        }
+      })
   }, [selectedWorkplace])
 
   useEffect(() => {
@@ -356,6 +395,7 @@ export default function ConductPage() {
           initialCategory={wizardState.category}
           editingHazard={wizardState.editing}
           workplaceId={selectedCard.workplace.id}
+          organizationUnitId={selectedCard.organizationUnit.id}
           onClose={() => setWizardState({ open: false, category: '', editing: null })}
           onComplete={handleWizardComplete}
         />
@@ -862,10 +902,10 @@ const CATEGORIES = [
 ]
 
 function HazardWizardModal({
-  initialCategory, editingHazard, workplaceId, onClose, onComplete,
+  initialCategory, editingHazard, workplaceId, organizationUnitId, onClose, onComplete,
 }: {
   initialCategory: string; editingHazard: RiskHazard | null
-  workplaceId: string
+  workplaceId: string; organizationUnitId: string
   onClose: () => void
   onComplete: (result: WizardResult) => Promise<void>
 }) {
@@ -918,6 +958,7 @@ function HazardWizardModal({
               onComplete={handleComplete} />
           ) : category === 'NOISE' ? (
             <NoiseWizard initialData={editingHazard} isSaving={isSaving}
+              organizationUnitId={organizationUnitId}
               onBack={!editingHazard ? () => setCategory('') : undefined}
               onComplete={handleComplete} />
           ) : category === 'ABSOLUTE' ? (
@@ -1575,8 +1616,22 @@ const NOISE_LIKELIHOOD = [
   { v: 4, label: '4점', desc: '하루 8-10시간 노출' },
   { v: 5, label: '5점', desc: '하루 10시간 이상 노출' },
 ]
-function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
+
+function dbToSeverity(db: number): number {
+  if (db >= 90) return 5
+  if (db >= 80) return 4
+  if (db >= 70) return 3
+  if (db >= 60) return 2
+  return 1
+}
+
+interface NoiseMeasurementInfo {
+  year: number; period: string; measurementValue: number
+}
+
+function NoiseWizard({ initialData, isSaving, organizationUnitId, onBack, onComplete }: {
   initialData: RiskHazard | null; isSaving: boolean
+  organizationUnitId: string
   onBack?: () => void; onComplete: (r: WizardResult) => void
 }) {
   const [step, setStep] = useState(0)
@@ -1586,9 +1641,38 @@ function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
   const [noiseStress, setNoiseStress] = useState(initialData?.additionalDetails?.noiseStress ?? -1)
   const [hearingLoss, setHearingLoss] = useState(initialData?.additionalDetails?.hearingLoss != null ? (initialData.additionalDetails.hearingLoss > 0 ? 1 : 0) : -1)
   const [improvementPlan, setImprovementPlan] = useState(initialData?.improvementPlan || '')
+  const [noiseMeasurements, setNoiseMeasurements] = useState<NoiseMeasurementInfo[]>([])
+  const [severityAutoSet, setSeverityAutoSet] = useState(false)
   const TOTAL = 6
 
+  // 소음 측정값 조회
+  useEffect(() => {
+    fetch(`/api/risk-assessment/noise?unitId=${organizationUnitId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.measurements?.length) return
+        // 최근 2개 측정값 (year desc 정렬되어 있음)
+        const recent: NoiseMeasurementInfo[] = data.measurements
+          .slice(0, 2)
+          .map((m: { year: number; period: string; measurementValue: string }) => ({
+            year: m.year,
+            period: m.period,
+            measurementValue: parseFloat(m.measurementValue),
+          }))
+        setNoiseMeasurements(recent)
+        // 편집이 아닌 신규 입력 시에만 자동 설정
+        if (!initialData?.severityScore && recent.length > 0) {
+          const maxDb = Math.max(...recent.map(m => m.measurementValue))
+          setSeverity(dbToSeverity(maxDb))
+          setSeverityAutoSet(true)
+        }
+      })
+      .catch(() => {})
+  }, [organizationUnitId, initialData?.severityScore])
+
   const additional = (noiseStress > 0 ? 1 : 0) + (hearingLoss > 0 ? 2 : 0)
+
+  const periodLabel = (p: string) => p === 'recent' ? '최근' : '전회'
 
   const steps = [
     // Step 0: 소음원
@@ -1601,13 +1685,38 @@ function NoiseWizard({ initialData, isSaving, onBack, onComplete }: {
     // Step 1: 소음 수준
     <div key="1" className="space-y-2">
       <p className="text-sm font-medium text-gray-700">소음 수준(dB)은?</p>
+      {noiseMeasurements.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-1">
+          <p className="text-xs font-medium text-blue-700 mb-1.5">등록된 소음 측정값</p>
+          <div className="space-y-1">
+            {noiseMeasurements.map((m, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="text-blue-600">{m.year}년 {periodLabel(m.period)}</span>
+                <span className="font-bold text-blue-800">{m.measurementValue} dB</span>
+              </div>
+            ))}
+          </div>
+          {severityAutoSet && (
+            <p className="text-xs text-blue-500 mt-1.5 border-t border-blue-200 pt-1.5">
+              높은 측정값 기준으로 점수가 자동 설정되었습니다. 변경 가능합니다.
+            </p>
+          )}
+        </div>
+      )}
       {NOISE_SEVERITY.map(o => (
-        <OptionButton key={o.v} label={o.label} desc={o.desc} selected={severity === o.v} onClick={() => setSeverity(o.v)} />
+        <OptionButton key={o.v} label={o.label} desc={o.desc} selected={severity === o.v}
+          onClick={() => { setSeverity(o.v); setSeverityAutoSet(false) }} />
       ))}
     </div>,
     // Step 2: 노출시간
     <div key="2" className="space-y-2">
       <p className="text-sm font-medium text-gray-700">소음에 하루 노출되는 시간은?</p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-1">
+        <p className="text-xs text-amber-700">
+          작업환경측정에 의한 측정값을 사용하는 경우 실제 노출시간과 무관하게 <strong>8시간(3점)</strong>을 입력하세요.
+          작업환경측정값은 8시간을 기준으로 환산한 값이기 때문입니다.
+        </p>
+      </div>
       {NOISE_LIKELIHOOD.map(o => (
         <OptionButton key={o.v} label={o.label} desc={o.desc} selected={likelihood === o.v} onClick={() => setLikelihood(o.v)} />
       ))}
@@ -1820,11 +1929,47 @@ function OtherWizard({ initialData, isSaving, onBack, onComplete }: {
   )
 }
 
+// ───────── 카테고리별 점수 기준 설명 ─────────
+function getSeverityDesc(category: string, score: number): string {
+  switch (category) {
+    case 'ACCIDENT':
+      return ACCIDENT_SEVERITY.find(o => o.v === score)?.desc || ''
+    case 'NOISE':
+      return NOISE_SEVERITY.find(o => o.v === score)?.desc || ''
+    case 'CHEMICAL': {
+      const labels: Record<number, string> = { 1: 'GHS 비위험', 2: 'GHS 경고', 3: 'GHS 위험 (경고 이상)', 4: 'GHS 위험 (높음)', 5: 'GHS 위험 (매우 높음)' }
+      return labels[score] || ''
+    }
+    case 'MUSCULOSKELETAL': {
+      const labels: Record<number, string> = { 1: 'Borg 6~9 (매우 가벼움)', 2: 'Borg 10~11 (가벼움)', 3: 'Borg 12~13 (약간 힘듦)', 4: 'Borg 14~15 (힘듦)', 5: 'Borg 16~20 (매우 힘듦)' }
+      return labels[score] || ''
+    }
+    default: // OTHER
+      return SEVERITY_LABELS[score]?.replace(/^\d점 — /, '') || ''
+  }
+}
+function getLikelihoodDesc(category: string, evaluationType: string, score: number): string {
+  switch (category) {
+    case 'ACCIDENT':
+      return ACCIDENT_LIKELIHOOD.find(o => o.v === score)?.desc || ''
+    case 'NOISE':
+      return NOISE_LIKELIHOOD.find(o => o.v === score)?.desc || ''
+    case 'CHEMICAL':
+      return CHEMICAL_LIKELIHOOD.find(o => o.v === score)?.desc || ''
+    case 'MUSCULOSKELETAL': {
+      const opts = evaluationType === 'OCCASIONAL' ? MUSC_LIKELIHOOD_IRREGULAR : MUSC_LIKELIHOOD_REGULAR
+      return opts.find(o => o.v === score)?.desc || ''
+    }
+    default: // OTHER
+      return LIKELIHOOD_LABELS[score]?.replace(/^\d점 — /, '') || ''
+  }
+}
+
 // ───────── ConductAddImprovementForm ─────────
 function ConductAddImprovementForm({
-  hazard, cardId, onSaved,
+  hazard, cardId, evaluationType, onSaved,
 }: {
-  hazard: RiskHazard; cardId: string
+  hazard: RiskHazard; cardId: string; evaluationType: string
   onSaved: (rec: ImprovementRecord) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -1940,7 +2085,7 @@ function ConductAddImprovementForm({
                 className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
                 {SEVERITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
               </select>
-              <span className="text-xs text-gray-400 truncate">{SEVERITY_OPTIONS.find(o => o.value === severityScore)?.desc}</span>
+              <span className="text-xs text-gray-400 truncate">{getSeverityDesc(hazard.hazardCategory, severityScore)}</span>
             </div>
             {/* 가능성 */}
             <div className="flex items-center gap-2">
@@ -1949,7 +2094,7 @@ function ConductAddImprovementForm({
                 className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
                 {LIKELIHOOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
               </select>
-              <span className="text-xs text-gray-400 truncate">{LIKELIHOOD_OPTIONS.find(o => o.value === likelihoodScore)?.desc}</span>
+              <span className="text-xs text-gray-400 truncate">{getLikelihoodDesc(hazard.hazardCategory, evaluationType, likelihoodScore)}</span>
             </div>
             {/* 추가점수 */}
             {additionalConfig && additionalConfig.max > 0 && (
@@ -2197,7 +2342,7 @@ function ConductImprovementPanel({
             </div>
           )}
 
-          <ConductAddImprovementForm hazard={hazard} cardId={card.id} onSaved={handleSaved} />
+          <ConductAddImprovementForm hazard={hazard} cardId={card.id} evaluationType={card.evaluationType} onSaved={handleSaved} />
         </div>
 
         {/* Footer */}

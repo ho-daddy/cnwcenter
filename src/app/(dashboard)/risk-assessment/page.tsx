@@ -151,7 +151,7 @@ export default async function RiskAssessmentDashboard() {
                 {recentCards.map((card) => (
                   <Link
                     key={card.id}
-                    href={`/risk-assessment/${card.id}`}
+                    href={`/risk-assessment/conduct?cardId=${card.id}`}
                     className="block p-3 rounded-lg border hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center justify-between">

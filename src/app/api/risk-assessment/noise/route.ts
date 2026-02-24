@@ -11,11 +11,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const workplaceId = searchParams.get('workplaceId')
   const year = searchParams.get('year')
+  const unitId = searchParams.get('unitId')
 
   const accessibleIds = await getAccessibleWorkplaceIds(auth.user!.id, auth.user!.role)
 
   // organizationUnit을 통해 workplace 필터링
   const where: Prisma.NoiseMeasurementWhereInput = {
+    ...(unitId ? { organizationUnitId: unitId } : {}),
     organizationUnit: {
       organization: {
         ...(accessibleIds !== null
