@@ -11,7 +11,16 @@ interface SurveyData {
   title: string
   description: string | null
   sections: SurveySectionDetail[]
-  workplace: { name: string } | null
+  workplace: { id: string; name: string } | null
+}
+
+interface OrgUnit {
+  id: string
+  name: string
+  level: number
+  parentId: string | null
+  isLeaf: boolean
+  sortOrder: number
 }
 
 export default function PublicSurveyPage() {
@@ -29,6 +38,10 @@ export default function PublicSurveyPage() {
 
   // questionCode → questionId 매핑
   const [codeToId, setCodeToId] = useState<Record<string, string>>({})
+
+  // 조직도 데이터
+  const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([])
+  const hasOrgData = orgUnits.length > 0
 
   useEffect(() => {
     ;(async () => {
@@ -48,6 +61,19 @@ export default function PublicSurveyPage() {
           }
         }
         setCodeToId(mapping)
+
+        // 조직도 데이터 로드
+        if (data.workplace) {
+          try {
+            const orgRes = await fetch(`/api/surveys/public/${token}/organization`)
+            if (orgRes.ok) {
+              const orgData = await orgRes.json()
+              if (orgData.units?.length > 0) {
+                setOrgUnits(orgData.units)
+              }
+            }
+          } catch { /* 조직도 로드 실패 시 TEXT 폴백 */ }
+        }
       } catch {
         setError('네트워크 오류가 발생했습니다.')
       } finally {
@@ -119,10 +145,13 @@ export default function PublicSurveyPage() {
       }
 
       const respondentName = (answers['S0-name'] as string) || undefined
-      const respondentInfo = {
+      const respondentInfo: Record<string, unknown> = {
         department: answers['S0-department'] || undefined,
         process: answers['S0-process'] || undefined,
         gender: answers['S0-gender'] || undefined,
+      }
+      if (answers['S0-orgUnitId']) {
+        respondentInfo.organizationUnitId = answers['S0-orgUnitId']
       }
 
       const res = await fetch(`/api/surveys/public/${token}/responses`, {
@@ -231,6 +260,27 @@ export default function PublicSurveyPage() {
       <div className="space-y-6">
         {visibleQuestions.map(q => {
           const code = q.questionCode || q.id
+
+          // 조직도 데이터가 있으면 부서/공정 질문을 계단식 드롭다운으로 대체
+          if (hasOrgData && code === 'S0-department') {
+            return (
+              <OrgSelectField
+                key={q.id}
+                orgUnits={orgUnits}
+                answers={answers}
+                errors={errors}
+                onSelect={(dept, proc, unitId) => {
+                  setAnswer('S0-department', dept)
+                  setAnswer('S0-process', proc)
+                  setAnswer('S0-orgUnitId', unitId)
+                }}
+              />
+            )
+          }
+          if (hasOrgData && code === 'S0-process') {
+            return null // OrgSelectField에서 처리
+          }
+
           return (
             <QuestionField
               key={q.id}
@@ -471,6 +521,144 @@ function RankedChoiceField({ options, value, onChange }: { options: RankedChoice
           </select>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Organization Cascading Dropdown ───
+
+function OrgSelectField({
+  orgUnits,
+  answers,
+  errors,
+  onSelect,
+}: {
+  orgUnits: OrgUnit[]
+  answers: Record<string, unknown>
+  errors: Record<string, string>
+  onSelect: (department: string, process: string, unitId: string) => void
+}) {
+  const [selectedIds, setSelectedIds] = useState<Record<number, string>>({})
+
+  // 현재 답변에서 orgUnitId 복원 (페이지 내 이전/다음 이동 시)
+  useEffect(() => {
+    const savedUnitId = answers['S0-orgUnitId'] as string | undefined
+    if (!savedUnitId || Object.keys(selectedIds).length > 0) return
+
+    // leaf에서 root까지 경로 복원
+    const path: Record<number, string> = {}
+    let current = orgUnits.find(u => u.id === savedUnitId)
+    while (current) {
+      path[current.level] = current.id
+      current = current.parentId ? orgUnits.find(u => u.id === current!.parentId) : undefined
+    }
+    if (Object.keys(path).length > 0) {
+      setSelectedIds(path)
+    }
+  }, [answers, orgUnits]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 레벨별 옵션 계산
+  const levels: number[] = [...new Set(orgUnits.map(u => u.level))].sort((a, b) => a - b)
+
+  const getOptionsForLevel = (level: number): OrgUnit[] => {
+    if (level === levels[0]) {
+      // 최상위: parentId가 null인 것들
+      return orgUnits.filter(u => u.level === level && !u.parentId)
+    }
+    const prevLevel = levels[levels.indexOf(level) - 1]
+    const parentId = selectedIds[prevLevel]
+    if (!parentId) return []
+    return orgUnits.filter(u => u.level === level && u.parentId === parentId)
+  }
+
+  // 선택 가능한 레벨들 (상위가 선택되었거나 최상위)
+  const getVisibleLevels = (): number[] => {
+    const visible: number[] = []
+    for (const level of levels) {
+      visible.push(level)
+      if (!selectedIds[level]) break // 아직 선택 안된 레벨에서 멈춤
+    }
+    return visible
+  }
+
+  const handleSelect = (level: number, unitId: string) => {
+    const newSelected = { ...selectedIds }
+
+    // 현재 레벨 설정
+    if (unitId) {
+      newSelected[level] = unitId
+    } else {
+      delete newSelected[level]
+    }
+
+    // 하위 레벨 초기화
+    const levelIdx = levels.indexOf(level)
+    for (let i = levelIdx + 1; i < levels.length; i++) {
+      delete newSelected[levels[i]]
+    }
+
+    setSelectedIds(newSelected)
+
+    // 선택한 unit이 leaf이거나 하위 자식이 없으면 완료
+    const selectedUnit = orgUnits.find(u => u.id === unitId)
+    if (!unitId || !selectedUnit) {
+      onSelect('', '', '')
+      return
+    }
+
+    const hasChildren = orgUnits.some(u => u.parentId === unitId)
+    if (selectedUnit.isLeaf || !hasChildren) {
+      // leaf 도달 — department(상위 경로)와 process(leaf 이름) 설정
+      const pathNames: string[] = []
+      for (const lv of levels) {
+        if (lv === selectedUnit.level) break
+        const unit = orgUnits.find(u => u.id === newSelected[lv])
+        if (unit) pathNames.push(unit.name)
+      }
+      onSelect(
+        pathNames.join(' > ') || selectedUnit.name,
+        selectedUnit.name,
+        selectedUnit.id
+      )
+    } else {
+      // 아직 중간 단계 — 값 초기화
+      onSelect('', '', '')
+    }
+  }
+
+  const visibleLevels = getVisibleLevels()
+  const hasError = errors['S0-department'] || errors['S0-process']
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-800">
+        소속 선택 <span className="text-red-500 ml-1">*</span>
+      </label>
+      <div className="space-y-2">
+        {visibleLevels.map(level => {
+          const options = getOptionsForLevel(level)
+          if (level !== levels[0] && options.length === 0) return null
+          return (
+            <select
+              key={level}
+              value={selectedIds[level] || ''}
+              onChange={e => handleSelect(level, e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">{level}단계 선택</option>
+              {options.map(unit => (
+                <option key={unit.id} value={unit.id}>{unit.name}</option>
+              ))}
+            </select>
+          )
+        })}
+      </div>
+      {answers['S0-process'] ? (
+        <p className="text-xs text-green-600">
+          선택: {answers['S0-department'] !== answers['S0-process'] ? `${String(answers['S0-department'])} > ` : ''}{String(answers['S0-process'])}
+        </p>
+      ) : null}
+      {hasError && <p className="text-xs text-red-500">소속을 최하위 단계까지 선택해주세요.</p>}
     </div>
   )
 }
