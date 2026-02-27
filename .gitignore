@@ -67,3 +67,6 @@ nul
 .claude/settings.local.json
 
 certificates
+
+# user uploads
+/public/uploads/
