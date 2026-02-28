@@ -12,6 +12,8 @@ interface CaseItem {
   caseNumber: string
   victimName: string
   victimContact: string
+  workplaceName: string | null
+  caseType: string | null
   accidentDate: string | null
   accidentType: string | null
   status: string
@@ -21,10 +23,18 @@ interface CaseItem {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  OPEN:        { label: '접수',   color: 'bg-blue-100 text-blue-700' },
-  IN_PROGRESS: { label: '진행중', color: 'bg-amber-100 text-amber-700' },
-  PENDING:     { label: '보류',   color: 'bg-gray-100 text-gray-600' },
-  CLOSED:      { label: '종결',   color: 'bg-green-100 text-green-700' },
+  RECEIVED:             { label: '접수',     color: 'bg-blue-100 text-blue-700' },
+  IN_PROGRESS:          { label: '진행중',   color: 'bg-amber-100 text-amber-700' },
+  APPLICATION_COMPLETE: { label: '신청완료', color: 'bg-purple-100 text-purple-700' },
+  RESULT_NOTIFIED:      { label: '결과통보', color: 'bg-teal-100 text-teal-700' },
+  OBJECTION:            { label: '이의제기', color: 'bg-red-100 text-red-700' },
+  CLOSED:               { label: '종결',     color: 'bg-green-100 text-green-700' },
+}
+
+const CASE_TYPE_LABELS: Record<string, string> = {
+  ACCIDENT: '사고',
+  DISEASE: '질병',
+  COMMUTE: '출퇴근',
 }
 
 export default function CounselingPage() {
@@ -78,13 +88,13 @@ export default function CounselingPage() {
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div className="flex items-center gap-2">
-          {(['', 'OPEN', 'IN_PROGRESS', 'PENDING', 'CLOSED'] as const).map((s) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {(['', 'RECEIVED', 'IN_PROGRESS', 'APPLICATION_COMPLETE', 'RESULT_NOTIFIED', 'OBJECTION', 'CLOSED'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                'px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
                 statusFilter === s
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -118,12 +128,17 @@ export default function CounselingPage() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-semibold text-gray-900">{c.victimName}</span>
                       <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', status.color)}>{status.label}</span>
+                      {c.caseType && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          {CASE_TYPE_LABELS[c.caseType] || c.caseType}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400">
                       <span>{c.caseNumber}</span>
-                      {c.accidentType && <span>· {c.accidentType}</span>}
+                      {c.workplaceName && <span>· {c.workplaceName}</span>}
                       {c.accidentDate && (
-                        <span>· 사고일: {format(new Date(c.accidentDate), 'yyyy.MM.dd', { locale: ko })}</span>
+                        <span>· 재해일: {format(new Date(c.accidentDate), 'yyyy.MM.dd', { locale: ko })}</span>
                       )}
                     </div>
                   </div>

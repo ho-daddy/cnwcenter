@@ -220,17 +220,24 @@ enum ScheduleType {
 
 // 상담 케이스 관리
 model CounselingCase {
-  id              String           @id @default(cuid())
-  caseNumber      String           @unique
-  victimName      String
-  victimContact   String
-  accidentDate    DateTime?
-  accidentType    String?
-  status          CaseStatus       @default(OPEN)
+  id              String            @id @default(cuid())
+  caseNumber      String            @unique
+  victimName      String                              // 재해자 성명 (필수)
+  victimContact   String                              // 연락처 (필수)
+  workplaceName   String?                             // 사업장명
+  caseType        CaseType?                           // 사고/질병/출퇴근
+  diseaseCategory DiseaseCategory?                    // 질병분류
+  accidentDate    DateTime?                           // 재해일시
+  accidentType    String?                             // 재해유형 (레거시)
+  diagnosisDate   DateTime?                           // 진단일시
+  diagnosisName   String?                             // 진단명
+  guardianName    String?                             // 보호자 성명
+  guardianContact String?                             // 보호자 연락처
+  status          CaseStatus        @default(RECEIVED)
   assignedTo      String
-  user            User             @relation(fields: [assignedTo], references: [id])
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  user            User              @relation(fields: [assignedTo], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   // 관계
   consultations   Consultation[]
@@ -239,13 +246,30 @@ model CounselingCase {
   @@index([assignedTo])
   @@index([status])
   @@index([caseNumber])
+  @@index([caseType])
 }
 
 enum CaseStatus {
-  OPEN
-  IN_PROGRESS
-  PENDING
-  CLOSED
+  RECEIVED              // 접수
+  IN_PROGRESS           // 진행중
+  APPLICATION_COMPLETE  // 신청완료
+  RESULT_NOTIFIED       // 결과통보
+  OBJECTION             // 이의제기
+  CLOSED                // 종결
+}
+
+enum CaseType {
+  ACCIDENT   // 사고
+  DISEASE    // 질병
+  COMMUTE    // 출퇴근
+}
+
+enum DiseaseCategory {
+  TRAUMA           // 외상
+  MUSCULOSKELETAL  // 근골격계
+  CARDIOVASCULAR   // 뇌심혈관계
+  NOISE_HEARING    // 소음성난청
+  OTHER            // 기타
 }
 
 // 상담 기록
@@ -860,8 +884,39 @@ model ElementWork {
   // 관계
   bodyPartScores   BodyPartScore[]
   improvements     MSurveyImprovement[]
+  measurements     WorkMeasurement[]
 
   @@index([assessmentId])
+}
+
+// 공구·중량물·밀고당기기·전신진동 측정 모델 (요소작업당 각 유형 최대 10개)
+enum MeasurementType {
+  TOOL         // 공구
+  LOAD         // 중량물
+  PUSH_PULL    // 밀고당기기
+  VIBRATION    // 전신진동
+}
+
+model WorkMeasurement {
+  id              String          @id @default(cuid())
+  elementWorkId   String
+  elementWork     ElementWork     @relation(fields: [elementWorkId], references: [id], onDelete: Cascade)
+
+  type            MeasurementType
+  sortOrder       Int             @default(0)
+
+  name            String                    // 공구명/중량물명/물체명칭/발생원
+  weight          Float?                    // 무게(kg) - TOOL, LOAD
+  force           Float?                    // 힘(kgf) - PUSH_PULL
+  frequency       Int?                      // 빈도(회/일) - LOAD, PUSH_PULL
+  exposureHours   Float?                    // 노출시간(시간/일) - VIBRATION
+  photoPath       String?                   // 사진 경로
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([elementWorkId])
+  @@index([type])
 }
 
 // 부담부위별 점수 모델 (요소작업당 6개)
@@ -892,23 +947,29 @@ model BodyPartScore {
 
 // 개선사항 모델 (4번시트 하단)
 model MSurveyImprovement {
-  id            String                    @id @default(cuid())
-  assessmentId  String
-  assessment    MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  id                String                    @id @default(cuid())
+  assessmentId      String
+  assessment        MusculoskeletalAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
-  elementWorkId String?
-  elementWork   ElementWork?  @relation(fields: [elementWorkId], references: [id], onDelete: SetNull)
+  elementWorkId     String?
+  elementWork       ElementWork?  @relation(fields: [elementWorkId], references: [id], onDelete: SetNull)
 
-  documentNo    String?                   // 참조 문서번호
-  problem       String        @db.Text    // 주요 문제점
-  improvement   String        @db.Text    // 개선 검토 방향
-  source        String?                   // 수집경로
+  documentNo        String?                   // 참조 문서번호
+  problem           String        @db.Text    // 주요 문제점
+  improvement       String        @db.Text    // 개선 검토 방향
+  source            String?                   // 수집경로
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  status            ImprovementStatus?        // 예정/완료
+  updateDate        DateTime?     @db.Date    // 예정일 또는 완료일
+  responsiblePerson String?                   // 담당자
+  remarks           String?       @db.Text    // 비고
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([assessmentId])
   @@index([elementWorkId])
+  @@index([status])
 }
 
 // 첨부파일 모델 (사진/영상)

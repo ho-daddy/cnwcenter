@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { format } from 'date-fns'
 import {
   ArrowLeft, Search, X, ChevronDown, ChevronUp, SlidersHorizontal,
-  AlertTriangle, Loader2, ExternalLink, Filter, Camera,
+  AlertTriangle, Loader2, ExternalLink, Filter, Camera, Building2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { PhotoLightbox } from '@/components/ui/photo-lightbox'
@@ -121,6 +122,9 @@ export default function ViewPage() {
   // Lightbox state
   const [lightboxPhotos, setLightboxPhotos] = useState<PhotoItem[]>([])
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  // Improvement panel state
+  const [selectedHazard, setSelectedHazard] = useState<HazardItem | null>(null)
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => setWorkplaces(d.workplaces || []))
@@ -547,7 +551,10 @@ export default function ViewPage() {
 
                         {/* 개선현황 */}
                         <td className="px-3 py-2.5">
-                          <div className="flex flex-col items-center gap-0.5">
+                          <button
+                            onClick={() => setSelectedHazard(h)}
+                            className="flex flex-col items-center gap-0.5 w-full hover:bg-blue-50 rounded-lg py-1 px-1 transition-colors cursor-pointer"
+                          >
                             {completedImpr.length > 0 && (
                               <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">완료 {completedImpr.length}</span>
                             )}
@@ -555,9 +562,9 @@ export default function ViewPage() {
                               <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">예정 {plannedImpr.length}</span>
                             )}
                             {h.improvements.length === 0 && (
-                              <span className="text-xs text-gray-300">미등록</span>
+                              <span className="text-xs text-gray-400 hover:text-blue-500">상세보기</span>
                             )}
-                          </div>
+                          </button>
                         </td>
 
                         {/* 평가카드 */}
@@ -578,6 +585,15 @@ export default function ViewPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Improvement Panel */}
+      {selectedHazard && (
+        <ViewImprovementPanel
+          hazard={selectedHazard}
+          onClose={() => setSelectedHazard(null)}
+          onOpenLightbox={openLightbox}
+        />
+      )}
 
       {/* Photo Lightbox */}
       {lightboxIndex !== null && lightboxPhotos.length > 0 && (
@@ -600,5 +616,157 @@ function StatCard({ label, value, color }: { label: string; value: number; color
         <p className={`text-2xl font-bold mt-0.5 ${color ?? 'text-gray-900'}`}>{value}</p>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Improvement Panel (View Page) ───
+function ViewImprovementPanel({
+  hazard, onClose, onOpenLightbox,
+}: {
+  hazard: HazardItem
+  onClose: () => void
+  onOpenLightbox: (photos: PhotoItem[], index: number) => void
+}) {
+  const riskLevel = getRiskLevel(hazard.riskScore)
+  const completedImpr = hazard.improvements.filter(i => i.status === 'COMPLETED')
+  const plannedImpr = hazard.improvements.filter(i => i.status === 'PLANNED')
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/20" />
+      <div
+        className="relative w-full max-w-xl bg-white shadow-2xl flex flex-col h-full overflow-hidden border-l border-gray-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium mb-1.5 ${CATEGORY_BADGE[hazard.hazardCategory]}`}>
+                {HAZARD_CATEGORY_LABELS[hazard.hazardCategory]}
+              </span>
+              <h2 className="text-sm font-bold text-gray-900 leading-snug">{hazard.hazardFactor}</h2>
+              <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                <Building2 className="w-3 h-3 shrink-0" />
+                {hazard.card.workplace.name} · {hazard.card.organizationUnit.name} · {hazard.card.year}년
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 shrink-0 mt-0.5">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="mt-2.5 flex items-center gap-2 text-xs">
+            <span className="text-gray-500">최초 위험성:</span>
+            {hazard.hazardCategory !== 'ABSOLUTE' && (
+              <span className="font-mono text-gray-500">
+                {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints}
+              </span>
+            )}
+            <span className={`px-1.5 py-0.5 rounded font-bold ${riskLevel.bg} ${riskLevel.color}`}>
+              {hazard.riskScore}점 ({riskLevel.label})
+            </span>
+          </div>
+
+          {hazard.improvementPlan && (
+            <p className="text-xs text-gray-600 mt-2 bg-white border border-gray-200 rounded px-2 py-1.5">
+              <span className="font-medium text-gray-700">개선방안: </span>{hazard.improvementPlan}
+            </p>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* 사진 */}
+          {hazard.photos.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">위험요인 사진</h3>
+              <div className="flex flex-wrap gap-2">
+                {hazard.photos.map((p, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id}
+                    src={p.thumbnailPath || p.photoPath}
+                    alt=""
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer hover:ring-2 hover:ring-blue-400"
+                    onClick={() => onOpenLightbox(hazard.photos, i)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            개선이력 ({hazard.improvements.length}건)
+            {completedImpr.length > 0 && <span className="text-green-600 ml-1">· 완료 {completedImpr.length}</span>}
+            {plannedImpr.length > 0 && <span className="text-yellow-600 ml-1">· 예정 {plannedImpr.length}</span>}
+          </h3>
+
+          {hazard.improvements.length === 0 ? (
+            <div className="text-center py-8 text-gray-300 text-sm">등록된 개선이력이 없습니다.</div>
+          ) : (
+            <div className="space-y-2">
+              {hazard.improvements.map(rec => {
+                const rl = getRiskLevel(rec.riskScore)
+                const isDone = rec.status === 'COMPLETED'
+                return (
+                  <div key={rec.id}
+                    className={`rounded-lg border p-3 ${isDone ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${isDone ? 'bg-green-200 text-green-800' : 'bg-amber-200 text-amber-800'}`}>
+                        {isDone ? '완료' : '예정'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {format(new Date(rec.updateDate), 'yyyy.MM.dd')}
+                      </span>
+                      <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${rl.bg} ${rl.color}`}>
+                        {isDone ? '실제' : '예상'} {rec.riskScore}점
+                      </span>
+                      <span className="text-xs text-gray-400 font-mono">
+                        ({rec.severityScore}×{rec.likelihoodScore}+{rec.additionalPoints})
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-800 font-medium leading-snug">{rec.improvementContent}</p>
+
+                    {/* 개선 사진 */}
+                    {rec.photos.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {rec.photos.map((p, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={p.id}
+                            src={p.thumbnailPath || p.photoPath}
+                            alt=""
+                            className="w-14 h-14 object-cover rounded border border-gray-200 cursor-pointer hover:ring-2 hover:ring-blue-400"
+                            onClick={() => onOpenLightbox(rec.photos, i)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* 평가카드 링크 */}
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <Link href={`/risk-assessment/conduct?cardId=${hazard.card.id}`}
+              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline">
+              <ExternalLink className="w-4 h-4" />
+              평가실시 페이지에서 개선이력 관리
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0">
+          <button onClick={onClose}
+            className="px-4 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

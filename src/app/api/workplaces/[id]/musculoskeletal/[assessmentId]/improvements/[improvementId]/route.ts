@@ -14,7 +14,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { elementWorkId, documentNo, problem, improvement, source } = body
+    const { elementWorkId, documentNo, problem, improvement, source, status, updateDate, responsiblePerson, remarks } = body
 
     const existing = await prisma.mSurveyImprovement.findUnique({
       where: { id: params.improvementId },
@@ -45,6 +45,10 @@ export async function PATCH(
         problem: problem ?? undefined,
         improvement: improvement ?? undefined,
         source: source ?? undefined,
+        status: status !== undefined ? (status || null) : undefined,
+        updateDate: updateDate !== undefined ? (updateDate ? new Date(updateDate) : null) : undefined,
+        responsiblePerson: responsiblePerson !== undefined ? (responsiblePerson || null) : undefined,
+        remarks: remarks !== undefined ? (remarks || null) : undefined,
       },
     })
 

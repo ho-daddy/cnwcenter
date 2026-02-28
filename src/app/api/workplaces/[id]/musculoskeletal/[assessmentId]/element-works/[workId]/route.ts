@@ -17,6 +17,9 @@ export async function GET(
       where: { id: params.workId },
       include: {
         bodyPartScores: true,
+        measurements: {
+          orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+        },
         assessment: {
           select: {
             workplaceId: true,

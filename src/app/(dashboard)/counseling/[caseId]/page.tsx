@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ArrowLeft, Plus, Trash2, Phone, Calendar, Tag, User } from 'lucide-react'
+import {
+  ArrowLeft, Plus, Trash2, Phone, Calendar, Tag, User,
+  Building2, FileText, Upload, Download, Stethoscope, Shield,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Consultation {
@@ -18,27 +21,66 @@ interface Consultation {
   createdAt: string
 }
 
+interface DocumentItem {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileType: string
+  fileSize: number
+  uploadedAt: string
+}
+
 interface CounselingCase {
   id: string
   caseNumber: string
   victimName: string
   victimContact: string
+  workplaceName: string | null
+  caseType: string | null
+  diseaseCategory: string | null
   accidentDate: string | null
   accidentType: string | null
+  diagnosisDate: string | null
+  diagnosisName: string | null
+  guardianName: string | null
+  guardianContact: string | null
   status: string
   createdAt: string
   user: { id: string; name: string | null }
   consultations: Consultation[]
+  documents: DocumentItem[]
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  OPEN:        { label: '접수',   color: 'bg-blue-100 text-blue-700' },
-  IN_PROGRESS: { label: '진행중', color: 'bg-amber-100 text-amber-700' },
-  PENDING:     { label: '보류',   color: 'bg-gray-100 text-gray-600' },
-  CLOSED:      { label: '종결',   color: 'bg-green-100 text-green-700' },
+  RECEIVED:             { label: '접수',     color: 'bg-blue-100 text-blue-700' },
+  IN_PROGRESS:          { label: '진행중',   color: 'bg-amber-100 text-amber-700' },
+  APPLICATION_COMPLETE: { label: '신청완료', color: 'bg-purple-100 text-purple-700' },
+  RESULT_NOTIFIED:      { label: '결과통보', color: 'bg-teal-100 text-teal-700' },
+  OBJECTION:            { label: '이의제기', color: 'bg-red-100 text-red-700' },
+  CLOSED:               { label: '종결',     color: 'bg-green-100 text-green-700' },
+}
+
+const CASE_TYPE_LABELS: Record<string, string> = {
+  ACCIDENT: '사고',
+  DISEASE: '질병',
+  COMMUTE: '출퇴근',
+}
+
+const DISEASE_CATEGORY_LABELS: Record<string, string> = {
+  TRAUMA: '외상',
+  MUSCULOSKELETAL: '근골격계',
+  CARDIOVASCULAR: '뇌심혈관계',
+  NOISE_HEARING: '소음성난청',
+  OTHER: '기타',
 }
 
 const CONSULT_TYPES = ['전화', '방문', '이메일', '화상', '문자', '기타']
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
 
 export default function CounselingCaseDetailPage() {
   const { caseId } = useParams<{ caseId: string }>()
@@ -48,6 +90,8 @@ export default function CounselingCaseDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [consultForm, setConsultForm] = useState({
     consultDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
@@ -79,7 +123,7 @@ export default function CounselingCaseDetailPage() {
   }
 
   const handleDeleteCase = async () => {
-    if (!confirm('이 케이스를 삭제하시겠습니까? 모든 상담기록도 함께 삭제됩니다.')) return
+    if (!confirm('이 케이스를 삭제하시겠습니까? 모든 상담기록과 첨부파일도 함께 삭제됩니다.')) return
     setIsDeleting(true)
     const res = await fetch(`/api/counseling/${caseId}`, { method: 'DELETE' })
     if (res.ok) router.push('/counseling')
@@ -117,6 +161,49 @@ export default function CounselingCaseDetailPage() {
     }
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const currentCount = caseData?.documents.length ?? 0
+    if (currentCount + files.length > 10) {
+      alert(`첨부파일은 최대 10개까지 가능합니다. (현재 ${currentCount}개)`)
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      Array.from(files).forEach((f) => formData.append('files', f))
+
+      const res = await fetch(`/api/counseling/${caseId}/documents`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        const newDocs = await res.json()
+        setCaseData((prev) => prev ? {
+          ...prev,
+          documents: [...prev.documents, ...(Array.isArray(newDocs) ? newDocs : [newDocs])],
+        } : prev)
+      }
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm('이 파일을 삭제하시겠습니까?')) return
+    const res = await fetch(`/api/counseling/${caseId}/documents/${docId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setCaseData((prev) => prev ? {
+        ...prev,
+        documents: prev.documents.filter((d) => d.id !== docId),
+      } : prev)
+    }
+  }
+
   if (isLoading) return <div className="text-center py-20 text-sm text-gray-400">로딩 중...</div>
   if (!caseData) return <div className="text-center py-20 text-sm text-gray-400">케이스를 찾을 수 없습니다.</div>
 
@@ -142,16 +229,16 @@ export default function CounselingCaseDetailPage() {
 
       {/* 케이스 정보 */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <span className={cn('px-3 py-1 rounded-full text-sm font-semibold', status.color)}>{status.label}</span>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 flex-wrap">
             {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
               <button
                 key={key}
                 onClick={() => handleStatusChange(key)}
                 disabled={caseData.status === key}
                 className={cn(
-                  'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
+                  'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
                   caseData.status === key
                     ? 'opacity-30 cursor-not-allowed border-gray-200'
                     : 'border-gray-200 hover:bg-gray-50'
@@ -163,7 +250,7 @@ export default function CounselingCaseDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-gray-700">
             <Phone className="w-4 h-4 text-gray-400 shrink-0" />
             {caseData.victimContact}
@@ -172,22 +259,109 @@ export default function CounselingCaseDetailPage() {
             <User className="w-4 h-4 text-gray-400 shrink-0" />
             담당: {caseData.user.name}
           </div>
+          {caseData.workplaceName && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
+              {caseData.workplaceName}
+            </div>
+          )}
+          {caseData.caseType && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Tag className="w-4 h-4 text-gray-400 shrink-0" />
+              재해유형: {CASE_TYPE_LABELS[caseData.caseType] || caseData.caseType}
+            </div>
+          )}
           {caseData.accidentDate && (
             <div className="flex items-center gap-2 text-gray-700">
               <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-              {format(new Date(caseData.accidentDate), 'yyyy년 M월 d일', { locale: ko })}
+              재해일: {format(new Date(caseData.accidentDate), 'yyyy년 M월 d일', { locale: ko })}
             </div>
           )}
-          {caseData.accidentType && (
+          {caseData.diseaseCategory && (
             <div className="flex items-center gap-2 text-gray-700">
-              <Tag className="w-4 h-4 text-gray-400 shrink-0" />
-              {caseData.accidentType}
+              <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
+              질병분류: {DISEASE_CATEGORY_LABELS[caseData.diseaseCategory] || caseData.diseaseCategory}
+            </div>
+          )}
+          {caseData.diagnosisDate && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              진단일: {format(new Date(caseData.diagnosisDate), 'yyyy년 M월 d일', { locale: ko })}
+            </div>
+          )}
+          {caseData.diagnosisName && (
+            <div className="flex items-center gap-2 text-gray-700 col-span-2">
+              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+              진단명: {caseData.diagnosisName}
+            </div>
+          )}
+          {caseData.guardianName && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Shield className="w-4 h-4 text-gray-400 shrink-0" />
+              보호자: {caseData.guardianName}
+            </div>
+          )}
+          {caseData.guardianContact && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+              보호자 연락처: {caseData.guardianContact}
             </div>
           )}
         </div>
         <p className="text-xs text-gray-400">
           등록일: {format(new Date(caseData.createdAt), 'yyyy.MM.dd', { locale: ko })}
         </p>
+      </div>
+
+      {/* 첨부파일 */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">
+            첨부파일 ({caseData.documents.length}/10)
+          </h2>
+          <label className={cn(
+            'flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer',
+            caseData.documents.length >= 10
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          )}>
+            <Upload className="w-4 h-4" />
+            {isUploading ? '업로드 중...' : '파일 추가'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+              disabled={caseData.documents.length >= 10 || isUploading}
+            />
+          </label>
+        </div>
+
+        {caseData.documents.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">첨부파일이 없습니다.</p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {caseData.documents.map((doc) => (
+              <div key={doc.id} className="flex items-center gap-3 px-5 py-3">
+                <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 truncate">{doc.fileName}</p>
+                  <p className="text-xs text-gray-400">
+                    {formatFileSize(doc.fileSize)} · {format(new Date(doc.uploadedAt), 'MM/dd HH:mm', { locale: ko })}
+                  </p>
+                </div>
+                <a href={doc.fileUrl} download className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
+                  <Download className="w-4 h-4" />
+                </a>
+                <button onClick={() => handleDeleteDocument(doc.id)}
+                  className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 상담기록 */}

@@ -47,7 +47,11 @@ export async function POST(req: NextRequest) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const body = await req.json()
-  const { victimName, victimContact, accidentDate, accidentType, assignedTo } = body
+  const {
+    victimName, victimContact, workplaceName, caseType,
+    diseaseCategory, accidentDate, accidentType, diagnosisDate,
+    diagnosisName, guardianName, guardianContact, assignedTo,
+  } = body
 
   if (!victimName || !victimContact) {
     return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
@@ -63,10 +67,17 @@ export async function POST(req: NextRequest) {
       caseNumber,
       victimName,
       victimContact,
+      workplaceName: workplaceName || null,
+      caseType: caseType || null,
+      diseaseCategory: diseaseCategory || null,
       accidentDate: accidentDate ? new Date(accidentDate) : null,
       accidentType: accidentType || null,
+      diagnosisDate: diagnosisDate ? new Date(diagnosisDate) : null,
+      diagnosisName: diagnosisName || null,
+      guardianName: guardianName || null,
+      guardianContact: guardianContact || null,
       assignedTo: assignedTo || auth.user!.id,
-      status: 'OPEN',
+      status: 'RECEIVED',
     },
     include: {
       user: { select: { id: true, name: true } },

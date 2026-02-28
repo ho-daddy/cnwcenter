@@ -59,7 +59,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { elementWorkId, documentNo, problem, improvement, source } = body
+    const { elementWorkId, documentNo, problem, improvement, source, status, updateDate, responsiblePerson, remarks } = body
 
     if (!problem || !improvement) {
       return NextResponse.json(
@@ -95,6 +95,10 @@ export async function POST(
         problem,
         improvement,
         source,
+        status: status || null,
+        updateDate: updateDate ? new Date(updateDate) : null,
+        responsiblePerson: responsiblePerson || null,
+        remarks: remarks || null,
       },
     })
 

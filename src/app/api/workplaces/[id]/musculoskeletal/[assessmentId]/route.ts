@@ -26,6 +26,9 @@ export async function GET(
         elementWorks: {
           include: {
             bodyPartScores: true,
+            measurements: {
+              orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+            },
           },
           orderBy: { sortOrder: 'asc' },
         },

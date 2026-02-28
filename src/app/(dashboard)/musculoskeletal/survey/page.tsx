@@ -160,6 +160,22 @@ interface Improvement {
   problem: string
   improvement: string
   source: string | null
+  status: string | null
+  updateDate: string | null
+  responsiblePerson: string | null
+  remarks: string | null
+}
+
+interface WorkMeasurementItem {
+  id: string
+  type: string
+  sortOrder: number
+  name: string
+  weight: number | null
+  force: number | null
+  frequency: number | null
+  exposureHours: number | null
+  photoPath: string | null
 }
 
 interface ElementWork {
@@ -172,6 +188,7 @@ interface ElementWork {
     bodyPart: string
     totalScore: number
   }[]
+  measurements: WorkMeasurementItem[]
   rulaScore: number | null
   rebaScore: number | null
   pushPullArm: string | null
@@ -187,7 +204,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 
 const SHEET_TABS = [
   { id: 'overview', label: '개요·관리카드', icon: FileText },
-  { id: 'sheet2', label: '2.부위별점수', icon: Calculator },
+  { id: 'sheet2', label: '2.공구,중량물,자세', icon: Calculator },
   { id: 'sheet3', label: '3.RULA/REBA', icon: BarChart3 },
   { id: 'sheet4', label: '4.종합평가', icon: CheckCircle },
 ]
@@ -1183,7 +1200,7 @@ function OverviewContent({
           <div className="space-y-2">
             <SheetProgress label="관리카드" completed={!!assessment.dailyWorkHours} />
             <SheetProgress
-              label="부위별점수"
+              label="공구,중량물,자세"
               completed={assessment.elementWorks.some((w) => w.bodyPartScores.length > 0)}
               skipped={assessment.skipSheet2}
             />
@@ -1754,51 +1771,61 @@ function Sheet2Content({
             </div>
           ) : (
             <>
-              <p className="text-sm text-gray-600">
-                각 요소작업을 선택하여 부위별 점수를 입력하세요.
-              </p>
-              {assessment.elementWorks
-                .sort((a, b) => a.sortOrder - b.sortOrder)
-                .map((work, index) => (
-                  <div
-                    key={work.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
-                  >
-                    <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{work.name}</p>
-                      <div className="flex gap-2 mt-1">
-                        {BODY_PARTS.map((part) => {
-                          const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
-                          return (
-                            <span
-                              key={part.id}
-                              className={`text-xs px-1.5 py-0.5 rounded ${
-                                score
-                                  ? score.totalScore >= 7
-                                    ? 'bg-red-100 text-red-700'
-                                    : score.totalScore >= 5
-                                      ? 'bg-orange-100 text-orange-700'
-                                      : score.totalScore >= 3
-                                        ? 'bg-yellow-100 text-yellow-700'
-                                        : 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-400'
-                              }`}
-                            >
-                              {score ? score.totalScore : '-'}
-                            </span>
-                          )
-                        })}
+              {/* 공구·중량물 측정 입력 */}
+              <MeasurementSection
+                assessment={assessment}
+                workplaceId={workplaceId}
+                onUpdate={onUpdate}
+              />
+
+              {/* 부위별 점수 입력 */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-3">
+                  각 요소작업을 선택하여 자세 및 부가요인 점수를 입력하세요.
+                </p>
+                {assessment.elementWorks
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map((work, index) => (
+                    <div
+                      key={work.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 mb-2"
+                    >
+                      <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
+                        {index + 1}
                       </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{work.name}</p>
+                        <div className="flex gap-2 mt-1">
+                          {BODY_PARTS.map((part) => {
+                            const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
+                            return (
+                              <span
+                                key={part.id}
+                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                  score
+                                    ? score.totalScore >= 7
+                                      ? 'bg-red-100 text-red-700'
+                                      : score.totalScore >= 5
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : score.totalScore >= 3
+                                          ? 'bg-yellow-100 text-yellow-700'
+                                          : 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-400'
+                                }`}
+                              >
+                                {score ? score.totalScore : '-'}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={() => onOpenSheet2(work)}>
+                        <Edit className="w-4 h-4 mr-1" />
+                        입력
+                      </Button>
                     </div>
-                    <Button size="sm" onClick={() => onOpenSheet2(work)}>
-                      <Edit className="w-4 h-4 mr-1" />
-                      입력
-                    </Button>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </>
           )}
         </>
@@ -2301,6 +2328,219 @@ function Sheet4Content({
           종합평가 저장
         </Button>
       </div>
+    </div>
+  )
+}
+
+// ─── 공구·중량물 측정 입력 섹션 ───
+const MEASUREMENT_TYPES: { type: string; label: string; fields: string[]; nameLabel: string; namePlaceholder: string }[] = [
+  { type: 'TOOL', label: '공구', fields: ['name', 'weight'],
+    nameLabel: '공구명', namePlaceholder: '공구 명칭' },
+  { type: 'LOAD', label: '중량물', fields: ['name', 'weight', 'frequency'],
+    nameLabel: '중량물명', namePlaceholder: '중량물 명칭' },
+  { type: 'PUSH_PULL', label: '밀고당기기', fields: ['name', 'force', 'frequency'],
+    nameLabel: '물체명칭', namePlaceholder: '물체 명칭' },
+  { type: 'VIBRATION', label: '전신진동', fields: ['name', 'exposureHours'],
+    nameLabel: '발생원', namePlaceholder: '진동 발생원' },
+]
+
+function MeasurementSection({
+  assessment,
+  workplaceId,
+  onUpdate,
+}: {
+  assessment: Assessment
+  workplaceId: string
+  onUpdate: (data: Partial<Assessment>) => void
+}) {
+  const [expandedWork, setExpandedWork] = useState<string | null>(null)
+  const [expandedType, setExpandedType] = useState<string | null>(null)
+  const [addingType, setAddingType] = useState<string | null>(null)
+  const [newForm, setNewForm] = useState({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
+  const [isSaving, setIsSaving] = useState(false)
+
+  const sortedWorks = [...assessment.elementWorks].sort((a, b) => a.sortOrder - b.sortOrder)
+
+  const handleAdd = async (workId: string, type: string) => {
+    if (!newForm.name.trim()) return
+    setIsSaving(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/element-works/${workId}/measurements`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            name: newForm.name.trim(),
+            weight: newForm.weight || null,
+            force: newForm.force || null,
+            frequency: newForm.frequency || null,
+            exposureHours: newForm.exposureHours || null,
+          }),
+        }
+      )
+      if (res.ok) {
+        const newMeasurement = await res.json()
+        const updatedWorks = assessment.elementWorks.map(w =>
+          w.id === workId ? { ...w, measurements: [...(w.measurements || []), newMeasurement] } : w
+        )
+        onUpdate({ elementWorks: updatedWorks })
+        setNewForm({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
+        setAddingType(null)
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async (workId: string, measurementId: string) => {
+    if (!confirm('삭제하시겠습니까?')) return
+    const res = await fetch(
+      `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/element-works/${workId}/measurements/${measurementId}`,
+      { method: 'DELETE' }
+    )
+    if (res.ok) {
+      const updatedWorks = assessment.elementWorks.map(w =>
+        w.id === workId ? { ...w, measurements: (w.measurements || []).filter(m => m.id !== measurementId) } : w
+      )
+      onUpdate({ elementWorks: updatedWorks })
+    }
+  }
+
+  const inputCls = 'w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
+
+  return (
+    <div>
+      <p className="text-sm text-gray-600 mb-2">
+        각 요소작업별 공구, 중량물, 밀고당기기, 전신진동 정보를 입력하세요. (각 유형 최대 10개)
+      </p>
+
+      {sortedWorks.map((work, workIdx) => {
+        const isExpanded = expandedWork === work.id
+        const totalMeasurements = (work.measurements || []).length
+
+        return (
+          <div key={work.id} className="mb-2 border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setExpandedWork(isExpanded ? null : work.id)}
+              className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <div className="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-xs">
+                {workIdx + 1}
+              </div>
+              <span className="flex-1 text-sm font-medium">{work.name}</span>
+              <span className="text-xs text-gray-400">{totalMeasurements}건</span>
+              {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {isExpanded && (
+              <div className="px-3 pb-3 space-y-2">
+                {MEASUREMENT_TYPES.map(mt => {
+                  const items = (work.measurements || []).filter(m => m.type === mt.type)
+                  const isTypeExpanded = expandedType === `${work.id}-${mt.type}`
+                  const isAdding = addingType === `${work.id}-${mt.type}`
+
+                  return (
+                    <div key={mt.type} className="border rounded-lg bg-gray-50">
+                      <button
+                        onClick={() => setExpandedType(isTypeExpanded ? null : `${work.id}-${mt.type}`)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-gray-700">{mt.label}</span>
+                        <span className="text-xs text-gray-400 bg-white px-1.5 py-0.5 rounded">{items.length}</span>
+                        <div className="flex-1" />
+                        {items.length < 10 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAddingType(isAdding ? null : `${work.id}-${mt.type}`)
+                              setExpandedType(`${work.id}-${mt.type}`)
+                              setNewForm({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
+                            }}
+                            className="p-1 text-blue-500 hover:bg-blue-100 rounded"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {isTypeExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
+                      </button>
+
+                      {isTypeExpanded && (
+                        <div className="px-3 pb-2 space-y-1.5">
+                          {items.map((item, idx) => (
+                            <div key={item.id} className="flex items-center gap-2 bg-white rounded px-2 py-1.5 text-xs">
+                              <span className="text-gray-400 w-4">{idx + 1}</span>
+                              <span className="font-medium text-gray-800 flex-1">{item.name}</span>
+                              {item.weight != null && <span className="text-gray-500">{item.weight}kg</span>}
+                              {item.force != null && <span className="text-gray-500">{item.force}kgf</span>}
+                              {item.frequency != null && <span className="text-gray-500">{item.frequency}회/일</span>}
+                              {item.exposureHours != null && <span className="text-gray-500">{item.exposureHours}시간/일</span>}
+                              <button
+                                onClick={() => handleDelete(work.id, item.id)}
+                                className="p-0.5 text-gray-300 hover:text-red-500"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* 추가 폼 */}
+                          {isAdding && (
+                            <div className="bg-blue-50 rounded p-2 space-y-1.5">
+                              <input
+                                type="text"
+                                value={newForm.name}
+                                onChange={(e) => setNewForm(f => ({ ...f, name: e.target.value }))}
+                                className={inputCls}
+                                placeholder={mt.namePlaceholder}
+                              />
+                              <div className="flex gap-2">
+                                {mt.fields.includes('weight') && (
+                                  <input type="number" step="0.1" value={newForm.weight}
+                                    onChange={(e) => setNewForm(f => ({ ...f, weight: e.target.value }))}
+                                    className={inputCls} placeholder="무게(kg)" />
+                                )}
+                                {mt.fields.includes('force') && (
+                                  <input type="number" step="0.1" value={newForm.force}
+                                    onChange={(e) => setNewForm(f => ({ ...f, force: e.target.value }))}
+                                    className={inputCls} placeholder="힘(kgf)" />
+                                )}
+                                {mt.fields.includes('frequency') && (
+                                  <input type="number" value={newForm.frequency}
+                                    onChange={(e) => setNewForm(f => ({ ...f, frequency: e.target.value }))}
+                                    className={inputCls} placeholder="빈도(회/일)" />
+                                )}
+                                {mt.fields.includes('exposureHours') && (
+                                  <input type="number" step="0.5" value={newForm.exposureHours}
+                                    onChange={(e) => setNewForm(f => ({ ...f, exposureHours: e.target.value }))}
+                                    className={inputCls} placeholder="노출시간(시간/일)" />
+                                )}
+                              </div>
+                              <div className="flex justify-end gap-1.5">
+                                <button onClick={() => setAddingType(null)}
+                                  className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">취소</button>
+                                <button onClick={() => handleAdd(work.id, mt.type)} disabled={isSaving || !newForm.name.trim()}
+                                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                                  {isSaving ? '저장...' : '추가'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {items.length === 0 && !isAdding && (
+                            <p className="text-xs text-gray-400 text-center py-2">등록된 항목이 없습니다.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

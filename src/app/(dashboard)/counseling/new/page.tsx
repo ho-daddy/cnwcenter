@@ -11,6 +11,20 @@ interface StaffUser {
   name: string | null
 }
 
+const CASE_TYPES = [
+  { value: 'ACCIDENT', label: '사고' },
+  { value: 'DISEASE', label: '질병' },
+  { value: 'COMMUTE', label: '출퇴근' },
+]
+
+const DISEASE_CATEGORIES = [
+  { value: 'TRAUMA', label: '외상' },
+  { value: 'MUSCULOSKELETAL', label: '근골격계' },
+  { value: 'CARDIOVASCULAR', label: '뇌심혈관계' },
+  { value: 'NOISE_HEARING', label: '소음성난청' },
+  { value: 'OTHER', label: '기타' },
+]
+
 export default function NewCounselingCasePage() {
   const router = useRouter()
   const { data: session } = useSession()
@@ -20,8 +34,14 @@ export default function NewCounselingCasePage() {
   const [form, setForm] = useState({
     victimName: '',
     victimContact: '',
+    workplaceName: '',
+    caseType: '',
+    diseaseCategory: '',
     accidentDate: '',
-    accidentType: '',
+    diagnosisDate: '',
+    diagnosisName: '',
+    guardianName: '',
+    guardianContact: '',
     assignedTo: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -61,10 +81,10 @@ export default function NewCounselingCasePage() {
     }
   }
 
-  const ACCIDENT_TYPES = ['산업재해', '직업병', '근골격계질환', '화학물질노출', '소음성 난청', '기타']
+  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/counseling" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
           <ArrowLeft className="w-5 h-5" />
@@ -72,44 +92,87 @@ export default function NewCounselingCasePage() {
         <h1 className="text-xl font-bold text-gray-900">새 상담 케이스 등록</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
         {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
 
+        {/* 재해자 정보 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">피해자 성명 <span className="text-red-500">*</span></label>
-          <input type="text" value={form.victimName} onChange={(e) => set('victimName', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="피해자 또는 의뢰인 성명" required />
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-100">재해자 정보</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">재해자 성명 <span className="text-red-500">*</span></label>
+              <input type="text" value={form.victimName} onChange={(e) => set('victimName', e.target.value)}
+                className={inputCls} placeholder="재해자 성명" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">연락처 <span className="text-red-500">*</span></label>
+              <input type="text" value={form.victimContact} onChange={(e) => set('victimContact', e.target.value)}
+                className={inputCls} placeholder="010-0000-0000" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">사업장명</label>
+              <input type="text" value={form.workplaceName} onChange={(e) => set('workplaceName', e.target.value)}
+                className={inputCls} placeholder="사업장명 입력" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">재해유형</label>
+              <select value={form.caseType} onChange={(e) => set('caseType', e.target.value)} className={inputCls}>
+                <option value="">선택하세요</option>
+                {CASE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
 
+        {/* 질병/진단 정보 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">연락처 <span className="text-red-500">*</span></label>
-          <input type="text" value={form.victimContact} onChange={(e) => set('victimContact', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="010-0000-0000" required />
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-100">질병/진단 정보</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">질병분류</label>
+              <select value={form.diseaseCategory} onChange={(e) => set('diseaseCategory', e.target.value)} className={inputCls}>
+                <option value="">선택하세요</option>
+                {DISEASE_CATEGORIES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">재해일시</label>
+              <input type="date" value={form.accidentDate} onChange={(e) => set('accidentDate', e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">진단일시</label>
+              <input type="date" value={form.diagnosisDate} onChange={(e) => set('diagnosisDate', e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">진단명</label>
+              <input type="text" value={form.diagnosisName} onChange={(e) => set('diagnosisName', e.target.value)}
+                className={inputCls} placeholder="진단명 입력" />
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">사고 일자</label>
-            <input type="date" value={form.accidentDate} onChange={(e) => set('accidentDate', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">사고 유형</label>
-            <select value={form.accidentType} onChange={(e) => set('accidentType', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">선택하세요</option>
-              {ACCIDENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+        {/* 보호자 정보 */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-100">보호자 정보</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">보호자 성명</label>
+              <input type="text" value={form.guardianName} onChange={(e) => set('guardianName', e.target.value)}
+                className={inputCls} placeholder="보호자 성명" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">보호자 연락처</label>
+              <input type="text" value={form.guardianContact} onChange={(e) => set('guardianContact', e.target.value)}
+                className={inputCls} placeholder="010-0000-0000" />
+            </div>
           </div>
         </div>
 
+        {/* 담당자 */}
         {isStaff && staffUsers.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">담당자</label>
-            <select value={form.assignedTo} onChange={(e) => set('assignedTo', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select value={form.assignedTo} onChange={(e) => set('assignedTo', e.target.value)} className={inputCls}>
               <option value="">본인 (기본)</option>
               {staffUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
