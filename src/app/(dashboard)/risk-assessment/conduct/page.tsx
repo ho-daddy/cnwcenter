@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -789,6 +789,7 @@ function HazardListTab({
               <tr className="border-b bg-gray-50">
                 <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 w-24">분류</th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">유해위험요인</th>
+                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-16">사진</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-24">위험성</th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 w-48">개선방안</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-20">개선현황</th>
@@ -802,7 +803,8 @@ function HazardListTab({
                 const completedCnt = h.improvements.filter(i => i.status === 'COMPLETED').length
                 const isPhotoExpanded = expandedPhotoId === h.id
                 return (
-                  <tr key={h.id} className="border-b hover:bg-gray-50 group">
+                  <React.Fragment key={h.id}>
+                  <tr className="border-b hover:bg-gray-50 group">
                     <td className="py-2 px-3">
                       <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${CATEGORY_BADGE[h.hazardCategory]}`}>
                         {HAZARD_CATEGORY_LABELS[h.hazardCategory]}
@@ -813,30 +815,17 @@ function HazardListTab({
                       {h.chemicalProduct && (
                         <p className="text-xs text-purple-600 mt-0.5">{h.chemicalProduct.name}</p>
                       )}
-                      {/* 사진 영역 */}
-                      <div className="mt-1.5">
-                        <button
-                          onClick={() => setExpandedPhotoId(isPhotoExpanded ? null : h.id)}
-                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Camera className="w-3 h-3" />
-                          사진 {h.photos.length > 0 ? `(${h.photos.length})` : ''}
-                          <ChevronDown className={`w-3 h-3 transition-transform ${isPhotoExpanded ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isPhotoExpanded && (
-                          <div className="mt-2" onClick={e => e.stopPropagation()}>
-                            <PhotoUploader
-                              mode="immediate"
-                              uploadUrl={`/api/risk-assessment/${cardId}/hazards/${h.id}/photos`}
-                              existingPhotos={h.photos}
-                              onUploaded={(photo) => handlePhotoUploaded(h.id, photo)}
-                              onDeleteExisting={(photoId) => handleDeletePhoto(h.id, photoId)}
-                              maxPhotos={10}
-                              maxFileSize={10 * 1024 * 1024}
-                            />
-                          </div>
-                        )}
-                      </div>
+                    </td>
+                    {/* 사진 열 */}
+                    <td className="py-2 px-3 text-center">
+                      <button
+                        onClick={() => setExpandedPhotoId(isPhotoExpanded ? null : h.id)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors mx-auto ${isPhotoExpanded ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-100 hover:text-blue-700 text-gray-500'}`}
+                        title="사진 관리"
+                      >
+                        <Camera className="w-5 h-5" />
+                        {h.photos.length > 0 && <span className="font-medium">{h.photos.length}</span>}
+                      </button>
                     </td>
                     <td className="py-2 px-3 text-center">
                       <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded ${level.bg} ${level.color}`}>
@@ -881,6 +870,24 @@ function HazardListTab({
                       </div>
                     </td>
                   </tr>
+                  {isPhotoExpanded && (
+                    <tr className="border-b bg-gray-50">
+                      <td colSpan={7} className="px-3 py-3">
+                        <div onClick={e => e.stopPropagation()}>
+                          <PhotoUploader
+                            mode="immediate"
+                            uploadUrl={`/api/risk-assessment/${cardId}/hazards/${h.id}/photos`}
+                            existingPhotos={h.photos}
+                            onUploaded={(photo) => handlePhotoUploaded(h.id, photo)}
+                            onDeleteExisting={(photoId) => handleDeletePhoto(h.id, photoId)}
+                            maxPhotos={10}
+                            maxFileSize={10 * 1024 * 1024}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 )
               })}
             </tbody>
@@ -2239,16 +2246,27 @@ function ConductImprovementPanel({
             </button>
           </div>
 
-          <div className="mt-2.5 flex items-center gap-2 text-xs">
-            <span className="text-gray-500">최초 위험성:</span>
-            {hazard.hazardCategory !== 'ABSOLUTE' && (
-              <span className="font-mono text-gray-500">
-                {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints}
+          <div className="mt-2.5 text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">최초 위험성:</span>
+              {hazard.hazardCategory !== 'ABSOLUTE' && (
+                <span className="font-mono text-gray-500">
+                  {hazard.severityScore}×{hazard.likelihoodScore}+{hazard.additionalPoints}
+                </span>
+              )}
+              <span className={`px-1.5 py-0.5 rounded font-bold ${riskLevel.bg} ${riskLevel.color}`}>
+                {hazard.riskScore}점 ({riskLevel.label})
               </span>
+            </div>
+            {hazard.hazardCategory !== 'ABSOLUTE' && (
+              <div className="text-gray-400 space-y-0.5 pl-1">
+                <p>중대성 {hazard.severityScore}점: {getSeverityDesc(hazard.hazardCategory, hazard.severityScore)}</p>
+                <p>가능성 {hazard.likelihoodScore}점: {getLikelihoodDesc(hazard.hazardCategory, card.evaluationType, hazard.likelihoodScore)}</p>
+                {hazard.additionalDetails && hazard.additionalPoints > 0 && (
+                  <p className="text-blue-500">가점: {formatAdditionalDetails(hazard.hazardCategory, hazard.additionalDetails).join(', ')}</p>
+                )}
+              </div>
             )}
-            <span className={`px-1.5 py-0.5 rounded font-bold ${riskLevel.bg} ${riskLevel.color}`}>
-              {hazard.riskScore}점 ({riskLevel.label})
-            </span>
           </div>
 
           {hazard.improvementPlan && (
@@ -2260,6 +2278,24 @@ function ConductImprovementPanel({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* 위험요인 사진 */}
+          {hazard.photos.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">위험요인 사진</h3>
+              <div className="flex flex-wrap gap-2">
+                {hazard.photos.map(p => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id}
+                    src={p.thumbnailPath || p.photoPath}
+                    alt=""
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             개선이력 {!isLoading && `(${improvements.length}건)`}
           </h3>

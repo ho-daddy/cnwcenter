@@ -37,6 +37,7 @@ export default function NewCounselingCasePage() {
     workplaceName: '',
     caseType: '',
     diseaseCategory: '',
+    diseaseCategoryOther: '',
     accidentDate: '',
     diagnosisDate: '',
     diagnosisName: '',
@@ -62,10 +63,15 @@ export default function NewCounselingCasePage() {
     setIsSubmitting(true)
     setError('')
     try {
+      const submitData = {
+        ...form,
+        diseaseCategory: form.diseaseCategory === 'OTHER' ? `OTHER:${form.diseaseCategoryOther}` : form.diseaseCategory,
+      }
+      delete (submitData as any).diseaseCategoryOther
       const res = await fetch('/api/counseling', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submitData),
       })
       if (res.ok) {
         const c = await res.json()
@@ -130,10 +136,14 @@ export default function NewCounselingCasePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">질병분류</label>
-              <select value={form.diseaseCategory} onChange={(e) => set('diseaseCategory', e.target.value)} className={inputCls}>
+              <select value={form.diseaseCategory} onChange={(e) => { set('diseaseCategory', e.target.value); if (e.target.value !== 'OTHER') set('diseaseCategoryOther', '') }} className={inputCls}>
                 <option value="">선택하세요</option>
                 {DISEASE_CATEGORIES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
               </select>
+              {form.diseaseCategory === 'OTHER' && (
+                <input type="text" value={form.diseaseCategoryOther} onChange={(e) => set('diseaseCategoryOther', e.target.value)}
+                  className={`${inputCls} mt-2`} placeholder="질병분류를 직접 입력하세요" />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">재해일시</label>

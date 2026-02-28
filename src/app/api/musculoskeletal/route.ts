@@ -53,6 +53,10 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        improvements: {
+          select: { id: true, status: true, problem: true, improvement: true, responsiblePerson: true, updateDate: true },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     })
 

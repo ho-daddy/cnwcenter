@@ -280,7 +280,9 @@ export default function CounselingCaseDetailPage() {
           {caseData.diseaseCategory && (
             <div className="flex items-center gap-2 text-gray-700">
               <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
-              질병분류: {DISEASE_CATEGORY_LABELS[caseData.diseaseCategory] || caseData.diseaseCategory}
+              질병분류: {caseData.diseaseCategory.startsWith('OTHER:')
+                ? `기타 (${caseData.diseaseCategory.slice(6)})`
+                : DISEASE_CATEGORY_LABELS[caseData.diseaseCategory] || caseData.diseaseCategory}
             </div>
           )}
           {caseData.diagnosisDate && (
