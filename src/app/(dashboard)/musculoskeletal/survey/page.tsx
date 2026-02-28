@@ -2621,10 +2621,10 @@ function MeasurementSection({
                                     photoInputRef.current?.click()
                                   }}
                                   disabled={uploadingId === item.id}
-                                  className={`p-0.5 rounded transition-colors ${item.photoPath ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300 hover:text-blue-500'}`}
+                                  className={`p-1 rounded transition-colors ${item.photoPath ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300 hover:text-blue-500'}`}
                                   title={item.photoPath ? '사진 변경' : '사진 추가'}
                                 >
-                                  {uploadingId === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                                  {uploadingId === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
                                 </button>
                                 <button
                                   onClick={() => handleDelete(work.id, item.id)}

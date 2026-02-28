@@ -108,6 +108,115 @@ export const ADDITIONAL_SCORE_CONFIG: Record<string, {
   ABSOLUTE: { label: '절대기준 (항상 16점)', max: 0, fields: [] },
 }
 
+// ─── 카테고리별 중대성/가능성 점수기준 ───
+
+const ACCIDENT_SEVERITY_DESC: Record<number, string> = {
+  1: '휴업 또는 치료 불필요',
+  2: '14일 이내의 휴업 발생',
+  3: '15일 ~ 30일의 휴업 발생',
+  4: '한달 이상의 휴업 발생',
+  5: '사망 또는 영구 장해',
+}
+const ACCIDENT_LIKELIHOOD_DESC: Record<number, string> = {
+  1: '발생 가능성 낮고, 해당 작업에 월 10일 미만 종사',
+  2: '발생 가능성 낮고, 해당 작업에 월 10일 이상 종사',
+  3: '발생 가능성 보통이고, 해당 작업에 월 10일 미만 종사',
+  4: '발생 가능성 보통이고, 해당 작업에 월 10일 이상 종사',
+  5: '발생 가능성 높음',
+}
+
+const CHEMICAL_SEVERITY_DESC: Record<number, string> = {
+  1: 'GHS 비위험',
+  2: 'GHS 경고',
+  3: 'GHS 위험 (경고 이상)',
+  4: 'GHS 위험 (높음)',
+  5: 'GHS 위험 (매우 높음)',
+}
+const CHEMICAL_LIKELIHOOD_DESC: Record<number, string> = {
+  1: '연 2-3회 취급',
+  2: '월 2-3회 취급',
+  3: '주 2-3회 취급',
+  4: '매일 4시간 이하 취급',
+  5: '매일 4시간 초과 취급',
+}
+
+const MUSC_SEVERITY_DESC: Record<number, string> = {
+  1: 'Borg 6~9 (매우 가벼움)',
+  2: 'Borg 10~11 (가벼움)',
+  3: 'Borg 12~13 (약간 힘듦)',
+  4: 'Borg 14~15 (힘듦)',
+  5: 'Borg 16~20 (매우 힘듦)',
+}
+const MUSC_LIKELIHOOD_REGULAR_DESC: Record<number, string> = {
+  1: '연 2-3회 (작업 빈도 낮음)',
+  2: '주 1-3일, 1일 2시간 이내',
+  3: '1일 4시간 이하',
+  4: '1일 4-8시간',
+  5: '1일 8시간 초과',
+}
+const MUSC_LIKELIHOOD_IRREGULAR_DESC: Record<number, string> = {
+  1: '월 20시간 미만',
+  2: '월 20-50시간',
+  3: '월 50-75시간',
+  4: '월 75-100시간',
+  5: '월 100시간 초과',
+}
+
+const NOISE_SEVERITY_DESC: Record<number, string> = {
+  1: '60dB 미만',
+  2: '60 ~ 70dB',
+  3: '70 ~ 80dB',
+  4: '80 ~ 90dB',
+  5: '90dB 이상',
+}
+const NOISE_LIKELIHOOD_DESC: Record<number, string> = {
+  1: '하루 2시간 이하 노출',
+  2: '하루 4시간 이하 노출',
+  3: '하루 8시간 이하 노출',
+  4: '하루 8-10시간 노출',
+  5: '하루 10시간 이상 노출',
+}
+
+const GENERIC_SEVERITY_DESC: Record<number, string> = {
+  1: '경미 (부상 없음)',
+  2: '경상 (경미한 부상, 치료 불필요)',
+  3: '중상 (직업병, 치료 필요)',
+  4: '중대 (만성 질환, 입원 필요)',
+  5: '사망 / 영구 장해',
+}
+const GENERIC_LIKELIHOOD_DESC: Record<number, string> = {
+  1: '거의 없음 (연 1회 미만)',
+  2: '가끔 (연 1~수회)',
+  3: '자주 (월 1회 이상)',
+  4: '빈번 (주 1회 이상)',
+  5: '항상 (매일)',
+}
+
+/** 카테고리별 중대성 점수 설명 */
+export function getSeverityDesc(category: string, score: number): string {
+  switch (category) {
+    case 'ACCIDENT':        return ACCIDENT_SEVERITY_DESC[score] || ''
+    case 'NOISE':           return NOISE_SEVERITY_DESC[score] || ''
+    case 'CHEMICAL':        return CHEMICAL_SEVERITY_DESC[score] || ''
+    case 'MUSCULOSKELETAL': return MUSC_SEVERITY_DESC[score] || ''
+    default:                return GENERIC_SEVERITY_DESC[score] || ''
+  }
+}
+
+/** 카테고리별 가능성 점수 설명 */
+export function getLikelihoodDesc(category: string, evaluationType: string, score: number): string {
+  switch (category) {
+    case 'ACCIDENT':        return ACCIDENT_LIKELIHOOD_DESC[score] || ''
+    case 'NOISE':           return NOISE_LIKELIHOOD_DESC[score] || ''
+    case 'CHEMICAL':        return CHEMICAL_LIKELIHOOD_DESC[score] || ''
+    case 'MUSCULOSKELETAL': {
+      const descs = evaluationType === 'OCCASIONAL' ? MUSC_LIKELIHOOD_IRREGULAR_DESC : MUSC_LIKELIHOOD_REGULAR_DESC
+      return descs[score] || ''
+    }
+    default:                return GENERIC_LIKELIHOOD_DESC[score] || ''
+  }
+}
+
 // 가점 상세를 한글 레이블로 변환
 export function formatAdditionalDetails(
   category: string,
