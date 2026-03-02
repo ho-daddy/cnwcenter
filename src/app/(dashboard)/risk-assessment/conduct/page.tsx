@@ -805,10 +805,10 @@ function HazardListTab({
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 w-24">분류</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">유해위험요인</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500" style={{width: '30%'}}>유해위험요인</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-16">사진</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-24">위험성</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 w-48">개선방안</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500" style={{width: '45%'}}>개선방안</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-20">개선현황</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-gray-500 w-20">관리</th>
               </tr>
@@ -859,7 +859,7 @@ function HazardListTab({
                       )}
                     </td>
                     <td className="py-2 px-3">
-                      <p className="text-xs text-gray-600 line-clamp-2">{h.improvementPlan || <span className="text-gray-300">-</span>}</p>
+                      <p className="text-sm text-gray-600 line-clamp-2">{h.improvementPlan || <span className="text-gray-300">-</span>}</p>
                     </td>
                     <td className="py-2 px-3 text-center">
                       <button
