@@ -448,7 +448,7 @@ export default function ViewPage() {
                     <th className="text-left px-3 py-2.5 w-5">#</th>
                     <th className="text-left px-3 py-2.5 w-36">평가단위</th>
                     <th className="text-left px-3 py-2.5 w-24">분류</th>
-                    <th className="text-left px-3 py-2.5">유해위험요인</th>
+                    <th className="text-left px-3 py-2.5 w-60">유해위험요인</th>
                     <th className="text-center px-3 py-2.5 w-16">사진</th>
                     <th className="text-center px-3 py-2.5 w-28">최초 위험성</th>
                     <th className="text-center px-3 py-2.5 w-28">개선 후</th>
