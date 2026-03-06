@@ -4,13 +4,12 @@ import { requireWorkplaceAccess } from '@/lib/auth-utils'
 import {
   calculateRULA,
   calculateREBA,
-  evaluatePushPullArm,
-  evaluatePushPullHand,
+  evaluatePushPull,
   type RULAInputs,
   type REBAInputs,
 } from '@/lib/musculoskeletal/score-calculator'
 
-// 3번시트 - RULA/REBA 데이터 조회
+// 3번시트 - RULA/REBA 데이터 조회 (Sheet2 데이터 포함)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; assessmentId: string; workId: string } }
@@ -31,10 +30,34 @@ export async function GET(
         rebaLevel: true,
         pushPullArm: true,
         pushPullHand: true,
+        pushPullFinger: true,
         hasArmSupport: true,
         hasUnstableLeg: true,
         hasRapidPosture: true,
         hasRapidForce: true,
+        rulaInputs: true,
+        rebaInputs: true,
+        pushPullEvaluations: true,
+        // Sheet 2 데이터: 각도 정보
+        bodyPartScores: {
+          select: {
+            bodyPart: true,
+            angles: true,
+            additionalFactors: true,
+          },
+        },
+        // Sheet 2 데이터: PUSH_PULL 측정값
+        measurements: {
+          where: { type: 'PUSH_PULL' },
+          select: {
+            id: true,
+            name: true,
+            force: true,
+            frequency: true,
+            sortOrder: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         assessment: {
           select: { workplaceId: true },
         },
@@ -79,10 +102,10 @@ export async function PATCH(
   try {
     const body = await request.json()
     const {
+      type, // 'rula' | 'reba' | 'pushpull'
       rulaInputs,
       rebaInputs,
-      pushPullForce,
-      pushPullFreq,
+      pushPullEvaluations,
       hasArmSupport,
       hasUnstableLeg,
       hasRapidPosture,
@@ -110,46 +133,66 @@ export async function PATCH(
       )
     }
 
-    // RULA 계산
-    let rulaScore: number | null = null
-    let rulaLevel: string | null = null
-    if (rulaInputs) {
+    const updateData: Record<string, unknown> = {}
+
+    // 추가 요인은 항상 저장
+    if (hasArmSupport !== undefined) updateData.hasArmSupport = hasArmSupport
+    if (hasUnstableLeg !== undefined) updateData.hasUnstableLeg = hasUnstableLeg
+    if (hasRapidPosture !== undefined) updateData.hasRapidPosture = hasRapidPosture
+    if (hasRapidForce !== undefined) updateData.hasRapidForce = hasRapidForce
+
+    // RULA 계산 및 저장
+    if (type === 'rula' && rulaInputs) {
       const rulaResult = calculateRULA(rulaInputs as RULAInputs)
-      rulaScore = rulaResult.score
-      rulaLevel = rulaResult.level
+      updateData.rulaScore = rulaResult.score
+      updateData.rulaLevel = rulaResult.level
+      updateData.rulaInputs = rulaInputs // 상세 입력값 JSON 저장
     }
 
-    // REBA 계산
-    let rebaScore: number | null = null
-    let rebaLevel: string | null = null
-    if (rebaInputs) {
+    // REBA 계산 및 저장
+    if (type === 'reba' && rebaInputs) {
       const rebaResult = calculateREBA(rebaInputs as REBAInputs)
-      rebaScore = rebaResult.score
-      rebaLevel = rebaResult.level
+      updateData.rebaScore = rebaResult.score
+      updateData.rebaLevel = rebaResult.level
+      updateData.rebaInputs = rebaInputs // 상세 입력값 JSON 저장
     }
 
-    // Push-Pull 평가
-    let pushPullArm: string | null = null
-    let pushPullHand: string | null = null
-    if (pushPullForce !== undefined) {
-      pushPullArm = evaluatePushPullArm(pushPullForce)
-      pushPullHand = evaluatePushPullHand(pushPullForce)
+    // 밀고당기기 평가 저장
+    if (type === 'pushpull' && pushPullEvaluations) {
+      const evaluations = pushPullEvaluations as Array<{
+        measurementId: string
+        bodyPart: 'arm' | 'hand' | 'finger'
+        force: number
+        result: string
+      }>
+
+      // 전체 평가결과 중 최악의 결과를 대표값으로 저장
+      let worstArm: string | null = null
+      let worstHand: string | null = null
+      let worstFinger: string | null = null
+
+      const riskOrder: Record<string, number> = { '없음': 0, '안전': 1, '보통': 2, '위험': 3, '고위험': 4 }
+
+      for (const ev of evaluations) {
+        const result = evaluatePushPull(ev.force, ev.bodyPart)
+        if (ev.bodyPart === 'arm') {
+          if (!worstArm || (riskOrder[result] ?? 0) > (riskOrder[worstArm] ?? 0)) worstArm = result
+        } else if (ev.bodyPart === 'hand') {
+          if (!worstHand || (riskOrder[result] ?? 0) > (riskOrder[worstHand] ?? 0)) worstHand = result
+        } else if (ev.bodyPart === 'finger') {
+          if (!worstFinger || (riskOrder[result] ?? 0) > (riskOrder[worstFinger] ?? 0)) worstFinger = result
+        }
+      }
+
+      updateData.pushPullArm = worstArm
+      updateData.pushPullHand = worstHand
+      updateData.pushPullFinger = worstFinger
+      updateData.pushPullEvaluations = pushPullEvaluations
     }
 
     const elementWork = await prisma.elementWork.update({
       where: { id: params.workId },
-      data: {
-        rulaScore,
-        rulaLevel,
-        rebaScore,
-        rebaLevel,
-        pushPullArm,
-        pushPullHand,
-        hasArmSupport: hasArmSupport ?? undefined,
-        hasUnstableLeg: hasUnstableLeg ?? undefined,
-        hasRapidPosture: hasRapidPosture ?? undefined,
-        hasRapidForce: hasRapidForce ?? undefined,
-      },
+      data: updateData,
       select: {
         id: true,
         rulaScore: true,
@@ -158,10 +201,14 @@ export async function PATCH(
         rebaLevel: true,
         pushPullArm: true,
         pushPullHand: true,
+        pushPullFinger: true,
         hasArmSupport: true,
         hasUnstableLeg: true,
         hasRapidPosture: true,
         hasRapidForce: true,
+        rulaInputs: true,
+        rebaInputs: true,
+        pushPullEvaluations: true,
       },
     })
 

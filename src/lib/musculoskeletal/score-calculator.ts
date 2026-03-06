@@ -360,48 +360,61 @@ export function calculateKneeAnkleAdditionalScore(factors: KneeAnkleFactors): nu
 // ==========================================
 
 /**
- * RULA Table A - 상지 점수
- * 행: 상완 점수 (1-6), 열: 전완 점수 x 손목 점수 x 비틀림
+ * RULA Table A - 상지 점수 (완전판)
+ * 행: 상완 점수 (1-6)
+ * 열: 전완(1-3) × 손목(1-4) × 비틀림(1-2) = 24열
+ * 열 순서: F1W1T1, F1W1T2, F1W2T1, F1W2T2, F1W3T1, F1W3T2, F1W4T1, F1W4T2,
+ *          F2W1T1, F2W1T2, F2W2T1, F2W2T2, F2W3T1, F2W3T2, F2W4T1, F2W4T2,
+ *          F3W1T1, F3W1T2, F3W2T1, F3W2T2, F3W3T1, F3W3T2, F3W4T1, F3W4T2
  */
 export const RULA_TABLE_A: number[][] = [
-  // 전완 1, 손목1비1  손목1비2  손목2비1  손목2비2  손목3비1  손목3비2  손목4비1  손목4비2
-  //        전완 2, ...
-  //        전완 3, ...
-  [1, 2, 2, 2, 2, 3, 3, 3],   // 상완 1
-  [2, 2, 2, 2, 3, 3, 3, 3],   // 상완 2
-  [2, 3, 3, 3, 3, 3, 4, 4],   // 상완 3
-  [2, 3, 3, 3, 3, 4, 4, 4],   // 상완 4
-  [3, 3, 3, 4, 4, 4, 5, 5],   // 상완 5
-  [3, 4, 4, 4, 4, 4, 5, 5],   // 상완 6
+  // 상완 1
+  [1, 2, 2, 2, 2, 3, 3, 3,  2, 2, 2, 2, 3, 3, 3, 3,  2, 3, 3, 3, 3, 3, 4, 4],
+  // 상완 2
+  [2, 3, 3, 3, 3, 4, 4, 4,  3, 3, 3, 3, 3, 4, 4, 4,  3, 4, 4, 4, 4, 4, 5, 5],
+  // 상완 3
+  [3, 3, 4, 4, 4, 4, 5, 5,  3, 4, 4, 4, 4, 4, 5, 5,  4, 4, 4, 4, 4, 5, 5, 5],
+  // 상완 4
+  [4, 4, 4, 4, 4, 5, 5, 5,  4, 4, 4, 4, 4, 5, 5, 5,  4, 4, 4, 5, 5, 5, 6, 6],
+  // 상완 5
+  [5, 5, 5, 5, 5, 6, 6, 7,  5, 6, 6, 6, 6, 7, 7, 7,  6, 6, 6, 7, 7, 7, 7, 8],
+  // 상완 6
+  [7, 7, 7, 7, 7, 8, 8, 9,  8, 8, 8, 8, 8, 9, 9, 9,  9, 9, 9, 9, 9, 9, 9, 9],
 ]
 
 /**
- * RULA Table B - 목, 몸통, 다리 점수
+ * RULA Table B - 목/몸통/다리 점수 (완전판)
+ * 행: 목(1-6) × 몸통(1-6) = 36행
+ * 열: 다리(1-2) = 2열
  */
 export const RULA_TABLE_B: number[][] = [
-  // 다리 1  다리 2
-  [1, 3],   // 목1, 몸통1
-  [2, 3],   // 목1, 몸통2
-  [3, 4],   // 목1, 몸통3
-  [5, 5],   // 목1, 몸통4
-  [6, 6],   // 목1, 몸통5
-  [7, 7],   // 목1, 몸통6
-  // ... 나머지 행들
+  // 목1
+  [1, 3], [2, 3], [3, 4], [5, 5], [6, 6], [7, 7],
+  // 목2
+  [2, 3], [2, 3], [4, 5], [5, 5], [6, 7], [7, 7],
+  // 목3
+  [3, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 7],
+  // 목4
+  [5, 5], [5, 6], [6, 6], [7, 7], [7, 7], [8, 8],
+  // 목5
+  [7, 7], [7, 7], [7, 8], [8, 8], [8, 8], [8, 8],
+  // 목6
+  [8, 8], [8, 8], [8, 8], [8, 9], [9, 9], [9, 9],
 ]
 
 /**
  * RULA Table C - 최종 점수
- * 행: 팔/손목 점수 (1-8), 열: 목/몸통/다리 점수 (1-7)
+ * 행: Score C (1-8+), 열: Score D (1-7+)
  */
 export const RULA_TABLE_C: number[][] = [
-  [1, 2, 3, 3, 4, 5, 5],   // A 점수 1
-  [2, 2, 3, 4, 4, 5, 5],   // A 점수 2
-  [3, 3, 3, 4, 4, 5, 6],   // A 점수 3
-  [3, 3, 3, 4, 5, 6, 6],   // A 점수 4
-  [4, 4, 4, 5, 6, 7, 7],   // A 점수 5
-  [4, 4, 5, 6, 6, 7, 7],   // A 점수 6
-  [5, 5, 6, 6, 7, 7, 7],   // A 점수 7
-  [5, 5, 6, 7, 7, 7, 7],   // A 점수 8+
+  [1, 2, 3, 3, 4, 5, 5],   // Score C = 1
+  [2, 2, 3, 4, 4, 5, 5],   // Score C = 2
+  [3, 3, 3, 4, 4, 5, 6],   // Score C = 3
+  [3, 3, 3, 4, 5, 6, 6],   // Score C = 4
+  [4, 4, 4, 5, 6, 7, 7],   // Score C = 5
+  [4, 4, 5, 6, 6, 7, 7],   // Score C = 6
+  [5, 5, 6, 6, 7, 7, 7],   // Score C = 7
+  [5, 5, 6, 7, 7, 7, 7],   // Score C = 8+
 ]
 
 export interface RULAInputs {
@@ -420,50 +433,69 @@ export interface RULAInputs {
 }
 
 /**
+ * RULA Table A 조회
+ */
+export function lookupRulaTableA(upperArm: number, forearm: number, wrist: number, twist: number): number {
+  const row = Math.min(Math.max(upperArm, 1), 6) - 1
+  const col = (Math.min(Math.max(forearm, 1), 3) - 1) * 8 +
+              (Math.min(Math.max(wrist, 1), 4) - 1) * 2 +
+              (Math.min(Math.max(twist, 1), 2) - 1)
+  return RULA_TABLE_A[row]?.[col] ?? 1
+}
+
+/**
+ * RULA Table B 조회
+ */
+export function lookupRulaTableB(neck: number, trunk: number, leg: number): number {
+  const row = (Math.min(Math.max(neck, 1), 6) - 1) * 6 +
+              (Math.min(Math.max(trunk, 1), 6) - 1)
+  const col = Math.min(Math.max(leg, 1), 2) - 1
+  return RULA_TABLE_B[row]?.[col] ?? 1
+}
+
+/**
  * RULA 점수 계산
  */
-export function calculateRULA(inputs: RULAInputs): { score: number; level: string } {
-  // Table A 조회 (단순화)
-  const upperArmIdx = Math.min(inputs.upperArmScore - 1, 5)
-  const wristIdx = (inputs.forearmScore - 1) * 2 + (inputs.wristScore - 1) + (inputs.wristTwist - 1)
-  const tableAScore = RULA_TABLE_A[upperArmIdx]?.[Math.min(wristIdx, 7)] ?? 1
+export function calculateRULA(inputs: RULAInputs): { score: number; level: string; scoreC: number; scoreD: number; tableAScore: number; tableBScore: number } {
+  // Table A 조회
+  const tableAScore = lookupRulaTableA(
+    inputs.upperArmScore, inputs.forearmScore,
+    inputs.wristScore, inputs.wristTwist
+  )
 
-  // 근육 사용 및 힘/부하 추가
-  let scoreA = tableAScore
-  if (inputs.muscleUseA) scoreA += 1
-  scoreA += inputs.forceLoadA
+  // Score C = Table A + 근육사용 + 힘/부하
+  let scoreC = tableAScore
+  if (inputs.muscleUseA) scoreC += 1
+  scoreC += inputs.forceLoadA
 
-  // Table B 조회 (단순화)
-  const neckIdx = Math.min(inputs.neckScore - 1, 5)
-  const trunkIdx = Math.min(inputs.trunkScore - 1, 5)
-  const legIdx = Math.min(inputs.legScore - 1, 1)
+  // Table B 조회
+  const tableBScore = lookupRulaTableB(
+    inputs.neckScore, inputs.trunkScore, inputs.legScore
+  )
 
-  // 간단한 계산 (실제 테이블은 더 복잡)
-  let tableBScore = neckIdx + trunkIdx + 1
-  tableBScore = Math.min(tableBScore, 7)
-
-  let scoreB = tableBScore
-  if (inputs.muscleUseB) scoreB += 1
-  scoreB += inputs.forceLoadB
+  // Score D = Table B + 근육사용 + 힘/부하
+  let scoreD = tableBScore
+  if (inputs.muscleUseB) scoreD += 1
+  scoreD += inputs.forceLoadB
 
   // Table C 조회
-  const rowIdx = Math.min(scoreA - 1, 7)
-  const colIdx = Math.min(scoreB - 1, 6)
+  const rowIdx = Math.min(Math.max(scoreC, 1), 8) - 1
+  const colIdx = Math.min(Math.max(scoreD, 1), 7) - 1
   const finalScore = RULA_TABLE_C[rowIdx]?.[colIdx] ?? 1
 
-  // 레벨 판정
+  // 부하수준 판정 (1-4)
   let level: string
   if (finalScore <= 2) {
-    level = '안전'
+    level = '부하수준 1'
   } else if (finalScore <= 4) {
-    level = '보통'
+    level = '부하수준 2'
   } else if (finalScore <= 6) {
-    level = '위험'
+    level = '부하수준 3'
   } else {
-    level = '고위험'
+    level = '부하수준 4'
   }
 
-  return { score: finalScore, level }
+  return { score: finalScore, level, scoreC, scoreD, tableAScore, tableBScore }
 }
 
 // ==========================================
@@ -471,46 +503,56 @@ export function calculateRULA(inputs: RULAInputs): { score: number; level: strin
 // ==========================================
 
 /**
- * REBA Table A - 목/몸통/다리
+ * REBA Table A - 목/몸통/다리 (완전판)
+ * 행: 목(1-3) × 몸통(1-5) = 15행
+ * 열: 다리(1-4) = 4열
  */
 export const REBA_TABLE_A: number[][] = [
-  // 다리 1   다리 2   다리 3   다리 4
-  [1, 2, 3, 4],   // 목1, 몸통1
-  [2, 3, 4, 5],   // 목1, 몸통2
-  [2, 4, 5, 6],   // 목1, 몸통3
-  [3, 5, 6, 7],   // 목1, 몸통4
-  [4, 6, 7, 8],   // 목1, 몸통5
-  // ... (단순화)
+  // 목1
+  [1, 2, 3, 4], [2, 3, 4, 5], [2, 4, 5, 6], [3, 5, 6, 7], [4, 6, 7, 8],
+  // 목2
+  [1, 3, 4, 5], [2, 4, 5, 6], [3, 5, 6, 7], [4, 6, 7, 8], [5, 7, 8, 9],
+  // 목3
+  [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8], [6, 7, 8, 9], [7, 8, 9, 9],
 ]
 
 /**
- * REBA Table B - 상완/전완/손목
+ * REBA Table B - 상완/전완/손목 (완전판)
+ * 행: 상완(1-6) × 전완(1-2) = 12행
+ * 열: 손목(1-3) = 3열
  */
 export const REBA_TABLE_B: number[][] = [
-  // 손목 1   손목 2   손목 3
-  [1, 2, 2],   // 상완1, 전완1
-  [1, 2, 3],   // 상완1, 전완2
-  [3, 4, 5],   // 상완2, 전완1
-  [4, 5, 5],   // 상완2, 전완2
-  // ... (단순화)
+  // 상완1
+  [1, 2, 2], [1, 2, 3],
+  // 상완2
+  [1, 2, 3], [2, 3, 4],
+  // 상완3
+  [3, 4, 5], [4, 5, 5],
+  // 상완4
+  [4, 5, 5], [5, 6, 7],
+  // 상완5
+  [6, 7, 8], [7, 8, 8],
+  // 상완6
+  [7, 8, 8], [8, 9, 9],
 ]
 
 /**
  * REBA Table C - 최종 점수
+ * 행: Score A (1-12), 열: Score B (1-12)
  */
 export const REBA_TABLE_C: number[][] = [
-  [1, 1, 1, 2, 3, 3, 4, 5, 6, 7, 7, 7],   // B점수 1
-  [1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 7, 8],   // B점수 2
-  [2, 3, 3, 3, 4, 5, 6, 7, 7, 8, 8, 8],   // B점수 3
-  [3, 4, 4, 4, 5, 6, 7, 8, 8, 9, 9, 9],   // B점수 4
-  [4, 4, 4, 5, 6, 7, 8, 8, 9, 9, 9, 9],   // B점수 5
-  [6, 6, 6, 7, 8, 8, 9, 9, 10, 10, 10, 10], // B점수 6
-  [7, 7, 7, 8, 9, 9, 9, 10, 10, 11, 11, 11], // B점수 7
-  [8, 8, 8, 9, 10, 10, 10, 10, 10, 11, 11, 11], // B점수 8
-  [9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 12], // B점수 9
-  [10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 12], // B점수 10
-  [11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12], // B점수 11
-  [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], // B점수 12
+  [1, 1, 1, 2, 3, 3, 4, 5, 6, 7, 7, 7],     // Score A = 1
+  [1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 7, 8],     // Score A = 2
+  [2, 3, 3, 3, 4, 5, 6, 7, 7, 8, 8, 8],     // Score A = 3
+  [3, 4, 4, 4, 5, 6, 7, 8, 8, 9, 9, 9],     // Score A = 4
+  [4, 4, 4, 5, 6, 7, 8, 8, 9, 9, 9, 9],     // Score A = 5
+  [6, 6, 6, 7, 8, 8, 9, 9, 10, 10, 10, 10], // Score A = 6
+  [7, 7, 7, 8, 9, 9, 9, 10, 10, 11, 11, 11], // Score A = 7
+  [8, 8, 8, 9, 10, 10, 10, 10, 10, 11, 11, 11], // Score A = 8
+  [9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 12], // Score A = 9
+  [10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 12], // Score A = 10
+  [11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12], // Score A = 11
+  [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12], // Score A = 12
 ]
 
 export interface REBAInputs {
@@ -523,51 +565,244 @@ export interface REBAInputs {
   forearmScore: number       // 전완 점수 (1-2)
   wristScore: number         // 손목 점수 (1-3)
   couplingScore: number      // 커플링 (0-3)
+
+  activityScore?: number     // 활동점수 (0-3)
+}
+
+/**
+ * REBA Table A 조회
+ */
+export function lookupRebaTableA(neck: number, trunk: number, leg: number): number {
+  const row = (Math.min(Math.max(neck, 1), 3) - 1) * 5 +
+              (Math.min(Math.max(trunk, 1), 5) - 1)
+  const col = Math.min(Math.max(leg, 1), 4) - 1
+  return REBA_TABLE_A[row]?.[col] ?? 1
+}
+
+/**
+ * REBA Table B 조회
+ */
+export function lookupRebaTableB(upperArm: number, forearm: number, wrist: number): number {
+  const row = (Math.min(Math.max(upperArm, 1), 6) - 1) * 2 +
+              (Math.min(Math.max(forearm, 1), 2) - 1)
+  const col = Math.min(Math.max(wrist, 1), 3) - 1
+  return REBA_TABLE_B[row]?.[col] ?? 1
 }
 
 /**
  * REBA 점수 계산
  */
-export function calculateREBA(inputs: REBAInputs): { score: number; level: string } {
-  // Table A 점수 (목, 몸통, 다리 조합)
-  const neckIdx = Math.min(inputs.neckScore - 1, 2)
-  const trunkIdx = Math.min(inputs.trunkScore - 1, 4)
-  const legIdx = Math.min(inputs.legScore - 1, 3)
+export function calculateREBA(inputs: REBAInputs): { score: number; level: string; scoreA: number; scoreB: number; tableAScore: number; tableBScore: number; tableCScore: number } {
+  // Table A 조회
+  const tableAScore = lookupRebaTableA(
+    inputs.neckScore, inputs.trunkScore, inputs.legScore
+  )
+  const scoreA = tableAScore + inputs.forceLoadA
 
-  // 단순화된 계산
-  let tableAScore = neckIdx + trunkIdx + legIdx + 1
-  tableAScore = Math.min(tableAScore, 12)
-
-  let scoreA = tableAScore + inputs.forceLoadA
-
-  // Table B 점수 (상완, 전완, 손목 조합)
-  const upperArmIdx = Math.min(inputs.upperArmScore - 1, 5)
-  const forearmIdx = Math.min(inputs.forearmScore - 1, 1)
-  const wristIdx = Math.min(inputs.wristScore - 1, 2)
-
-  let tableBScore = upperArmIdx + forearmIdx + wristIdx + 1
-  tableBScore = Math.min(tableBScore, 12)
-
-  let scoreB = tableBScore + inputs.couplingScore
+  // Table B 조회
+  const tableBScore = lookupRebaTableB(
+    inputs.upperArmScore, inputs.forearmScore, inputs.wristScore
+  )
+  const scoreB = tableBScore + inputs.couplingScore
 
   // Table C 조회
-  const rowIdx = Math.min(scoreA - 1, 11)
-  const colIdx = Math.min(scoreB - 1, 11)
-  const finalScore = REBA_TABLE_C[rowIdx]?.[colIdx] ?? 1
+  const rowIdx = Math.min(Math.max(scoreA, 1), 12) - 1
+  const colIdx = Math.min(Math.max(scoreB, 1), 12) - 1
+  const tableCScore = REBA_TABLE_C[rowIdx]?.[colIdx] ?? 1
 
-  // 레벨 판정
+  // 활동점수 추가
+  const activityScore = inputs.activityScore ?? 0
+  const finalScore = tableCScore + activityScore
+
+  // 조치단계 판정 (0-4)
   let level: string
-  if (finalScore <= 3) {
-    level = '안전'
+  if (finalScore === 1) {
+    level = '조치단계 0'
+  } else if (finalScore <= 3) {
+    level = '조치단계 1'
   } else if (finalScore <= 7) {
-    level = '보통'
+    level = '조치단계 2'
   } else if (finalScore <= 10) {
-    level = '위험'
+    level = '조치단계 3'
   } else {
-    level = '고위험'
+    level = '조치단계 4'
   }
 
-  return { score: finalScore, level }
+  return { score: finalScore, level, scoreA, scoreB, tableAScore, tableBScore, tableCScore }
+}
+
+// ==========================================
+// Sheet 2 각도 → RULA/REBA 신체부위 점수 변환
+// ==========================================
+
+/**
+ * RULA 상완 점수 (Sheet 2 SHOULDER_ARM 각도에서 자동 계산)
+ * 20° extension ~ 20° flexion → 1, 20°+ extension 또는 20-45° flexion → 2,
+ * 45-90° flexion → 3, 90°+ flexion → 4
+ */
+export function rulaUpperArmFromAngles(angles: ShoulderAngles): { base: number; abducted: boolean } {
+  let base: number
+  const mainAngle = Math.max(angles.flexion, angles.extension)
+  if (angles.extension > 20) {
+    base = 2
+  } else if (angles.flexion <= 20) {
+    base = 1
+  } else if (angles.flexion <= 45) {
+    base = 2
+  } else if (angles.flexion <= 90) {
+    base = 3
+  } else {
+    base = 4
+  }
+  const abducted = angles.abduction > 0 || angles.adduction > 30
+  return { base, abducted }
+}
+
+/**
+ * RULA 전완 점수 (Sheet 2 ELBOW_FOREARM 각도에서)
+ * 60-100° flexion → 1, else → 2
+ */
+export function rulaLowerArmFromAngles(angles: ElbowAngles): number {
+  if (angles.flexion >= 60 && angles.flexion <= 100) return 1
+  return 2
+}
+
+/**
+ * RULA 손목 점수 (Sheet 2 HAND_WRIST 각도에서)
+ * neutral(0°) → 1, 0-15° flex/ext → 2, 15°+ → 3
+ */
+export function rulaWristFromAngles(angles: HandWristAngles): { base: number; deviation: boolean } {
+  const mainAngle = Math.max(angles.flexion, angles.extension)
+  let base: number
+  if (mainAngle === 0) {
+    base = 1
+  } else if (mainAngle <= 15) {
+    base = 2
+  } else {
+    base = 3
+  }
+  const deviation = angles.adduction > 0 || angles.abduction > 0
+  return { base, deviation }
+}
+
+/**
+ * RULA 목 점수 (Sheet 2 NECK 각도에서)
+ * 0-10° flex → 1, 10-20° → 2, 20°+ → 3, extension → 4
+ */
+export function rulaNeckFromAngles(angles: NeckAngles): { base: number; twist: boolean; sideBend: boolean } {
+  let base: number
+  if (angles.extension > 0) {
+    base = 4
+  } else if (angles.flexion <= 10) {
+    base = 1
+  } else if (angles.flexion <= 20) {
+    base = 2
+  } else {
+    base = 3
+  }
+  const twist = angles.rotation > 0
+  const sideBend = angles.lateralTilt > 0
+  return { base, twist, sideBend }
+}
+
+/**
+ * RULA 몸통 점수 (Sheet 2 BACK_HIP 각도에서)
+ * 0° → 1, 0-20° flex → 2, 20-60° → 3, 60°+ → 4
+ */
+export function rulaTrunkFromAngles(angles: BackAngles): { base: number; twist: boolean; sideBend: boolean } {
+  let base: number
+  if (angles.flexion === 0 && angles.extension === 0) {
+    base = 1
+  } else if (angles.flexion <= 20) {
+    base = 2
+  } else if (angles.flexion <= 60) {
+    base = 3
+  } else {
+    base = 4
+  }
+  const twist = angles.rotation > 0
+  const sideBend = angles.lateralTilt > 0
+  return { base, twist, sideBend }
+}
+
+/**
+ * REBA 목 점수 (Sheet 2 NECK 각도에서)
+ * 0-20° flexion → 1, 20°+ flexion 또는 extension → 2
+ */
+export function rebaNeckFromAngles(angles: NeckAngles): { base: number; twist: boolean; sideBend: boolean } {
+  let base: number
+  if (angles.extension > 0) {
+    base = 2
+  } else if (angles.flexion <= 20) {
+    base = 1
+  } else {
+    base = 2
+  }
+  const twist = angles.rotation > 0
+  const sideBend = angles.lateralTilt > 0
+  return { base, twist, sideBend }
+}
+
+/**
+ * REBA 몸통 점수 (Sheet 2 BACK_HIP 각도에서)
+ * 0° → 1, 0-20° flex/ext → 2, 20-60° flex 또는 20°+ ext → 3, 60°+ flex → 4
+ */
+export function rebaTrunkFromAngles(angles: BackAngles): { base: number; twist: boolean; sideBend: boolean } {
+  let base: number
+  if (angles.flexion === 0 && angles.extension === 0) {
+    base = 1
+  } else if (angles.extension > 20 || angles.flexion > 60) {
+    if (angles.flexion > 60) base = 4
+    else base = 3
+  } else if (angles.flexion > 20 || angles.extension > 0) {
+    base = 3
+  } else {
+    base = 2
+  }
+  const twist = angles.rotation > 0
+  const sideBend = angles.lateralTilt > 0
+  return { base, twist, sideBend }
+}
+
+/**
+ * REBA 상완 점수 (Sheet 2 SHOULDER_ARM 각도에서)
+ * 20° ext ~ 20° flex → 1, 20°+ ext 또는 20-45° flex → 2, 45-90° flex → 3, 90°+ → 4
+ */
+export function rebaUpperArmFromAngles(angles: ShoulderAngles): { base: number; abducted: boolean } {
+  let base: number
+  if (angles.extension > 20) {
+    base = 2
+  } else if (angles.flexion <= 20) {
+    base = 1
+  } else if (angles.flexion <= 45) {
+    base = 2
+  } else if (angles.flexion <= 90) {
+    base = 3
+  } else {
+    base = 4
+  }
+  const abducted = angles.abduction > 0 || angles.adduction > 30
+  return { base, abducted }
+}
+
+/**
+ * REBA 전완 점수 (Sheet 2 ELBOW_FOREARM 각도에서)
+ * 60-100° flexion → 1, else → 2
+ */
+export function rebaLowerArmFromAngles(angles: ElbowAngles): number {
+  if (angles.flexion >= 60 && angles.flexion <= 100) return 1
+  return 2
+}
+
+/**
+ * REBA 손목 점수 (Sheet 2 HAND_WRIST 각도에서)
+ * 0-15° flex/ext → 1, 15°+ → 2
+ */
+export function rebaWristFromAngles(angles: HandWristAngles): { base: number; twist: boolean } {
+  const mainAngle = Math.max(angles.flexion, angles.extension)
+  const base = mainAngle <= 15 ? 1 : 2
+  const twist = angles.adduction > 0 || angles.abduction > 0
+  return { base, twist }
 }
 
 // ==========================================
@@ -576,7 +811,6 @@ export function calculateREBA(inputs: REBAInputs): { score: number; level: strin
 
 /**
  * 밀고당기기 - 팔 평가
- * 엑셀 수식: =IF(I12=0,"없음",IF(I12<9,"안전",IF(I12<14.5,"보통",IF(I12<23,"위험","고위험"))))
  */
 export function evaluatePushPullArm(forceKgf: number): string {
   if (forceKgf === 0) return '없음'
@@ -588,12 +822,29 @@ export function evaluatePushPullArm(forceKgf: number): string {
 
 /**
  * 밀고당기기 - 손 평가
- * 엑셀 수식: =IF(K12=0,"없음",IF(K12<5,"안전","위험"))
  */
 export function evaluatePushPullHand(forceKgf: number): string {
   if (forceKgf === 0) return '없음'
   if (forceKgf < 5) return '안전'
   return '위험'
+}
+
+/**
+ * 밀고당기기 - 손가락 평가
+ */
+export function evaluatePushPullFinger(forceKgf: number): string {
+  if (forceKgf === 0) return '없음'
+  if (forceKgf < 1) return '안전'
+  return '위험'
+}
+
+/**
+ * 밀고당기기 부위별 평가
+ */
+export function evaluatePushPull(forceKgf: number, bodyPart: 'arm' | 'hand' | 'finger'): string {
+  if (bodyPart === 'arm') return evaluatePushPullArm(forceKgf)
+  if (bodyPart === 'hand') return evaluatePushPullHand(forceKgf)
+  return evaluatePushPullFinger(forceKgf)
 }
 
 // ==========================================

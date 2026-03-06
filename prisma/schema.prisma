@@ -864,6 +864,12 @@ model ElementWork {
   rebaLevel        String?
   pushPullArm      String?                // 팔 평가결과
   pushPullHand     String?                // 손 평가결과
+  pushPullFinger   String?                // 손가락 평가결과
+
+  // 3번시트: 상세 입력값 저장 (JSON)
+  rulaInputs          Json?              // RULA 상세 입력값 (재로딩용)
+  rebaInputs          Json?              // REBA 상세 입력값 (재로딩용)
+  pushPullEvaluations Json?              // 밀고당기기 개별 측정값 평가
 
   // 3번시트: 추가입력 (체크박스)
   hasArmSupport    Boolean   @default(false)  // 팔이 지탱된 상태

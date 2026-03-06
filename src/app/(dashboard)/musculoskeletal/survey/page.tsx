@@ -192,9 +192,12 @@ interface ElementWork {
   }[]
   measurements: WorkMeasurementItem[]
   rulaScore: number | null
+  rulaLevel: string | null
   rebaScore: number | null
+  rebaLevel: string | null
   pushPullArm: string | null
   pushPullHand: string | null
+  pushPullFinger: string | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -2128,7 +2131,8 @@ function Sheet4Content({
                 const scoredParts = work.bodyPartScores.filter((s) => s.totalScore > 0)
                 const hasRulaReba =
                   work.rulaScore !== null || work.rebaScore !== null ||
-                  work.pushPullArm !== null || work.pushPullHand !== null
+                  work.pushPullArm !== null || work.pushPullHand !== null ||
+                  work.pushPullFinger !== null
 
                 return (
                   <div key={work.id} className="border rounded-lg p-4 space-y-3">
@@ -2161,22 +2165,27 @@ function Sheet4Content({
                         <div className="flex flex-wrap gap-2">
                           {work.rulaScore !== null && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              RULA {work.rulaScore}점
+                              RULA {work.rulaScore}점 {work.rulaLevel && `(${work.rulaLevel})`}
                             </span>
                           )}
                           {work.rebaScore !== null && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                              REBA {work.rebaScore}점
+                              REBA {work.rebaScore}점 {work.rebaLevel && `(${work.rebaLevel})`}
                             </span>
                           )}
                           {work.pushPullArm && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                              밀기/당기기(팔) {work.pushPullArm}
+                              밀당(팔) {work.pushPullArm}
                             </span>
                           )}
                           {work.pushPullHand && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                              밀기/당기기(손) {work.pushPullHand}
+                              밀당(손) {work.pushPullHand}
+                            </span>
+                          )}
+                          {work.pushPullFinger && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              밀당(손가락) {work.pushPullFinger}
                             </span>
                           )}
                         </div>

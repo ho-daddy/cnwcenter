@@ -57,6 +57,7 @@ export async function GET(
       rebaLevel: work.rebaLevel,
       pushPullArm: work.pushPullArm,
       pushPullHand: work.pushPullHand,
+      pushPullFinger: work.pushPullFinger,
       bodyPartScores: work.bodyPartScores.map((score) => ({
         bodyPart: score.bodyPart,
         totalScore: score.totalScore,

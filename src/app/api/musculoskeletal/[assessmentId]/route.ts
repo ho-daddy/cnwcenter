@@ -28,6 +28,9 @@ export async function GET(
             bodyPartScores: {
               select: { bodyPart: true, totalScore: true },
             },
+            measurements: {
+              orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+            },
           },
         },
         improvements: {
