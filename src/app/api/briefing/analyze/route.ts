@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
       await prisma.dailyReport.delete({
         where: { date: today },
       })
-      console.log('[Analyze] 기존 리포트 삭제 (덮어쓰기)')
     }
 
     // 오늘 수집된 필터링된 기사 조회
@@ -48,9 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Claude API로 분석
-    console.log(`[Analyze] ${articles.length}건 기사 분석 시작...`)
     const analysis = await generateBriefingAnalysis(articles)
-    console.log('[Analyze] Claude 분석 완료')
 
     // 마크다운 리포트 생성
     const reportGenerator = getReportGenerator()
@@ -59,7 +56,6 @@ export async function POST(request: NextRequest) {
       articles,
       today
     )
-    console.log(`[Analyze] 리포트 저장: ${filePath}`)
 
     // DB에 저장
     const report = await prisma.dailyReport.create({

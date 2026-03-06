@@ -138,7 +138,9 @@ export const authOptions: NextAuthOptions = {
   events: {
     // 새 사용자 생성 시 (소셜 로그인)
     async createUser({ user }) {
-      console.log(`[Auth] 새 사용자 생성: ${user.email} (승인 대기)`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Auth] 새 사용자 생성: ${user.email} (승인 대기)`)
+      }
     },
   },
 }

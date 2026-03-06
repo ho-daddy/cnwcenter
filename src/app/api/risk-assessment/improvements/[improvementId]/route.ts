@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { ImprovementStatus, HazardCategory } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { improvementId: string } }
 
@@ -24,28 +25,36 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(record.hazard.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const severity = parseInt(body.severityScore ?? record.severityScore)
-  const likelihood = parseInt(body.likelihoodScore ?? record.likelihoodScore)
-  const additional = parseInt(body.additionalPoints ?? record.additionalPoints)
-  const riskScore = calcRiskScore(record.hazard.hazardCategory, severity, likelihood, additional)
+  try {
+    const body = await parseJsonBody(req)
+    const severity = parseInt(body.severityScore ?? record.severityScore)
+    const likelihood = parseInt(body.likelihoodScore ?? record.likelihoodScore)
+    const additional = parseInt(body.additionalPoints ?? record.additionalPoints)
+    const riskScore = calcRiskScore(record.hazard.hazardCategory, severity, likelihood, additional)
 
-  const updated = await prisma.riskImprovementRecord.update({
-    where: { id: params.improvementId },
-    data: {
-      status: (body.status as ImprovementStatus) || record.status,
-      updateDate: body.updateDate ? new Date(body.updateDate) : record.updateDate,
-      improvementContent: body.improvementContent ?? record.improvementContent,
-      responsiblePerson: body.responsiblePerson ?? record.responsiblePerson,
-      severityScore: severity,
-      likelihoodScore: likelihood,
-      additionalPoints: additional,
-      riskScore,
-      remarks: body.remarks ?? record.remarks,
-    },
-  })
+    const updated = await prisma.riskImprovementRecord.update({
+      where: { id: params.improvementId },
+      data: {
+        status: (body.status as ImprovementStatus) || record.status,
+        updateDate: body.updateDate ? new Date(body.updateDate) : record.updateDate,
+        improvementContent: body.improvementContent ?? record.improvementContent,
+        responsiblePerson: body.responsiblePerson ?? record.responsiblePerson,
+        severityScore: severity,
+        likelihoodScore: likelihood,
+        additionalPoints: additional,
+        riskScore,
+        remarks: body.remarks ?? record.remarks,
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // DELETE /api/risk-assessment/improvements/[improvementId]

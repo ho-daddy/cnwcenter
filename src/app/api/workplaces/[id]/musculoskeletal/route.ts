@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkplaceAccess } from '@/lib/auth-utils'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 // 근골조사 목록 조회
 export async function GET(
@@ -91,7 +89,6 @@ export async function POST(
   }
 
   try {
-    const session = await getServerSession(authOptions)
     const body = await request.json()
     const { organizationUnitId, year, assessmentType } = body
 
@@ -147,7 +144,7 @@ export async function POST(
         year: parseInt(year),
         assessmentType,
         status: 'DRAFT',
-        createdById: session?.user?.id,
+        createdById: authCheck.user!.id,
       },
       include: {
         organizationUnit: {

@@ -2,36 +2,47 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireStaffOrAbove } from '@/lib/auth-utils'
 
-// 조직 단위의 상위 경로를 구성
-async function buildUnitPath(unitId: string): Promise<string> {
+// 조직 단위의 상위 경로를 구성 (N+1 방지: 전체 로드 후 메모리 순회)
+async function buildUnitPath(unitId: string, organizationId: string): Promise<string> {
+  const allUnits = await prisma.organizationUnit.findMany({
+    where: { organizationId },
+    select: { id: true, name: true, parentId: true },
+  })
+  const unitMap = new Map(allUnits.map(u => [u.id, u]))
   const parts: string[] = []
   let currentId: string | null = unitId
-
   while (currentId) {
-    const found: { name: string; parentId: string | null } | null = await prisma.organizationUnit.findUnique({
-      where: { id: currentId },
-      select: { name: true, parentId: true },
-    })
-    if (!found) break
-    parts.unshift(found.name)
-    currentId = found.parentId
+    const unit = unitMap.get(currentId)
+    if (!unit) break
+    parts.unshift(unit.name)
+    currentId = unit.parentId
   }
-
   return parts.join(' > ')
 }
 
-// 하위 단위 ID를 재귀적으로 수집
-async function collectDescendantIds(unitId: string): Promise<string[]> {
-  const children = await prisma.organizationUnit.findMany({
-    where: { parentId: unitId },
-    select: { id: true },
+// 하위 단위 ID를 재귀적으로 수집 (N+1 방지: 전체 로드 후 메모리 순회)
+async function collectDescendantIds(unitId: string, organizationId: string): Promise<string[]> {
+  const allUnits = await prisma.organizationUnit.findMany({
+    where: { organizationId },
+    select: { id: true, parentId: true },
   })
-
-  const ids = [unitId]
-  for (const child of children) {
-    ids.push(...(await collectDescendantIds(child.id)))
+  const childrenMap = new Map<string, string[]>()
+  for (const u of allUnits) {
+    if (u.parentId) {
+      const children = childrenMap.get(u.parentId) ?? []
+      children.push(u.id)
+      childrenMap.set(u.parentId, children)
+    }
   }
-  return ids
+  const result: string[] = []
+  const queue = [unitId]
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    result.push(current)
+    const children = childrenMap.get(current) ?? []
+    queue.push(...children)
+  }
+  return result
 }
 
 // 조직 단위 수정
@@ -106,7 +117,7 @@ export async function DELETE(
 
   try {
     // 1. 삭제 대상 단위 + 모든 하위 단위 ID 수집
-    const unitIds = await collectDescendantIds(params.unitId)
+    const unitIds = await collectDescendantIds(params.unitId, params.orgId)
 
     // 2. 해당 단위들에 연결된 조사 조회
     const assessments = await prisma.musculoskeletalAssessment.findMany({
@@ -127,7 +138,7 @@ export async function DELETE(
     // 3. 조사가 있으면 아카이브
     if (assessments.length > 0) {
       for (const assessment of assessments) {
-        const unitPath = await buildUnitPath(assessment.organizationUnitId)
+        const unitPath = await buildUnitPath(assessment.organizationUnitId, params.orgId)
 
         await prisma.archivedAssessment.create({
           data: {

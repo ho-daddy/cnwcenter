@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string } }
 
 // GET /api/surveys/[surveyId]/responses — 설문 응답 목록 (STAFF+)
 export async function GET(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'STAFF')) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
+  const auth = await requireStaffOrAbove()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   // 설문 존재 확인
   const survey = await prisma.survey.findUnique({

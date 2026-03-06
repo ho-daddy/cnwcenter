@@ -4,6 +4,7 @@ import path from 'path'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { HazardCategory } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { cardId: string; hazardId: string } }
 
@@ -49,32 +50,40 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(hazard.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const category = (body.hazardCategory ?? hazard.hazardCategory) as HazardCategory
-  const severity = parseInt(body.severityScore ?? hazard.severityScore)
-  const likelihood = parseInt(body.likelihoodScore ?? hazard.likelihoodScore)
-  const additional = parseInt(body.additionalPoints ?? hazard.additionalPoints)
-  const riskScore = calcRiskScore(category, severity, likelihood, additional)
+  try {
+    const body = await parseJsonBody(req)
+    const category = (body.hazardCategory ?? hazard.hazardCategory) as HazardCategory
+    const severity = parseInt(body.severityScore ?? hazard.severityScore)
+    const likelihood = parseInt(body.likelihoodScore ?? hazard.likelihoodScore)
+    const additional = parseInt(body.additionalPoints ?? hazard.additionalPoints)
+    const riskScore = calcRiskScore(category, severity, likelihood, additional)
 
-  const updated = await prisma.riskHazard.update({
-    where: { id: params.hazardId },
-    data: {
-      hazardCategory: category,
-      hazardFactor: body.hazardFactor,
-      severityScore: severity,
-      likelihoodScore: likelihood,
-      additionalPoints: additional,
-      additionalDetails: body.additionalDetails !== undefined ? (body.additionalDetails || null) : undefined,
-      riskScore,
-      improvementPlan: body.improvementPlan || null,
-      chemicalProductId: category === 'CHEMICAL' ? (body.chemicalProductId || null) : null,
-    },
-    include: {
-      chemicalProduct: { select: { id: true, name: true } },
-    },
-  })
+    const updated = await prisma.riskHazard.update({
+      where: { id: params.hazardId },
+      data: {
+        hazardCategory: category,
+        hazardFactor: body.hazardFactor,
+        severityScore: severity,
+        likelihoodScore: likelihood,
+        additionalPoints: additional,
+        additionalDetails: body.additionalDetails !== undefined ? (body.additionalDetails || null) : undefined,
+        riskScore,
+        improvementPlan: body.improvementPlan || null,
+        chemicalProductId: category === 'CHEMICAL' ? (body.chemicalProductId || null) : null,
+      },
+      include: {
+        chemicalProduct: { select: { id: true, name: true } },
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // DELETE /api/risk-assessment/[cardId]/hazards/[hazardId]

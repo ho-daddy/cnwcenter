@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth-utils'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { caseId: string } }
 
@@ -16,22 +17,30 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const { consultDate, consultType, content, nextAction } = body
+  try {
+    const body = await parseJsonBody(req)
+    const { consultDate, consultType, content, nextAction } = body
 
-  if (!consultDate || !consultType || !content) {
-    return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    if (!consultDate || !consultType || !content) {
+      return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    }
+
+    const consultation = await prisma.consultation.create({
+      data: {
+        caseId: params.caseId,
+        consultDate: new Date(consultDate),
+        consultType,
+        content,
+        nextAction: nextAction || null,
+      },
+    })
+
+    return NextResponse.json(consultation, { status: 201 })
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
-
-  const consultation = await prisma.consultation.create({
-    data: {
-      caseId: params.caseId,
-      consultDate: new Date(consultDate),
-      consultType,
-      content,
-      nextAction: nextAction || null,
-    },
-  })
-
-  return NextResponse.json(consultation, { status: 201 })
 }

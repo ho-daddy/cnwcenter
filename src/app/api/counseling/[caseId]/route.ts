@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth-utils'
 import { CaseStatus } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { caseId: string } }
 
@@ -41,27 +42,35 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const updated = await prisma.counselingCase.update({
-    where: { id: params.caseId },
-    data: {
-      victimName: body.victimName ?? c.victimName,
-      victimContact: body.victimContact ?? c.victimContact,
-      workplaceName: body.workplaceName !== undefined ? (body.workplaceName || null) : c.workplaceName,
-      caseType: body.caseType !== undefined ? (body.caseType || null) : c.caseType,
-      diseaseCategory: body.diseaseCategory !== undefined ? (body.diseaseCategory || null) : c.diseaseCategory,
-      accidentDate: body.accidentDate ? new Date(body.accidentDate) : c.accidentDate,
-      accidentType: body.accidentType ?? c.accidentType,
-      diagnosisDate: body.diagnosisDate !== undefined ? (body.diagnosisDate ? new Date(body.diagnosisDate) : null) : c.diagnosisDate,
-      diagnosisName: body.diagnosisName !== undefined ? (body.diagnosisName || null) : c.diagnosisName,
-      guardianName: body.guardianName !== undefined ? (body.guardianName || null) : c.guardianName,
-      guardianContact: body.guardianContact !== undefined ? (body.guardianContact || null) : c.guardianContact,
-      status: (body.status as CaseStatus) ?? c.status,
-      assignedTo: body.assignedTo ?? c.assignedTo,
-    },
-  })
+  try {
+    const body = await parseJsonBody(req)
+    const updated = await prisma.counselingCase.update({
+      where: { id: params.caseId },
+      data: {
+        victimName: body.victimName ?? c.victimName,
+        victimContact: body.victimContact ?? c.victimContact,
+        workplaceName: body.workplaceName !== undefined ? (body.workplaceName || null) : c.workplaceName,
+        caseType: body.caseType !== undefined ? (body.caseType || null) : c.caseType,
+        diseaseCategory: body.diseaseCategory !== undefined ? (body.diseaseCategory || null) : c.diseaseCategory,
+        accidentDate: body.accidentDate ? new Date(body.accidentDate) : c.accidentDate,
+        accidentType: body.accidentType ?? c.accidentType,
+        diagnosisDate: body.diagnosisDate !== undefined ? (body.diagnosisDate ? new Date(body.diagnosisDate) : null) : c.diagnosisDate,
+        diagnosisName: body.diagnosisName !== undefined ? (body.diagnosisName || null) : c.diagnosisName,
+        guardianName: body.guardianName !== undefined ? (body.guardianName || null) : c.guardianName,
+        guardianContact: body.guardianContact !== undefined ? (body.guardianContact || null) : c.guardianContact,
+        status: (body.status as CaseStatus) ?? c.status,
+        assignedTo: body.assignedTo ?? c.assignedTo,
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // DELETE /api/counseling/[caseId]

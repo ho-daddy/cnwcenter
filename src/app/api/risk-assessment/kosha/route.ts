@@ -3,7 +3,6 @@ import { requireAuth } from '@/lib/auth-utils'
 
 // KOSHA MSDS 화학물질 정보 API 프록시
 // 기존 시스템의 search_cas.php를 Next.js API Route로 이식
-const API_KEY = '03pLAEPKPmV0NHmA5F1UHY6B7Es7vzFYQoKQ1qoXKVM1HM0LqMOL9wB0jB%2BQwcVizz0su2xAbRJONRIfmNQ%2BJw%3D%3D'
 const BASE_URL = 'http://msds.kosha.or.kr/openapi/service/msdschem'
 
 function extractXmlText(xml: string, tag: string): string {
@@ -32,6 +31,9 @@ function extractAllItems(xml: string): Array<Record<string, string>> {
 export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+
+  const API_KEY = process.env.KOSHA_API_KEY
+  if (!API_KEY) return NextResponse.json({ error: 'KOSHA API 키가 설정되지 않았습니다.' }, { status: 503 })
 
   const cas = req.nextUrl.searchParams.get('cas')
   if (!cas) return NextResponse.json({ error: 'CAS 번호가 필요합니다.' }, { status: 400 })

@@ -6,6 +6,21 @@ import path from 'path'
 
 type Params = { params: { caseId: string } }
 
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/haansofthwp',
+  'application/x-hwp',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]
+const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+
 // POST /api/counseling/[caseId]/documents — 파일 업로드 (최대 10개)
 export async function POST(req: NextRequest, { params }: Params) {
   const auth = await requireAuth()
@@ -26,6 +41,16 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (c._count.documents + files.length > 10) {
     return NextResponse.json({ error: '첨부파일은 최대 10개까지 가능합니다.' }, { status: 400 })
+  }
+
+  // 파일 타입 및 크기 검증
+  for (const file of files) {
+    if (!ALLOWED_TYPES.includes(file.type) && !file.name.endsWith('.hwp')) {
+      return NextResponse.json({ error: `허용되지 않는 파일 형식입니다: ${file.name}` }, { status: 400 })
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: `파일 크기가 20MB를 초과합니다: ${file.name}` }, { status: 400 })
+    }
   }
 
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'counseling', params.caseId)

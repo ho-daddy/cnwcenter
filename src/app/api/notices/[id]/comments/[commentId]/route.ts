@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth-utils'
 
 // DELETE /api/notices/[id]/comments/[commentId] — 댓글 삭제 (본인 또는 STAFF+)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; commentId: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-  }
+  const auth = await requireAuth()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const comment = await prisma.noticeComment.findUnique({
     where: { id: params.commentId },
@@ -21,8 +18,8 @@ export async function DELETE(
     return NextResponse.json({ error: '댓글을 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  const isOwner = comment.authorId === session.user.id
-  const isStaff = session.user.role === 'SUPER_ADMIN' || session.user.role === 'STAFF'
+  const isOwner = comment.authorId === auth.user!.id
+  const isStaff = auth.user!.role === 'SUPER_ADMIN' || auth.user!.role === 'STAFF'
 
   if (!isOwner && !isStaff) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })

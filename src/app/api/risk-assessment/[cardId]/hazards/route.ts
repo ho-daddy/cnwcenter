@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { HazardCategory } from '@prisma/client'
+import { parseJsonBody, ApiError, validateEnum } from '@/lib/api-utils'
 
 type Params = { params: { cardId: string } }
 
@@ -45,38 +46,46 @@ export async function POST(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(card.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const { hazardCategory, hazardFactor, severityScore, likelihoodScore, additionalPoints, additionalDetails, improvementPlan, chemicalProductId } = body
+  try {
+    const body = await parseJsonBody(req)
+    const { hazardCategory, hazardFactor, severityScore, likelihoodScore, additionalPoints, additionalDetails, improvementPlan, chemicalProductId } = body
 
-  if (!hazardCategory || !hazardFactor || severityScore == null || likelihoodScore == null) {
-    return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    if (!hazardCategory || !hazardFactor || severityScore == null || likelihoodScore == null) {
+      return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    }
+
+    const category = validateEnum(HazardCategory, hazardCategory, '유해위험요인 분류')!
+    const severity = parseInt(severityScore)
+    const likelihood = parseInt(likelihoodScore)
+    const additional = parseInt(additionalPoints ?? 0)
+    const riskScore = calcRiskScore(category, severity, likelihood, additional)
+
+    const hazard = await prisma.riskHazard.create({
+      data: {
+        cardId: params.cardId,
+        workplaceId: card.workplaceId,
+        hazardCategory: category,
+        hazardFactor,
+        severityScore: severity,
+        likelihoodScore: likelihood,
+        additionalPoints: additional,
+        additionalDetails: additionalDetails || null,
+        riskScore,
+        improvementPlan: improvementPlan || null,
+        year: card.year,
+        chemicalProductId: category === 'CHEMICAL' ? (chemicalProductId || null) : null,
+      },
+      include: {
+        chemicalProduct: { select: { id: true, name: true } },
+      },
+    })
+
+    return NextResponse.json(hazard, { status: 201 })
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
-
-  const category = hazardCategory as HazardCategory
-  const severity = parseInt(severityScore)
-  const likelihood = parseInt(likelihoodScore)
-  const additional = parseInt(additionalPoints ?? 0)
-  const riskScore = calcRiskScore(category, severity, likelihood, additional)
-
-  const hazard = await prisma.riskHazard.create({
-    data: {
-      cardId: params.cardId,
-      workplaceId: card.workplaceId,
-      hazardCategory: category,
-      hazardFactor,
-      severityScore: severity,
-      likelihoodScore: likelihood,
-      additionalPoints: additional,
-      additionalDetails: additionalDetails || null,
-      riskScore,
-      improvementPlan: improvementPlan || null,
-      year: card.year,
-      chemicalProductId: category === 'CHEMICAL' ? (chemicalProductId || null) : null,
-    },
-    include: {
-      chemicalProduct: { select: { id: true, name: true } },
-    },
-  })
-
-  return NextResponse.json(hazard, { status: 201 })
 }

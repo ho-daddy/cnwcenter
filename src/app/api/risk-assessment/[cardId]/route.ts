@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { RiskEvaluationType } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { cardId: string } }
 
@@ -45,23 +46,31 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(card.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const updated = await prisma.riskAssessmentCard.update({
-    where: { id: params.cardId },
-    data: {
-      evaluationType: body.evaluationType as RiskEvaluationType,
-      evaluationReason: body.evaluationType === 'OCCASIONAL' ? body.evaluationReason : null,
-      workerName: body.workerName,
-      evaluatorName: body.evaluatorName,
-      dailyWorkingHours: body.dailyWorkingHours || null,
-      dailyProduction: body.dailyProduction || null,
-      annualWorkingDays: body.annualWorkingDays || null,
-      workCycle: body.workCycle || null,
-      workDescription: body.workDescription,
-    },
-  })
+  try {
+    const body = await parseJsonBody(req)
+    const updated = await prisma.riskAssessmentCard.update({
+      where: { id: params.cardId },
+      data: {
+        evaluationType: body.evaluationType as RiskEvaluationType,
+        evaluationReason: body.evaluationType === 'OCCASIONAL' ? body.evaluationReason : null,
+        workerName: body.workerName,
+        evaluatorName: body.evaluatorName,
+        dailyWorkingHours: body.dailyWorkingHours || null,
+        dailyProduction: body.dailyProduction || null,
+        annualWorkingDays: body.annualWorkingDays || null,
+        workCycle: body.workCycle || null,
+        workDescription: body.workDescription,
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // DELETE /api/risk-assessment/[cardId]

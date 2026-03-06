@@ -345,6 +345,7 @@ model CollectionLog {
 
   @@index([sourceId])
   @@index([createdAt])
+  @@index([status])
 }
 
 // 일일 리포트 (AI 분석 결과)
@@ -817,6 +818,7 @@ model MusculoskeletalAssessment {
   @@index([organizationUnitId])
   @@index([year])
   @@index([status])
+  @@index([createdById])
 }
 
 // 아카이브된 조사 (조직 단위 삭제 시 백업)

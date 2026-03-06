@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { QuestionType } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string; sectionId: string; questionId: string } }
 
@@ -20,10 +20,8 @@ const VALID_QUESTION_TYPES: QuestionType[] = [
 
 // PUT /api/surveys/[surveyId]/sections/[sectionId]/questions/[questionId] — 질문 수정
 export async function PUT(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'STAFF')) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
+  const auth = await requireStaffOrAbove()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },
@@ -46,38 +44,44 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '질문을 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  const body = await req.json()
-  const { questionCode, questionText, questionType, required, options, conditionalLogic } = body
+  try {
+    const body = await parseJsonBody(req)
+    const { questionCode, questionText, questionType, required, options, conditionalLogic } = body
 
-  if (questionText !== undefined && (typeof questionText !== 'string' || questionText.trim().length === 0)) {
-    return NextResponse.json({ error: '질문 내용을 입력해주세요.' }, { status: 400 })
+    if (questionText !== undefined && (typeof questionText !== 'string' || questionText.trim().length === 0)) {
+      return NextResponse.json({ error: '질문 내용을 입력해주세요.' }, { status: 400 })
+    }
+
+    if (questionType !== undefined && !VALID_QUESTION_TYPES.includes(questionType as QuestionType)) {
+      return NextResponse.json({ error: '유효하지 않은 질문 유형입니다.' }, { status: 400 })
+    }
+
+    const updated = await prisma.surveyQuestion.update({
+      where: { id: params.questionId },
+      data: {
+        ...(questionCode !== undefined && { questionCode: questionCode?.trim() || null }),
+        ...(questionText !== undefined && { questionText: questionText.trim() }),
+        ...(questionType !== undefined && { questionType: questionType as QuestionType }),
+        ...(required !== undefined && { required }),
+        ...(options !== undefined && { options: options ?? null }),
+        ...(conditionalLogic !== undefined && { conditionalLogic: conditionalLogic ?? null }),
+      },
+    })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
-
-  if (questionType !== undefined && !VALID_QUESTION_TYPES.includes(questionType as QuestionType)) {
-    return NextResponse.json({ error: '유효하지 않은 질문 유형입니다.' }, { status: 400 })
-  }
-
-  const updated = await prisma.surveyQuestion.update({
-    where: { id: params.questionId },
-    data: {
-      ...(questionCode !== undefined && { questionCode: questionCode?.trim() || null }),
-      ...(questionText !== undefined && { questionText: questionText.trim() }),
-      ...(questionType !== undefined && { questionType: questionType as QuestionType }),
-      ...(required !== undefined && { required }),
-      ...(options !== undefined && { options: options ?? null }),
-      ...(conditionalLogic !== undefined && { conditionalLogic: conditionalLogic ?? null }),
-    },
-  })
-
-  return NextResponse.json(updated)
 }
 
 // DELETE /api/surveys/[surveyId]/sections/[sectionId]/questions/[questionId] — 질문 삭제
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'STAFF')) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
+  const auth = await requireStaffOrAbove()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },

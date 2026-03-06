@@ -66,8 +66,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log(`[Register] 새 사용자 등록: ${email} (승인 대기)`)
-
     return NextResponse.json({
       success: true,
       message: '회원가입이 완료되었습니다. 관리자 승인을 기다려주세요.',

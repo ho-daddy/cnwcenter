@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireWorkplaceAccess } from '@/lib/auth-utils'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import path from 'path'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { id: string; assessmentId: string; workId: string; measurementId: string } }
 
@@ -20,19 +21,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '측정을 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  const body = await req.json()
-  const measurement = await prisma.workMeasurement.update({
-    where: { id: params.measurementId },
-    data: {
-      name: body.name ?? existing.name,
-      weight: body.weight !== undefined ? (body.weight != null ? parseFloat(body.weight) : null) : existing.weight,
-      force: body.force !== undefined ? (body.force != null ? parseFloat(body.force) : null) : existing.force,
-      frequency: body.frequency !== undefined ? (body.frequency != null ? parseInt(body.frequency) : null) : existing.frequency,
-      exposureHours: body.exposureHours !== undefined ? (body.exposureHours != null ? parseFloat(body.exposureHours) : null) : existing.exposureHours,
-    },
-  })
+  try {
+    const body = await parseJsonBody(req)
+    const measurement = await prisma.workMeasurement.update({
+      where: { id: params.measurementId },
+      data: {
+        name: body.name ?? existing.name,
+        weight: body.weight !== undefined ? (body.weight != null ? parseFloat(body.weight) : null) : existing.weight,
+        force: body.force !== undefined ? (body.force != null ? parseFloat(body.force) : null) : existing.force,
+        frequency: body.frequency !== undefined ? (body.frequency != null ? parseInt(body.frequency) : null) : existing.frequency,
+        exposureHours: body.exposureHours !== undefined ? (body.exposureHours != null ? parseFloat(body.exposureHours) : null) : existing.exposureHours,
+      },
+    })
 
-  return NextResponse.json(measurement)
+    return NextResponse.json(measurement)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // POST - 측정 사진 업로드

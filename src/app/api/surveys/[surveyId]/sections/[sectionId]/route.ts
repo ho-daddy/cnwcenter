@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string; sectionId: string } }
 
 // PUT /api/surveys/[surveyId]/sections/[sectionId] — 섹션 수정
 export async function PUT(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'STAFF')) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
+  const auth = await requireStaffOrAbove()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },
@@ -32,33 +30,39 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '섹션을 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  const body = await req.json()
-  const { title, description } = body
+  try {
+    const body = await parseJsonBody(req)
+    const { title, description } = body
 
-  if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
-    return NextResponse.json({ error: '섹션 제목을 입력해주세요.' }, { status: 400 })
+    if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
+      return NextResponse.json({ error: '섹션 제목을 입력해주세요.' }, { status: 400 })
+    }
+
+    const updated = await prisma.surveySection.update({
+      where: { id: params.sectionId },
+      data: {
+        ...(title !== undefined && { title: title.trim() }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+      },
+      include: {
+        questions: { orderBy: { sortOrder: 'asc' } },
+      },
+    })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
-
-  const updated = await prisma.surveySection.update({
-    where: { id: params.sectionId },
-    data: {
-      ...(title !== undefined && { title: title.trim() }),
-      ...(description !== undefined && { description: description?.trim() || null }),
-    },
-    include: {
-      questions: { orderBy: { sortOrder: 'asc' } },
-    },
-  })
-
-  return NextResponse.json(updated)
 }
 
 // DELETE /api/surveys/[surveyId]/sections/[sectionId] — 섹션 삭제 (질문 포함 cascade)
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'STAFF')) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
-  }
+  const auth = await requireStaffOrAbove()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },

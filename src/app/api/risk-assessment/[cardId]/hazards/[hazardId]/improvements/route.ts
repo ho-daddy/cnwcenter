@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { ImprovementStatus, HazardCategory } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { cardId: string; hazardId: string } }
 
@@ -47,32 +48,40 @@ export async function POST(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(hazard.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const { status, updateDate, improvementContent, responsiblePerson, severityScore, likelihoodScore, additionalPoints, remarks } = body
+  try {
+    const body = await parseJsonBody(req)
+    const { status, updateDate, improvementContent, responsiblePerson, severityScore, likelihoodScore, additionalPoints, remarks } = body
 
-  if (!updateDate || !improvementContent || !responsiblePerson || severityScore == null || likelihoodScore == null) {
-    return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    if (!updateDate || !improvementContent || !responsiblePerson || severityScore == null || likelihoodScore == null) {
+      return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    }
+
+    const severity = parseInt(severityScore)
+    const likelihood = parseInt(likelihoodScore)
+    const additional = parseInt(additionalPoints ?? 0)
+    const riskScore = calcRiskScore(hazard.hazardCategory, severity, likelihood, additional)
+
+    const improvement = await prisma.riskImprovementRecord.create({
+      data: {
+        hazardId: params.hazardId,
+        status: (status as ImprovementStatus) || 'PLANNED',
+        updateDate: new Date(updateDate),
+        improvementContent,
+        responsiblePerson,
+        severityScore: severity,
+        likelihoodScore: likelihood,
+        additionalPoints: additional,
+        riskScore,
+        remarks: remarks || null,
+      },
+    })
+
+    return NextResponse.json(improvement, { status: 201 })
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
-
-  const severity = parseInt(severityScore)
-  const likelihood = parseInt(likelihoodScore)
-  const additional = parseInt(additionalPoints ?? 0)
-  const riskScore = calcRiskScore(hazard.hazardCategory, severity, likelihood, additional)
-
-  const improvement = await prisma.riskImprovementRecord.create({
-    data: {
-      hazardId: params.hazardId,
-      status: (status as ImprovementStatus) || 'PLANNED',
-      updateDate: new Date(updateDate),
-      improvementContent,
-      responsiblePerson,
-      severityScore: severity,
-      likelihoodScore: likelihood,
-      additionalPoints: additional,
-      riskScore,
-      remarks: remarks || null,
-    },
-  })
-
-  return NextResponse.json(improvement, { status: 201 })
 }

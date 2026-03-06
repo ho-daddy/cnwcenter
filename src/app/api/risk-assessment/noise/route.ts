@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, getAccessibleWorkplaceIds } from '@/lib/auth-utils'
 import { Prisma, NoisePeriod } from '@prisma/client'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 // GET /api/risk-assessment/noise — 소음 측정 목록
 export async function GET(req: NextRequest) {
@@ -53,14 +54,14 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth()
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
-  const body = await req.json()
-  const { organizationUnitId, year, period, measurementValue, notes } = body
-
-  if (!organizationUnitId || !year || !period || measurementValue == null) {
-    return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
-  }
-
   try {
+    const body = await parseJsonBody(req)
+    const { organizationUnitId, year, period, measurementValue, notes } = body
+
+    if (!organizationUnitId || !year || !period || measurementValue == null) {
+      return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
+    }
+
     const measurement = await prisma.noiseMeasurement.upsert({
       where: {
         organizationUnitId_year_period: {
@@ -82,8 +83,11 @@ export async function POST(req: NextRequest) {
       },
     })
     return NextResponse.json(measurement, { status: 201 })
-  } catch (e: unknown) {
-    console.error(e)
-    return NextResponse.json({ error: '소음 측정값 저장 중 오류가 발생했습니다.' }, { status: 500 })
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
   }
 }

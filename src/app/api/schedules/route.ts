@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser, requireStaffOrAbove } from '@/lib/auth-utils'
 import { ScheduleType } from '@prisma/client'
+import { validateEnum } from '@/lib/api-utils'
 
 // 일정 목록 조회 (모든 승인된 사용자 조회 가능)
 export async function GET(request: NextRequest) {
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
         isAllDay: isAllDay || false,
         location: location || null,
         isOnline: isOnline || false,
-        scheduleType: (scheduleType as ScheduleType) || 'GENERAL',
+        scheduleType: validateEnum(ScheduleType, scheduleType, '일정유형') ?? 'GENERAL',
         relatedId: relatedId || null,
         userId: authCheck.user!.id,
       },

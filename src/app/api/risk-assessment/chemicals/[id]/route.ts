@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
+import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
 type Params = { params: { id: string } }
 
@@ -45,44 +46,52 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const access = await requireWorkplaceAccess(product.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
 
-  const body = await req.json()
-  const { name, manufacturer, description, components } = body
-  if (!name) return NextResponse.json({ error: '제품명은 필수입니다.' }, { status: 400 })
+  try {
+    const body = await parseJsonBody(req)
+    const { name, manufacturer, description, components } = body
+    if (!name) return NextResponse.json({ error: '제품명은 필수입니다.' }, { status: 400 })
 
-  const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
-  const scores = compArr.map(c => c.severityScore ?? 1)
-  const severityScore = scores.length > 0 ? Math.max(...scores) : null
+    const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
+    const scores = compArr.map(c => c.severityScore ?? 1)
+    const severityScore = scores.length > 0 ? Math.max(...scores) : null
 
-  const updated = await prisma.$transaction(async (tx) => {
-    await tx.productComponent.deleteMany({ where: { productId: params.id } })
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.productComponent.deleteMany({ where: { productId: params.id } })
 
-    for (const comp of compArr) {
-      const component = await tx.chemicalComponent.upsert({
-        where: { casNumber: comp.casNumber },
-        create: { casNumber: comp.casNumber, name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-        update: { name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-      })
-      await tx.productComponent.create({
-        data: {
-          productId: params.id,
-          componentId: component.id,
-          concentration: comp.concentration || null,
-          severityScore: comp.severityScore ?? 1,
+      for (const comp of compArr) {
+        const component = await tx.chemicalComponent.upsert({
+          where: { casNumber: comp.casNumber },
+          create: { casNumber: comp.casNumber, name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
+          update: { name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
+        })
+        await tx.productComponent.create({
+          data: {
+            productId: params.id,
+            componentId: component.id,
+            concentration: comp.concentration || null,
+            severityScore: comp.severityScore ?? 1,
+          },
+        })
+      }
+
+      return tx.chemicalProduct.update({
+        where: { id: params.id },
+        data: { name, manufacturer: manufacturer || null, description: description || null, severityScore },
+        include: {
+          workplace: { select: { id: true, name: true } },
+          components: { include: { component: true } },
         },
       })
-    }
-
-    return tx.chemicalProduct.update({
-      where: { id: params.id },
-      data: { name, manufacturer: manufacturer || null, description: description || null, severityScore },
-      include: {
-        workplace: { select: { id: true, name: true } },
-        components: { include: { component: true } },
-      },
     })
-  })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
+    console.error('[API Error]', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
 }
 
 // DELETE /api/risk-assessment/chemicals/[id]
