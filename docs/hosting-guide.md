@@ -9,7 +9,7 @@
 | CPU | 2 vCPU | 4 vCPU |
 | RAM | 4 GB | 8 GB |
 | 스토리지 | 40 GB SSD | 80 GB SSD |
-| OS | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
+| OS | Ubuntu 22.04 LTS | Ubuntu 24.04 LTS |
 | 네트워크 | 1Gbps, 무제한 트래픽 | 1Gbps, 무제한 트래픽 |
 
 > **RAM 4GB 필수 이유**: Playwright(Chromium) 브리핑 스크래핑이 ~500MB 메모리 사용, PostgreSQL + Node.js + Next.js 서버 동시 운영
@@ -166,23 +166,28 @@ nano .env
 **.env 파일 설정:**
 
 ```bash
-# 필수 변경 항목
+# === 필수 변경 항목 ===
 DATABASE_URL="postgresql://cnwuser:강력한비밀번호@localhost:5432/cnwcenter?schema=public"
 NEXTAUTH_URL="https://saewoomter.org"  # 실제 도메인
 NEXTAUTH_SECRET="openssl rand -base64 32 결과값"
 
-# 선택 항목
+# === 선택 항목 ===
 GOOGLE_CLIENT_ID="Google OAuth 클라이언트 ID"
 GOOGLE_CLIENT_SECRET="Google OAuth 시크릿"
 BRIEFING_COLLECT_SECRET="브리핑수집용시크릿키"
 ANTHROPIC_API_KEY="sk-ant-..."
+
+# === 외부 API ===
+KOSHA_API_KEY=""  # 안전보건공단 MSDS 화학물질 조회 API 키
 ```
+
+> **KOSHA_API_KEY**: 위험성평가 > 화학물질에서 안전보건공단 MSDS 데이터를 조회할 때 사용. 미설정 시 해당 기능만 비활성화되며 앱 전체 동작에는 영향 없음.
 
 ```bash
 # DB 마이그레이션 및 시드
 npx prisma db push
 npx prisma generate
-npm run db:seed
+npm run db:seed  # 관리자 계정(admin@saewoomter.org / admin1234) + 설문 템플릿 3종
 
 # 프로덕션 빌드
 npm run build
@@ -190,6 +195,8 @@ npm run build
 # 테스트 실행 (포트 3000)
 npm start
 ```
+
+> **첫 배포 후**: 반드시 웹에서 관리자 계정으로 로그인하여 비밀번호를 변경하세요.
 
 ### Phase 6: PM2 프로세스 매니저
 
@@ -267,10 +274,13 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/saewoomter.org/privkey.pem;
 
     # 보안 헤더
+    # (Next.js에서 poweredByHeader: false로 X-Powered-By 헤더 이미 제거됨)
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
     # 업로드 크기 제한 (첨부파일)
     client_max_body_size 50M;
@@ -359,9 +369,12 @@ git pull origin main
 # 의존성 업데이트
 npm ci
 
-# Prisma 스키마 동기화
+# Prisma 스키마 동기화 (인덱스 변경 포함)
 npx prisma db push
 npx prisma generate
+
+# Playwright Chromium 최신화 (브리핑 스크래핑용)
+npx playwright install chromium
 
 # 프로덕션 빌드
 npm run build
@@ -392,20 +405,24 @@ cd /home/deploy/cnwcenter
 | Phase 2 | Node.js 20 LTS 설치 확인 | ☐ |
 | Phase 3 | PostgreSQL 15 동작, cnwcenter DB 생성 | ☐ |
 | Phase 4 | Playwright Chromium 설치, 한글 폰트 | ☐ |
-| Phase 5 | .env 설정, DB 시드, npm run build 성공 | ☐ |
+| Phase 5 | .env 설정 (KOSHA_API_KEY 포함), DB 시드, npm run build 성공 | ☐ |
 | Phase 6 | PM2 시작, pm2 startup 등록 | ☐ |
 | Phase 7 | Nginx 프록시, SSL 인증서 발급, HTTPS 접속 | ☐ |
 | Phase 8 | 브리핑 cron 등록, 수동 실행 테스트 | ☐ |
 | Phase 9 | deploy.sh 스크립트 실행 테스트 | ☐ |
+| 보안 | 관리자 초기 비밀번호 변경 (admin1234 → 강력한 비밀번호) | ☐ |
+| 보안 | uploads 디렉토리 권한 확인 (750) | ☐ |
 
 ---
 
 ## 4. 운영 관리 명령어
 
+### 기본 상태 확인
+
 ```bash
 # 앱 상태 확인
 pm2 status
-pm2 logs cnwcenter
+pm2 logs cnwcenter --lines 50
 
 # 앱 재시작
 pm2 restart cnwcenter
@@ -417,34 +434,116 @@ sudo nginx -t && sudo systemctl reload nginx
 # PostgreSQL 상태
 sudo systemctl status postgresql
 
-# 디스크 사용량
-df -h
+# 시스템 리소스
+df -h          # 디스크 사용량
+free -h        # 메모리 사용량
+htop           # CPU/메모리 실시간 모니터링
+```
 
-# 메모리 사용량
-free -h
+### DB 백업 & 복원
 
+```bash
 # DB 백업 (수동)
 pg_dump -U cnwuser cnwcenter > backup_$(date +%Y%m%d).sql
 
 # DB 복원
 psql -U cnwuser cnwcenter < backup_20260306.sql
+
+# 자동 백업 cron 추가 (매일 새벽 2시)
+# crontab -e 에 아래 추가:
+0 2 * * * pg_dump -U cnwuser cnwcenter | gzip > /home/deploy/backups/cnwcenter_$(date +\%Y\%m\%d).sql.gz 2>&1
+# 30일 이상 된 백업 자동 삭제
+0 3 * * * find /home/deploy/backups -name "*.sql.gz" -mtime +30 -delete
+```
+
+```bash
+# 백업 디렉토리 생성
+mkdir -p /home/deploy/backups
+```
+
+### 로그 관리
+
+```bash
+# PM2 로그 확인
+pm2 logs cnwcenter --err --lines 100    # 에러 로그만
+pm2 logs cnwcenter --out --lines 100    # 출력 로그만
+
+# 브리핑 cron 로그 확인
+tail -f /home/deploy/cnwcenter/logs/briefing-cron.log
+
+# PM2 로그 로테이션 설정
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 10M
+pm2 set pm2-logrotate:retain 7
+```
+
+### 트러블슈팅
+
+```bash
+# 빌드 후 스타일 깨질 때
+pm2 stop cnwcenter
+rm -rf /home/deploy/cnwcenter/.next
+cd /home/deploy/cnwcenter && npm run build
+pm2 start cnwcenter
+
+# Prisma 클라이언트 오류 시
+npx prisma generate
+pm2 restart cnwcenter
+
+# Playwright 스크래핑 실패 시 (Chromium 관련)
+npx playwright install chromium --with-deps
 ```
 
 ---
 
 ## 5. 보안 체크리스트
 
+### 서버 보안
+
 - [ ] SSH 비밀번호 인증 비활성화 (키 인증만)
 - [ ] root 원격 로그인 비활성화
 - [ ] UFW 방화벽 활성화 (22, 80, 443만 허용)
-- [ ] .env 파일 권한 제한 (`chmod 600 .env`)
-- [ ] NEXTAUTH_SECRET 강력한 랜덤값 사용
-- [ ] PostgreSQL 비밀번호 강력한 값 사용
-- [ ] 정기 시스템 업데이트 (`sudo apt update && sudo apt upgrade`)
-- [ ] DB 정기 백업 스크립트 구성
 - [ ] fail2ban 설치 (SSH 브루트포스 방지)
+- [ ] 정기 시스템 업데이트 (`sudo apt update && sudo apt upgrade`)
 
 ```bash
 sudo apt install fail2ban -y
 sudo systemctl enable fail2ban
+```
+
+### 애플리케이션 보안
+
+- [ ] `.env` 파일 권한 제한 (`chmod 600 .env`)
+- [ ] `NEXTAUTH_SECRET` 강력한 랜덤값 사용 (`openssl rand -base64 32`)
+- [ ] PostgreSQL 비밀번호 강력한 값 사용
+- [ ] 관리자 초기 비밀번호 변경 (시드 기본값 `admin1234` → 즉시 변경)
+- [ ] `KOSHA_API_KEY` 등 외부 API 키가 소스코드에 하드코딩되지 않았는지 확인
+- [ ] `uploads/` 디렉토리 권한 확인 (`chmod 750`, 소유자: deploy)
+
+### 내장 보안 기능 (코드에 이미 적용됨)
+
+아래 보안 기능은 코드 레벨에서 이미 적용되어 있으며, 별도 설정 불필요:
+
+| 기능 | 설명 | 위치 |
+|------|------|------|
+| **X-Powered-By 제거** | `poweredByHeader: false`로 기술스택 노출 방지 | `next.config.js` |
+| **API 인증 공통화** | 모든 API에 `requireAuth()` / `requireStaffOrAbove()` 패턴 적용 | `src/lib/auth-utils.ts` |
+| **API 공통 에러 처리** | `parseJsonBody()`, `handleApiError()` 등 6개 공통 유틸 | `src/lib/api-utils.ts` |
+| **파일 업로드 검증** | 파일 타입 화이트리스트 + 최대 20MB 크기 제한 | 각 upload API route |
+| **Enum 검증** | `validateEnum()`으로 서버 측 입력값 검증 | API route 내 사용 |
+| **경합조건 방지** | 케이스 번호 자동생성 시 unique constraint 재시도 (최대 3회) | `counseling/route.ts` |
+| **에러 페이지** | 404, 500, global-error, dashboard-error 4종 | `src/app/` |
+| **RBAC 미들웨어** | 역할(SUPER_ADMIN/STAFF/WORKPLACE_USER) + 상태(APPROVED) 기반 라우트 보호 | `src/middleware.ts` |
+| **이미지 최적화** | AVIF + WebP 포맷 자동 변환 | `next.config.js` |
+
+### DB 보안 & 성능
+
+- [ ] DB 정기 백업 스크립트 구성 (아래 운영 관리 섹션 참고)
+- [ ] PostgreSQL 외부 접속 차단 (localhost만 허용, 기본값)
+
+아래 인덱스는 Prisma 스키마에 이미 포함되어 `prisma db push` 시 자동 생성됨:
+
+```
+MusculoskeletalAssessment: @@index([createdById])  — 조사자 기준 조회 최적화
+CollectionLog: @@index([status])                   — 브리핑 수집 상태 필터링 최적화
 ```
