@@ -15,7 +15,9 @@ import {
   Save,
   X,
 } from 'lucide-react'
-import { OrganizationUnitWithChildren, LEVEL_LABELS } from '@/types/workplace'
+import { OrganizationUnitWithChildren } from '@/types/workplace'
+import type { DropPreview } from './organization-tree'
+import { ArrowRight, CornerDownRight } from 'lucide-react'
 
 interface OrganizationUnitItemProps {
   unit: OrganizationUnitWithChildren
@@ -27,6 +29,7 @@ interface OrganizationUnitItemProps {
   workplaceId: string
   orgId: string
   onRefresh: () => void
+  nestPreview?: DropPreview | null
 }
 
 export function OrganizationUnitItem({
@@ -39,6 +42,7 @@ export function OrganizationUnitItem({
   workplaceId,
   orgId,
   onRefresh,
+  nestPreview,
 }: OrganizationUnitItemProps) {
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -51,7 +55,6 @@ export function OrganizationUnitItem({
 
   const [addForm, setAddForm] = useState({
     name: '',
-    level: Math.min(unit.level + 1, 5),
     isLeaf: false,
   })
 
@@ -144,7 +147,6 @@ export function OrganizationUnitItem({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: addForm.name,
-            level: addForm.level,
             parentId: unit.id,
             isLeaf: addForm.isLeaf,
           }),
@@ -153,7 +155,7 @@ export function OrganizationUnitItem({
 
       if (res.ok) {
         setAdding(false)
-        setAddForm({ name: '', level: Math.min(unit.level + 1, 5), isLeaf: false })
+        setAddForm({ name: '', isLeaf: false })
         onRefresh()
       } else {
         const data = await res.json()
@@ -203,7 +205,9 @@ export function OrganizationUnitItem({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div className={`p-2 rounded-lg border ${levelColor} flex items-center gap-2`}>
+      <div className={`p-2 rounded-lg border ${levelColor} flex items-center gap-2 transition-shadow ${
+        nestPreview ? (nestPreview.error ? 'ring-2 ring-red-300' : 'ring-2 ring-blue-400 shadow-md') : ''
+      }`}>
         <button
           {...attributes}
           {...listeners}
@@ -265,6 +269,34 @@ export function OrganizationUnitItem({
         </div>
       </div>
 
+      {/* 드롭 대상 미리보기 인디케이터 */}
+      {nestPreview && (
+        <div className={`ml-6 mt-1 p-2 rounded-lg border-2 border-dashed text-sm flex items-center gap-2 transition-all ${
+          nestPreview.error
+            ? 'border-red-300 bg-red-50 text-red-600'
+            : 'border-blue-300 bg-blue-50 text-blue-700'
+        }`}>
+          <CornerDownRight className="h-4 w-4 flex-shrink-0" />
+          {nestPreview.error ? (
+            <span>{nestPreview.error}</span>
+          ) : (
+            <span>
+              하위 단위로 이동
+              {nestPreview.levelDelta !== 0 && (
+                <span className="ml-1 inline-flex items-center gap-0.5">
+                  (<ArrowRight className="h-3 w-3 inline" /> {nestPreview.newLevel}단계)
+                </span>
+              )}
+              {nestPreview.descendantCount > 0 && (
+                <span className="text-gray-500 ml-1">
+                  (+{nestPreview.descendantCount}개 하위 단위 포함)
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* 하위 단위 추가 폼 */}
       {adding && (
         <div className="ml-8 mt-1 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -277,19 +309,9 @@ export function OrganizationUnitItem({
               className="flex-1 px-2 py-1 border rounded text-sm"
               autoFocus
             />
-            <select
-              value={addForm.level}
-              onChange={(e) => setAddForm({ ...addForm, level: parseInt(e.target.value) })}
-              className="px-2 py-1 border rounded text-sm"
-            >
-              {[unit.level + 1, unit.level + 2, unit.level + 3, unit.level + 4]
-                .filter((l) => l >= 1 && l <= 5)
-                .map((l) => (
-                  <option key={l} value={l}>
-                    {l}단계
-                  </option>
-                ))}
-            </select>
+            <span className="px-2 py-1 bg-white border rounded text-sm text-gray-600">
+              {unit.level + 1}단계
+            </span>
             <label className="flex items-center gap-1 text-sm">
               <input
                 type="checkbox"

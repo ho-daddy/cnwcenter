@@ -43,33 +43,49 @@ export async function POST(
     const body = await request.json()
     const { name, level, parentId, isLeaf } = body
 
-    if (!name || level === undefined) {
+    if (!name) {
       return NextResponse.json(
-        { error: '이름과 단계는 필수입니다.' },
+        { error: '이름은 필수입니다.' },
         { status: 400 }
       )
     }
 
-    if (level < 1 || level > 5) {
-      return NextResponse.json(
-        { error: '단계는 1~5 사이여야 합니다.' },
-        { status: 400 }
-      )
-    }
+    let finalLevel: number
 
-    // 부모가 지정된 경우 부모의 레벨 확인
     if (parentId) {
+      // 하위 단위: 부모 레벨 + 1로 자동 설정
       const parent = await prisma.organizationUnit.findUnique({
         where: { id: parentId },
       })
       if (!parent) {
         return NextResponse.json({ error: '부모 조직을 찾을 수 없습니다.' }, { status: 400 })
       }
-      if (parent.level >= level) {
+      finalLevel = parent.level + 1
+      if (finalLevel > 5) {
         return NextResponse.json(
-          { error: '하위 단계는 상위 단계보다 커야 합니다.' },
+          { error: '최대 5단계까지만 생성할 수 있습니다.' },
           { status: 400 }
         )
+      }
+    } else {
+      // 최상위 단위: 기존 루트와 동일한 레벨 강제
+      const existingRoots = await prisma.organizationUnit.findMany({
+        where: { organizationId: params.orgId, parentId: null },
+        select: { level: true },
+        take: 1,
+      })
+
+      if (existingRoots.length > 0) {
+        finalLevel = existingRoots[0].level
+      } else {
+        // 첫 루트 단위: 사용자가 지정한 레벨 사용 (기본값 1)
+        finalLevel = parseInt(level) || 1
+        if (finalLevel < 1 || finalLevel > 5) {
+          return NextResponse.json(
+            { error: '단계는 1~5 사이여야 합니다.' },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -84,7 +100,7 @@ export async function POST(
         organizationId: params.orgId,
         parentId: parentId || null,
         name,
-        level: parseInt(level),
+        level: finalLevel,
         sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
         isLeaf: isLeaf || false,
       },

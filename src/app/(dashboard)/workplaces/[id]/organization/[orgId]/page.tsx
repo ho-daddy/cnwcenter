@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,6 +33,12 @@ export default function OrganizationEditPage() {
     isLeaf: false,
   })
 
+  // 기존 루트 단위들의 레벨 감지 (모두 동일해야 함)
+  const existingRootLevel = useMemo(() => {
+    if (units.length === 0) return null
+    return units[0].level
+  }, [units])
+
   const fetchOrganization = async () => {
     try {
       const res = await fetch(`/api/workplaces/${workplaceId}/organizations/${orgId}`)
@@ -50,6 +56,13 @@ export default function OrganizationEditPage() {
     fetchOrganization()
   }, [workplaceId, orgId])
 
+  // 루트 레벨이 감지되면 폼의 레벨을 자동 설정
+  useEffect(() => {
+    if (existingRootLevel !== null) {
+      setNewUnitForm((prev) => ({ ...prev, level: existingRootLevel }))
+    }
+  }, [existingRootLevel])
+
   const handleAddRootUnit = async () => {
     if (!newUnitForm.name.trim()) {
       alert('조직 단위명은 필수입니다.')
@@ -65,7 +78,7 @@ export default function OrganizationEditPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: newUnitForm.name,
-            level: newUnitForm.level,
+            level: existingRootLevel ?? newUnitForm.level,
             parentId: null,
             isLeaf: newUnitForm.isLeaf,
           }),
@@ -74,7 +87,7 @@ export default function OrganizationEditPage() {
 
       if (res.ok) {
         setAddingRoot(false)
-        setNewUnitForm({ name: '', level: 1, isLeaf: false })
+        setNewUnitForm({ name: '', level: existingRootLevel ?? 1, isLeaf: false })
         fetchOrganization()
       } else {
         const data = await res.json()
@@ -151,17 +164,24 @@ export default function OrganizationEditPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">단계</label>
-                <select
-                  value={newUnitForm.level}
-                  onChange={(e) => setNewUnitForm({ ...newUnitForm, level: parseInt(e.target.value) })}
-                  className="px-3 py-2 border rounded-lg"
-                >
-                  {[1, 2, 3, 4, 5].map((l) => (
-                    <option key={l} value={l}>
-                      {LEVEL_LABELS[l]}
-                    </option>
-                  ))}
-                </select>
+                {existingRootLevel !== null ? (
+                  <div className="px-3 py-2 bg-white border rounded-lg text-gray-600">
+                    {LEVEL_LABELS[existingRootLevel]}
+                    <span className="ml-1 text-xs text-gray-400">(고정)</span>
+                  </div>
+                ) : (
+                  <select
+                    value={newUnitForm.level}
+                    onChange={(e) => setNewUnitForm({ ...newUnitForm, level: parseInt(e.target.value) })}
+                    className="px-3 py-2 border rounded-lg"
+                  >
+                    {[1, 2, 3, 4, 5].map((l) => (
+                      <option key={l} value={l}>
+                        {LEVEL_LABELS[l]}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <label className="flex items-center gap-2 pb-2">
                 <input
@@ -189,7 +209,7 @@ export default function OrganizationEditPage() {
           <div className="flex items-center justify-between">
             <CardTitle>조직 구조</CardTitle>
             <div className="text-sm text-gray-500">
-              드래그하여 순서를 변경할 수 있습니다
+              드래그하여 순서 변경 또는 다른 단위로 이동할 수 있습니다
             </div>
           </div>
         </CardHeader>
@@ -198,7 +218,7 @@ export default function OrganizationEditPage() {
             <div className="py-12 text-center text-gray-500">
               <FolderTree className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>조직 단위가 없습니다.</p>
-              <p className="text-sm">위의 "최상위 단위 추가" 버튼을 눌러 시작하세요.</p>
+              <p className="text-sm">위의 &quot;최상위 단위 추가&quot; 버튼을 눌러 시작하세요.</p>
             </div>
           ) : (
             <OrganizationTree
@@ -239,6 +259,9 @@ export default function OrganizationEditPage() {
               <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">대상</span>
               <span>평가 대상 단위</span>
             </div>
+          </div>
+          <div className="mt-3 text-xs text-gray-400">
+            같은 부모 내 드래그: 순서 변경 | 다른 단위 위 드래그: 하위로 이동 | 하단 드롭존: 최상위로 이동
           </div>
         </CardContent>
       </Card>
