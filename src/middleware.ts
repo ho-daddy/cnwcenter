@@ -24,6 +24,7 @@ const PUBLIC_PATHS = [
   '/register',
   '/pending-approval',
   '/api/auth',
+  '/api/briefing',  // 브리핑 자동 수집/분석
   '/s/',           // 공개 설문 URL
 ]
 
