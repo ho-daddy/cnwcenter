@@ -145,3 +145,98 @@ npm ERR! code ENOENT
 - Next.js 공식 문서: https://nextjs.org/docs
 - Prisma 공식 문서: https://www.prisma.io/docs
 - Tailwind CSS 공식 문서: https://tailwindcss.com/docs
+
+---
+
+## 프로덕션 배포 가이드
+
+### 서버 배포 스크립트
+
+ 스크립트를 사용하여 자동 배포:
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+**스크립트 내용:**
+- Git에서 최신 코드 pull
+- 의존성 업데이트 (npm ci)
+- Prisma 스키마 동기화
+- 프로덕션 빌드
+- PM2로 앱 재시작
+
+### PM2 프로세스 관리
+
+```bash
+# 앱 시작
+pm2 start ecosystem.config.js
+
+# 앱 재시작
+pm2 restart cnwcenter
+
+# 로그 확인
+pm2 logs cnwcenter
+
+# 상태 확인
+pm2 status
+```
+
+---
+
+## 자동 브리핑 수집 설정 (Cron)
+
+매일 자동으로 노동안전 뉴스 브리핑을 수집하고 AI 분석을 실행합니다.
+
+### Cron 설정 방법
+
+1. **Crontab 편집:**
+```bash
+crontab -e
+```
+
+2. **다음 내용 추가:**
+```cron
+# 매일 오전 6시 브리핑 수집
+0 6 * * * curl -s -X POST https://yourdomain.com/api/briefing/collect -H Content-Type: application/json -H x-api-key: YOUR_SECRET_KEY >> /home/deploy/cnwcenter/logs/briefing-cron.log 2>&1
+
+# 매일 오전 6시 30분 AI 분석
+30 6 * * * curl -s -X POST https://yourdomain.com/api/briefing/analyze -H Content-Type: application/json -H x-api-key: YOUR_SECRET_KEY >> /home/deploy/cnwcenter/logs/briefing-cron.log 2>&1
+```
+
+3. **.env에서 API 키 확인:**
+```bash
+grep BRIEFING_COLLECT_SECRET .env
+```
+
+4. **로그 확인:**
+```bash
+tail -f ~/cnwcenter/logs/briefing-cron.log
+```
+
+### 중요 사항
+
+- **API 키 인증:** Cron 작업은 `x-api-key` 헤더로 인증합니다
+- **Public Path:** `/api/briefing`은 middleware에서 공개 경로로 설정되어 있습니다
+- **로그 저장:** 모든 실행 결과는 `logs/briefing-cron.log`에 저장됩니다
+
+---
+
+## 환경변수 (프로덕션)
+
+프로덕션 서버의 `.env` 파일에 다음 설정 필요:
+
+```env
+# 브리핑 자동 수집 보안 키
+BRIEFING_COLLECT_SECRET=cnw-briefing-your-secret-key
+
+# Anthropic API (AI 분석)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Google OAuth (로그인)
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+
+# 화학물질 정보 API
+KOSHA_API_KEY=...
+```
