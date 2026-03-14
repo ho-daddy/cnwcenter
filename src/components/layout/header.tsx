@@ -94,6 +94,14 @@ export function Header() {
                       {ROLE_LABELS[session.user.role]}
                     </div>
                   </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <User className="w-4 h-4" />
+                    내 정보
+                  </Link>
                   {session.user.role === 'SUPER_ADMIN' && (
                     <Link
                       href="/settings"

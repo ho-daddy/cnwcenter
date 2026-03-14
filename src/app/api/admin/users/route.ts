@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         image: true,
+        phone: true,
+        organization: true,
         role: true,
         status: true,
         approvedAt: true,
