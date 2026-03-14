@@ -119,13 +119,13 @@ export async function DELETE(
     // 1. 삭제 대상 단위 + 모든 하위 단위 ID 수집
     const unitIds = await collectDescendantIds(params.unitId, params.orgId)
 
-    // 2. 해당 단위들에 연결된 조사 조회
+    // 2. 해당 단위들에 연결된 근골조사 조회
     const assessments = await prisma.musculoskeletalAssessment.findMany({
       where: { organizationUnitId: { in: unitIds } },
       include: {
         organizationUnit: { select: { name: true } },
         elementWorks: {
-          include: { bodyPartScores: true },
+          include: { bodyPartScores: true, measurements: true },
         },
         improvements: true,
         attachments: true,
@@ -135,7 +135,7 @@ export async function DELETE(
 
     let archivedCount = 0
 
-    // 3. 조사가 있으면 아카이브
+    // 3. 근골조사 아카이브
     if (assessments.length > 0) {
       for (const assessment of assessments) {
         const unitPath = await buildUnitPath(assessment.organizationUnitId, params.orgId)
@@ -143,6 +143,7 @@ export async function DELETE(
         await prisma.archivedAssessment.create({
           data: {
             workplaceId: params.id,
+            dataType: 'MUSCULOSKELETAL',
             unitName: assessment.organizationUnit.name,
             unitPath,
             assessmentData: JSON.parse(JSON.stringify(assessment)),
@@ -150,13 +151,54 @@ export async function DELETE(
             assessmentType: assessment.assessmentType,
             originalAssessmentId: assessment.id,
             archivedReason: '조직 단위 삭제',
+            deletedById: authCheck.user!.id,
           },
         })
         archivedCount++
       }
 
-      // 4. 조사 삭제 (cascade로 elementWorks, bodyPartScores, improvements, attachments도 삭제)
       await prisma.musculoskeletalAssessment.deleteMany({
+        where: { organizationUnitId: { in: unitIds } },
+      })
+    }
+
+    // 4. 해당 단위들에 연결된 위험성평가 조회 및 아카이브
+    const riskCards = await prisma.riskAssessmentCard.findMany({
+      where: { organizationUnitId: { in: unitIds } },
+      include: {
+        organizationUnit: { select: { name: true } },
+        photos: true,
+        hazards: {
+          include: {
+            photos: true,
+            improvements: { include: { photos: true, files: true } },
+          },
+        },
+      },
+    })
+
+    if (riskCards.length > 0) {
+      for (const card of riskCards) {
+        const unitPath = await buildUnitPath(card.organizationUnitId, params.orgId)
+
+        await prisma.archivedAssessment.create({
+          data: {
+            workplaceId: params.id,
+            dataType: 'RISK_ASSESSMENT',
+            unitName: card.organizationUnit.name,
+            unitPath,
+            assessmentData: JSON.parse(JSON.stringify(card)),
+            year: card.year,
+            assessmentType: card.evaluationType,
+            originalAssessmentId: card.id,
+            archivedReason: '조직 단위 삭제',
+            deletedById: authCheck.user!.id,
+          },
+        })
+        archivedCount++
+      }
+
+      await prisma.riskAssessmentCard.deleteMany({
         where: { organizationUnitId: { in: unitIds } },
       })
     }

@@ -22,6 +22,9 @@ model User {
   approvedBy      String?
   rejectedAt      DateTime?
   rejectedReason  String?
+  phone           String?     // 전화번호
+  organization    String?     // 소속사업장
+  privacyAgreedAt DateTime?   // 개인정보 수집·이용 동의 일시
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -35,6 +38,7 @@ model User {
   notices         Notice[]                               // 공지사항 작성
   noticeComments  NoticeComment[]                        // 공지사항 댓글
   surveys         Survey[]                               // 설문조사 (작성자)
+  archivedDeletions ArchivedAssessment[]                 // 삭제한 아카이브
 }
 
 enum UserRole {
@@ -312,15 +316,19 @@ model NewsBriefing {
   url             String?
   linkHash        String    @unique // URL 해시 (중복 방지)
   priority        String?   // critical/high/medium/low/none
-  matchedKeywords String?   @db.Text // 매칭된 키워드 (JSON 배열)
-  publishedAt     DateTime
-  collectedAt     DateTime  @default(now())
-  createdAt       DateTime  @default(now())
+  matchedKeywords  String?   @db.Text // 매칭된 키워드 (JSON 배열)
+  relevanceScore   Int?      // AI 관련성 점수 (0-100)
+  relevanceReason  String?   @db.Text // AI 판단 이유
+  isRelevant       Boolean   @default(true) // 브리핑 포함 여부 (70점 이상)
+  publishedAt      DateTime
+  collectedAt      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
 
   @@index([publishedAt])
   @@index([sourceId])
   @@index([linkHash])
   @@index([priority])
+  @@index([isRelevant])
 }
 
 // 수집 상태
@@ -821,23 +829,28 @@ model MusculoskeletalAssessment {
   @@index([createdById])
 }
 
-// 아카이브된 조사 (조직 단위 삭제 시 백업)
+// 아카이브된 데이터 (삭제 시 백업)
 model ArchivedAssessment {
   id                   String   @id @default(cuid())
   workplaceId          String
   workplace            Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
 
+  dataType             String   @default("MUSCULOSKELETAL")  // MUSCULOSKELETAL | RISK_ASSESSMENT | RISK_HAZARD | RISK_IMPROVEMENT | ELEMENT_WORK
   unitName             String              // 삭제된 조직 단위명
   unitPath             String              // "생산본부 > 조립팀 > 나사조립"
-  assessmentData       Json                // 조사 전체 데이터 (JSON 스냅샷)
-  year                 Int                 // 조사년도
-  assessmentType       String              // 정기조사, 수시조사
-  originalAssessmentId String              // 원본 조사 ID (참조용)
+  assessmentData       Json                // 전체 데이터 (JSON 스냅샷)
+  year                 Int                 // 조사/평가 년도
+  assessmentType       String              // 정기조사, 수시조사 등
+  originalAssessmentId String              // 원본 ID (참조용)
   archivedAt           DateTime @default(now())
-  archivedReason       String?             // "조직 단위 삭제" 등
+  archivedReason       String?             // "조직 단위 삭제", "직접 삭제" 등
+  deletedById          String?
+  deletedBy            User?    @relation(fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([workplaceId])
   @@index([year])
+  @@index([dataType])
+  @@index([deletedById])
 }
 
 // 요소작업 모델 (요소작업당 1개 = 2,3번시트)
