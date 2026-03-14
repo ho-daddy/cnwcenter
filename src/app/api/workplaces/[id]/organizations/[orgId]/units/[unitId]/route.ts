@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess } from '@/lib/auth-utils'
 
 // 조직 단위의 상위 경로를 구성 (N+1 방지: 전체 로드 후 메모리 순회)
 async function buildUnitPath(unitId: string, organizationId: string): Promise<string> {
@@ -50,7 +50,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; orgId: string; unitId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장의 조직 단위 수정 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -110,7 +111,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; orgId: string; unitId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장의 조직 단위 삭제 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

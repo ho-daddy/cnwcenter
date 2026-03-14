@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireWorkplaceAccess } from '@/lib/auth-utils'
 
 // 조직 단위 순서/부모/레벨 변경 (드래그앤드롭용)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string; orgId: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  // WORKPLACE_USER도 할당된 사업장의 조직 단위 순서 변경 가능
+  const authCheck = await requireWorkplaceAccess(params.id)
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
