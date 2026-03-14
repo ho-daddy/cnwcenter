@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import {
   ArrowLeft,
   FileText,
@@ -120,7 +121,7 @@ export default function MSReportPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">보고서 생성</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">보고서 생성 <HelpTooltip content="사업장과 연도를 선택한 후 원하는 보고서 유형의 다운로드 버튼을 클릭하세요." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">
             근골격계유해요인조사 결과를 PDF 또는 Excel로 내보냅니다
           </p>

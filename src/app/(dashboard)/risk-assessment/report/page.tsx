@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, FileText, Download, Loader2 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface Workplace { id: string; name: string }
@@ -100,7 +101,7 @@ export default function RiskAssessmentReportPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">보고서 생성</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">보고서 생성 <HelpTooltip content="사업장과 연도를 선택한 후 원하는 보고서 유형의 다운로드 버튼을 클릭하세요." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">위험성평가 결과를 PDF 보고서로 출력합니다</p>
         </div>
       </div>

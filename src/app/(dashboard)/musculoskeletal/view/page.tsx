@@ -7,6 +7,7 @@ import {
   AlertTriangle, Loader2, ExternalLink,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // ─── Types ───
 interface Workplace { id: string; name: string }
@@ -167,7 +168,7 @@ export default function ViewPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">모아 보기</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">모아 보기 <HelpTooltip content="모든 사업장의 근골조사 결과를 사업장·연도·상태·관리등급별로 필터링하여 확인할 수 있습니다." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">전체 근골조사 결과 필터링·분석</p>
         </div>
       </div>

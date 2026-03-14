@@ -9,6 +9,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { PhotoLightbox } from '@/components/ui/photo-lightbox'
 import ImprovementPanel from '@/components/risk-assessment/ImprovementPanel'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import {
   getRiskLevel, HAZARD_CATEGORY_LABELS, EVALUATION_TYPE_LABELS, formatAdditionalDetails,
 } from '@/lib/risk-assessment'
@@ -255,7 +256,7 @@ export default function ViewPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">모아 보기</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">모아 보기 <HelpTooltip content="모든 사업장의 위험요인을 한 곳에서 필터링·정렬하여 분석할 수 있습니다." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">전체 유해위험요인 필터링·정렬 분석</p>
         </div>
       </div>

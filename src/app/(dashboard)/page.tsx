@@ -90,10 +90,11 @@ export default async function DashboardPage() {
     prisma.dailyReport.findUnique({
       where: { date: today },
     }),
-    // 최근 7일간 기사 조회 (최신순 정렬)
+    // 최근 7일간 관련 기사만 조회 (최신순 정렬)
     prisma.newsBriefing.findMany({
       where: {
         collectedAt: { gte: subDays(new Date(), 7) },
+        isRelevant: true,
       },
       orderBy: { publishedAt: 'desc' },
       take: 10,

@@ -7,6 +7,7 @@ import {
   HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS, getRiskLevel,
 } from '@/lib/risk-assessment'
 import ImprovementPanel from '@/components/risk-assessment/ImprovementPanel'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ export default function ImprovementPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">개선관리</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">개선관리 <HelpTooltip content="위험요인에 대한 개선계획을 수립하고 이행 현황을 관리합니다. 개선 완료 시 위험성 점수가 재산정됩니다." /></h1>
         <p className="text-sm text-gray-500 mt-0.5">유해위험요인 개선작업 현황 및 이력 관리</p>
       </div>
 

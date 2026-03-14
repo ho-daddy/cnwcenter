@@ -12,6 +12,7 @@ import {
   Filter,
   Building2,
 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 interface Improvement {
   id: string
@@ -73,7 +74,7 @@ export default function ImprovementPage() {
       {/* 페이지 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">개선작업</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">개선작업 <HelpTooltip content="근골조사에서 도출된 모든 개선과제를 한 곳에서 조회하고 진행 상태를 관리합니다." /></h1>
           <p className="text-sm text-gray-500 mt-1">
             근골격계유해요인조사에서 도출된 개선과제를 관리합니다.
           </p>

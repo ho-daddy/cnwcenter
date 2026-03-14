@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Volume2, Plus, Trash2, Building2, ChevronRight, ChevronDown, FolderTree } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface Workplace { id: string; name: string }
@@ -125,7 +126,7 @@ export default function RegistrationPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">소음 등록</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">소음 등록 <HelpTooltip content="작업환경측정 결과의 소음 측정값(dB)을 평가단위별로 등록합니다. 위험성평가 소음 카테고리에 반영됩니다." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">평가단위별 소음 측정값 등록 관리</p>
         </div>
         <Volume2 className="w-6 h-6 text-teal-600 ml-auto" />

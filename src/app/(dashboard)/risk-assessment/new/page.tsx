@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 interface Workplace {
   id: string
@@ -108,7 +109,7 @@ export default function NewRiskAssessmentPage() {
         <Link href="/risk-assessment" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">새 위험성평가 작성</h1>
+        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-1.5">새 위험성평가 작성 <HelpTooltip content="평가카드를 새로 생성합니다. 사업장과 조직 단위를 선택한 뒤 기본 정보를 입력해주세요." /></h1>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
@@ -119,7 +120,7 @@ export default function NewRiskAssessmentPage() {
         {/* 사업장 + 평가단위 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">사업장 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">사업장 <span className="text-red-500">*</span> <HelpTooltip content="위험성평가를 실시할 사업장을 선택하세요." side="right" /></label>
             <select
               value={form.workplaceId}
               onChange={(e) => { set('workplaceId', e.target.value); set('organizationUnitId', '') }}
@@ -131,7 +132,7 @@ export default function NewRiskAssessmentPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">조직 단위 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">조직 단위 <span className="text-red-500">*</span> <HelpTooltip content="조직도에서 평가할 부서/공정을 선택하세요. 말단 조직만 선택 가능합니다." side="right" /></label>
             <select
               value={form.organizationUnitId}
               onChange={(e) => set('organizationUnitId', e.target.value)}
@@ -164,7 +165,7 @@ export default function NewRiskAssessmentPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">평가 구분 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">평가 구분 <span className="text-red-500">*</span> <HelpTooltip content="정기조사: 매년 실시하는 정기 위험성평가\n수시조사: 사고 발생, 공정 변경 등 사유 발생 시 실시" side="right" /></label>
             <select
               value={form.evaluationType}
               onChange={(e) => set('evaluationType', e.target.value)}
@@ -194,7 +195,7 @@ export default function NewRiskAssessmentPage() {
         {/* 작업자 + 평가자 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">작업자 성명 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">작업자 성명 <span className="text-red-500">*</span> <HelpTooltip content="해당 작업을 수행하는 작업자의 이름을 입력하세요." side="right" /></label>
             <input
               type="text"
               value={form.workerName}
@@ -217,7 +218,7 @@ export default function NewRiskAssessmentPage() {
 
         {/* 작업 정보 */}
         <div className="border-t border-gray-100 pt-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">작업 정보</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">작업 정보 <HelpTooltip content="작업의 시간, 생산량, 근무일수 등 기본 정보를 입력하세요. 위험성 추정에 참고됩니다." /></h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">1일 작업시간</label>
@@ -248,7 +249,7 @@ export default function NewRiskAssessmentPage() {
 
         {/* 작업 내용 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">작업 내용 <span className="text-red-500">*</span></label>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">작업 내용 <span className="text-red-500">*</span> <HelpTooltip content="해당 공정/부서에서 수행하는 주요 작업을 구체적으로 기술해주세요." side="right" /></label>
           <textarea
             value={form.workDescription}
             onChange={(e) => set('workDescription', e.target.value)}

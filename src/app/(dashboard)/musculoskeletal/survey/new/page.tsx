@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Loader2,
 } from 'lucide-react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // Suspense boundary로 감싸기 위한 래퍼
 export default function NewSurveyPageWrapper() {
@@ -257,7 +258,7 @@ function NewSurveyPage() {
           뒤로
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">새 조사 시작</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">새 조사 시작 <HelpTooltip content="조직도에서 조사 대상 평가단위를 선택하고, 조사 구분과 연도를 설정한 후 생성하세요." /></h1>
           <p className="text-sm text-gray-500 mt-1">
             {workplace?.name} - 평가대상 단위를 선택하세요.
           </p>
@@ -316,8 +317,8 @@ function NewSurveyPage() {
 
               {/* 조사 유형 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  조사 유형
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  조사 유형 <HelpTooltip content="정기조사: 3년마다 실시하는 정기 근골조사\n수시조사: 근골질환자 발생, 작업 변경 등 사유 발생 시 실시" side="right" />
                 </label>
                 <select
                   value={assessmentType}

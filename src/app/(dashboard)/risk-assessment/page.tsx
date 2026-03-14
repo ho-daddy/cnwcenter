@@ -12,6 +12,7 @@ import {
   BarChart3, Wrench, Database, ChevronRight,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { HAZARD_CATEGORY_LABELS, HAZARD_CATEGORY_COLORS } from '@/lib/risk-assessment'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +63,10 @@ export default async function RiskAssessmentDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">위험성평가</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">
+            위험성평가
+            <HelpTooltip content="사업장의 유해·위험요인을 파악하고 위험성을 추정·결정하여 감소대책을 수립하는 과정입니다." />
+          </h1>
           <p className="text-sm text-gray-500 mt-1">{currentYear}년 현황</p>
         </div>
         <Link
@@ -79,7 +83,7 @@ export default async function RiskAssessmentDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">평가카드</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">평가카드 <HelpTooltip content="평가단위(조직/공정)별로 작성하는 위험성평가 기본 문서입니다." side="right" /></p>
                 <p className="text-3xl font-bold text-gray-900">{totalCards}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
@@ -94,7 +98,7 @@ export default async function RiskAssessmentDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">위험요인</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">위험요인 <HelpTooltip content="작업 중 발생할 수 있는 유해·위험 요소입니다. 위험성 점수가 9점 이상이면 '높음'으로 분류됩니다." side="right" /></p>
                 <p className="text-3xl font-bold text-gray-900">{totalHazards}</p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
@@ -110,7 +114,7 @@ export default async function RiskAssessmentDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">개선 예정</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">개선 예정 <HelpTooltip content="위험요인에 대해 수립된 개선계획 중 아직 완료되지 않은 건수입니다." side="right" /></p>
                 <p className="text-3xl font-bold text-amber-600">{plannedCount}</p>
               </div>
               <div className="p-3 bg-amber-100 rounded-full">
@@ -215,7 +219,7 @@ export default async function RiskAssessmentDashboard() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">빠른 접근</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-1.5">빠른 접근 <HelpTooltip content="위험성평가 주요 기능으로 바로 이동할 수 있습니다." /></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

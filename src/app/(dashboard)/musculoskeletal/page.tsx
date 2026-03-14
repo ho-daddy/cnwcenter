@@ -17,6 +17,7 @@ import {
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 async function getMusculoskeletalStats() {
   const currentYear = new Date().getFullYear()
@@ -93,7 +94,10 @@ export default async function MusculoskeletalDashboard() {
       {/* 페이지 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">근골격계유해요인조사</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">
+            근골격계유해요인조사
+            <HelpTooltip content="작업자의 근골격계 부담작업 여부를 조사하고, 유해요인을 파악하여 개선대책을 수립하는 과정입니다." />
+          </h1>
           <p className="text-sm text-gray-500 mt-1">{currentYear}년 조사 현황</p>
         </div>
         <Link
@@ -111,7 +115,7 @@ export default async function MusculoskeletalDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">전체 조사</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">전체 조사 <HelpTooltip content="올해 생성된 근골조사 건의 총 수입니다." side="right" /></p>
                 <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
@@ -125,7 +129,7 @@ export default async function MusculoskeletalDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">진행중</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">진행중 <HelpTooltip content="작성중이거나 조사가 진행 중인 건수입니다." side="right" /></p>
                 <p className="text-3xl font-bold text-orange-600">
                   {stats.draft + stats.inProgress}
                 </p>
@@ -259,7 +263,7 @@ export default async function MusculoskeletalDashboard() {
       {/* 빠른 링크 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">빠른 접근</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-1.5">빠른 접근 <HelpTooltip content="근골조사 주요 기능으로 바로 이동할 수 있습니다." /></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
