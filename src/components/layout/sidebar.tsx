@@ -83,10 +83,8 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     })
   }
 
-  // 관리자 메뉴 (SUPER_ADMIN 또는 STAFF)
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
-    items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
-  }
+  // 사업장 관리 (모든 역할 - WORKPLACE_USER는 자기 사업장만 관리 가능)
+  items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
 
   // 휴지통 (모든 역할)
   items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
