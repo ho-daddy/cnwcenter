@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Building2, ChevronRight, ChevronDown, Plus, FolderTree,
@@ -17,6 +17,7 @@ import {
 import { PhotoUploader } from '@/components/ui/photo-uploader'
 import ImprovementPanel from '@/components/risk-assessment/ImprovementPanel'
 import type { ImprovementPanelHazard } from '@/components/risk-assessment/ImprovementPanel'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // ───────── Types ─────────
 interface Workplace { id: string; name: string }
@@ -92,6 +93,7 @@ export default function ConductPage() {
 
 function ConductPageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const deepLinkCardId = searchParams.get('cardId')
   const pendingCardIdRef = useRef<string | null>(deepLinkCardId)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -257,6 +259,22 @@ function ConductPageInner() {
     }
   }, [selectedCard])
 
+  const handleDeleteCard = useCallback(async () => {
+    if (!selectedCard) return
+    if (!confirm('이 평가와 포함된 모든 유해위험요인이 삭제됩니다. 계속하시겠습니까?')) return
+    try {
+      const res = await fetch(`/api/risk-assessment/${selectedCard.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/risk-assessment')
+      } else {
+        const data = await res.json()
+        alert(data.error || '삭제 중 오류가 발생했습니다.')
+      }
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.')
+    }
+  }, [selectedCard, router])
+
   const handleImprovementUpdate = useCallback((hazardId: string, improvements: { id: string; status: string }[]) => {
     setHazards(prev => prev.map(h => h.id === hazardId ? { ...h, improvements } : h))
   }, [])
@@ -264,7 +282,7 @@ function ConductPageInner() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">평가 실시</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">평가 실시 <HelpTooltip content="사업장 → 조직 단위 → 평가카드를 선택하여 위험요인을 등록하고 점수를 산정합니다." /></h1>
         <p className="text-sm text-gray-500 mt-1">사업장과 평가단위를 선택하여 위험성평가를 진행하세요.</p>
       </div>
 
@@ -374,7 +392,7 @@ function ConductPageInner() {
             </CardHeader>
             <CardContent className="p-4">
               {activeTab === 'overview' ? (
-                <CardOverviewTab card={selectedCard} onUpdate={handleCardUpdated} />
+                <CardOverviewTab card={selectedCard} onUpdate={handleCardUpdated} onDeleteCard={handleDeleteCard} />
               ) : (
                 <HazardListTab
                   hazards={hazards} isLoading={isLoadingHazards}
@@ -591,7 +609,7 @@ function CardPanel({
 }
 
 // ───────── CardOverviewTab ─────────
-function CardOverviewTab({ card, onUpdate }: { card: RiskCard; onUpdate: (c: RiskCard) => void }) {
+function CardOverviewTab({ card, onUpdate, onDeleteCard }: { card: RiskCard; onUpdate: (c: RiskCard) => void; onDeleteCard: () => void }) {
   const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [form, setForm] = useState({
@@ -645,10 +663,14 @@ function CardOverviewTab({ card, onUpdate }: { card: RiskCard; onUpdate: (c: Ris
   if (!editing) {
     return (
       <div className="space-y-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <button onClick={() => setEditing(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
             <Edit2 className="w-3.5 h-3.5" />수정
+          </button>
+          <button onClick={onDeleteCard}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-200 rounded text-red-600 hover:bg-red-50">
+            <Trash2 className="w-3.5 h-3.5" />삭제
           </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -949,6 +971,7 @@ function HazardWizardModal({
           <h2 className="font-semibold text-gray-900">
             {editingHazard ? '유해위험요인 수정' : '유해위험요인 추가'}
             {category && <span className="ml-2 text-sm font-normal text-gray-500">— {HAZARD_CATEGORY_LABELS[category]}</span>}
+            {!category && <HelpTooltip content="작업 중 발생할 수 있는 위험요인의 유형을 선택하세요. 유형에 따라 점수 산정 기준이 다릅니다." className="ml-1" />}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5 text-gray-400" /></button>
         </div>
@@ -1074,7 +1097,7 @@ function ScorePreview({ severity, likelihood, additional, category }: {
   const level = getRiskLevel(score)
   return (
     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-      <p className="text-sm font-medium text-gray-700">위험성 점수 계산 결과</p>
+      <p className="text-sm font-medium text-gray-700 flex items-center gap-1">위험성 점수 계산 결과 <HelpTooltip content="16점 이상: 매우높음\n11~15점: 높음\n6~10점: 보통\n5점 이하: 낮음" side="right" /></p>
       {category !== 'ABSOLUTE' ? (
         <p className="text-xs text-gray-500">중대성({severity}) × 가능성({likelihood}) + 추가({additional}) = <strong>{score}점</strong></p>
       ) : (
