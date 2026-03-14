@@ -13,14 +13,19 @@ import {
   Building2,
   MoreVertical,
   Loader2,
+  Eye,
+  Trash2,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { UserDetailModal } from '@/components/admin/user-detail-modal'
 
 interface UserData {
   id: string
   email: string
   name: string | null
   image: string | null
+  phone: string | null
+  organization: string | null
   role: UserRole
   status: UserStatus
   approvedAt: string | null
@@ -57,6 +62,7 @@ const ROLE_LABELS: Record<UserRole, { label: string; color: string; icon: React.
 export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null)
   const [showWorkplaceMenu, setShowWorkplaceMenu] = useState<string | null>(null)
 
@@ -343,26 +349,38 @@ export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
                       {formatDate(user.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {user.status === 'PENDING' && (
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleApprove(user.id)}
-                            disabled={loadingAction !== null}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleReject(user.id)}
-                            disabled={loadingAction !== null}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        {user.status === 'PENDING' ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleApprove(user.id)}
+                              disabled={loadingAction !== null}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleReject(user.id)}
+                              disabled={loadingAction !== null}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedUser(user)
+                            setShowDetailModal(true)
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -371,6 +389,20 @@ export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* 사용자 상세정보 모달 */}
+      {selectedUser && (
+        <UserDetailModal
+          user={selectedUser}
+          workplaces={workplaces}
+          open={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedUser(null)
+          }}
+          onRefresh={onRefresh}
+        />
+      )}
     </div>
   )
 }
