@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getActiveSources } from './sources'
 import { createScraper, isSourceSupported } from './scrapers/scraper-registry'
 import { calculatePriority, findMatchedKeywords } from './keywords'
+import { analyzeRelevanceBatch, isScoreRelevant } from './relevance-analyzer'
 import { CollectionResult, FilteredArticle } from '@/types/briefing'
 
 export interface CollectionSummary {
@@ -128,7 +129,57 @@ export async function runCollection(): Promise<CollectionSummary> {
     await new Promise((resolve) => setTimeout(resolve, 1000))
   }
 
+  // 수집 완료 후 관련성 분석 (relevanceScore가 없는 기사만)
+  await analyzeNewArticles()
+
   return { results, totalCollected, totalFiltered }
+}
+
+/**
+ * relevanceScore가 없는 새 기사들을 AI로 관련성 분석
+ */
+async function analyzeNewArticles(): Promise<void> {
+  const unscored = await prisma.newsBriefing.findMany({
+    where: { relevanceScore: null },
+    select: { id: true, title: true, content: true },
+  })
+
+  if (unscored.length === 0) {
+    console.log('[Collector] 분석 대상 기사 없음')
+    return
+  }
+
+  console.log(`[Collector] AI 관련성 분석 시작: ${unscored.length}건`)
+
+  // 10건씩 배치 처리 (API 토큰 한도 고려)
+  const BATCH_SIZE = 10
+  for (let i = 0; i < unscored.length; i += BATCH_SIZE) {
+    const batch = unscored.slice(i, i + BATCH_SIZE)
+    const results = await analyzeRelevanceBatch(
+      batch.map((a) => ({ title: a.title, content: a.content }))
+    )
+
+    // 결과를 DB에 업데이트
+    await Promise.all(
+      batch.map((article, idx) => {
+        const { score, reason } = results[idx]
+        return prisma.newsBriefing.update({
+          where: { id: article.id },
+          data: {
+            relevanceScore: score,
+            relevanceReason: reason,
+            isRelevant: isScoreRelevant(score),
+          },
+        })
+      })
+    )
+
+    console.log(
+      `[Collector] 배치 ${Math.floor(i / BATCH_SIZE) + 1} 완료: ${batch.length}건`
+    )
+  }
+
+  console.log('[Collector] AI 관련성 분석 완료')
 }
 
 /**
@@ -142,6 +193,7 @@ export async function getTodayFilteredArticles(): Promise<FilteredArticle[]> {
     where: {
       collectedAt: { gte: today },
       priority: { not: 'none' },
+      isRelevant: true,
     },
     orderBy: [
       { priority: 'asc' }, // critical이 먼저

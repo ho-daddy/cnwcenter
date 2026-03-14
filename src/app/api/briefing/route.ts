@@ -15,12 +15,12 @@ export async function GET(request: NextRequest) {
 
     const [items, total] = await Promise.all([
       prisma.newsBriefing.findMany({
-        where: { publishedAt: { gte: from, lte: to } },
+        where: { publishedAt: { gte: from, lte: to }, isRelevant: true },
         orderBy: { publishedAt: 'desc' },
         take: limit,
       }),
       prisma.newsBriefing.count({
-        where: { publishedAt: { gte: from, lte: to } },
+        where: { publishedAt: { gte: from, lte: to }, isRelevant: true },
       }),
     ])
 
