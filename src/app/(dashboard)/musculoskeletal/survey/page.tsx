@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import {
   OCCASIONAL_REASON_OPTIONS,
   WORK_DAYS_OPTIONS,
@@ -240,6 +241,7 @@ export default function SurveyListPage() {
 
 function SurveyListPageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const deepLinkAssessmentId = searchParams.get('assessmentId')
   const pendingAssessmentIdRef = useRef<string | null>(deepLinkAssessmentId)
 
@@ -482,6 +484,25 @@ function SurveyListPageInner() {
     }
   }
 
+  const handleDeleteAssessment = async () => {
+    if (!selectedAssessment || !selectedWorkplace) return
+    if (!confirm('이 조사와 포함된 모든 요소작업이 삭제됩니다. 계속하시겠습니까?')) return
+    try {
+      const res = await fetch(
+        `/api/workplaces/${selectedWorkplace.id}/musculoskeletal/${selectedAssessment.id}`,
+        { method: 'DELETE' }
+      )
+      if (res.ok) {
+        router.push('/musculoskeletal')
+      } else {
+        const data = await res.json()
+        alert(data.error || '삭제 중 오류가 발생했습니다.')
+      }
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.')
+    }
+  }
+
   // Open Sheet2 modal
   const openSheet2Modal = (work: ElementWork) => {
     setSelectedWork(work)
@@ -506,7 +527,7 @@ function SurveyListPageInner() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">조사 실시</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">조사 실시 <HelpTooltip content="사업장 → 조직 단위를 선택하여 근골조사를 진행합니다. Sheet 1~4 순서로 조사 내용을 입력하세요." /></h1>
           <p className="text-sm text-gray-500 mt-1">
             사업장과 평가단위를 선택하여 근골격계유해요인조사를 진행하세요.
           </p>
@@ -653,6 +674,7 @@ function SurveyListPageInner() {
           onOpenSheet2={openSheet2Modal}
           onOpenSheet3={openSheet3Modal}
           onUpdate={(updated) => setSelectedAssessment({ ...selectedAssessment, ...updated })}
+          onDeleteAssessment={handleDeleteAssessment}
         />
       ) : (
         <Card>
@@ -1037,6 +1059,7 @@ function AssessmentDetail({
   onOpenSheet2,
   onOpenSheet3,
   onUpdate,
+  onDeleteAssessment,
 }: {
   assessment: Assessment
   workplaceId: string
@@ -1051,6 +1074,7 @@ function AssessmentDetail({
   onOpenSheet2: (work: ElementWork) => void
   onOpenSheet3: (work: ElementWork) => void
   onUpdate: (data: Partial<Assessment>) => void
+  onDeleteAssessment: () => void
 }) {
   const { label: statusLabel, className: statusClass } =
     STATUS_CONFIG[assessment.status] || { label: assessment.status, className: 'bg-gray-100' }
@@ -1066,9 +1090,15 @@ function AssessmentDetail({
               {assessment.workplace.name} · {assessment.year}년 {assessment.assessmentType}
             </p>
           </div>
-          <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusClass}`}>
-            {statusLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusClass}`}>
+              {statusLabel}
+            </span>
+            <button onClick={onDeleteAssessment}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-200 rounded text-red-600 hover:bg-red-50">
+              <Trash2 className="w-3.5 h-3.5" />삭제
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -1425,12 +1455,12 @@ function Sheet1Content({
 
   return (
     <div className="space-y-4">
-      <h4 className="font-medium text-gray-800">관리카드</h4>
+      <h4 className="font-medium text-gray-800 flex items-center gap-1.5">관리카드 <HelpTooltip content="조사 대상 사업장, 작업자, 조사자 등 기본 정보를 입력하는 Sheet입니다." /></h4>
 
       {/* 작업자 / 조사자 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">작업자</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">작업자 <HelpTooltip content="근골조사 대상 작업을 수행하는 작업자의 이름입니다." side="right" /></label>
           <input
             type="text"
             value={formData.workerName}
@@ -1591,7 +1621,7 @@ function Sheet1Content({
 
       {/* 직무자율성 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">직무자율성</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">직무자율성 <HelpTooltip content="작업자가 작업 순서, 속도, 방법 등을 스스로 결정할 수 있는 정도입니다." side="right" /></label>
         <div className="space-y-2">
           {JOB_AUTONOMY_OPTIONS.map((opt) => (
             <label key={opt.value} className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer">
@@ -1611,7 +1641,7 @@ function Sheet1Content({
 
       {/* 기타 위험요인 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">기타 위험요인</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">기타 위험요인 <HelpTooltip content="근골격계 부담작업 외에 작업 환경에서 발생하는 추가 위험요인을 체크하세요." side="right" /></label>
         <div className="flex flex-wrap gap-3">
           {OTHER_RISK_OPTIONS.map((opt) => (
             <label key={opt.key} className="flex items-center gap-2 p-2 rounded border hover:bg-gray-50 cursor-pointer">
@@ -1638,7 +1668,7 @@ function Sheet1Content({
 
       {/* 부담부위 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">부담부위</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">부담부위 <HelpTooltip content="작업 시 부담을 느끼는 신체 부위를 모두 선택하세요." side="right" /></label>
         <div className="flex flex-wrap gap-3">
           {AFFECTED_BODY_PARTS.map((opt) => (
             <label key={opt.key} className="flex items-center gap-2 p-2 rounded border hover:bg-gray-50 cursor-pointer">
@@ -2097,7 +2127,7 @@ function Sheet4Content({
     <div className="space-y-6">
       {/* 1. 관리등급 */}
       <div>
-        <h4 className="font-medium text-gray-800 mb-3">관리등급</h4>
+        <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-1.5">관리등급 <HelpTooltip content="부위별 최고점수 기준으로 관리등급이 권장됩니다.\n상: 7점 이상 / 중상: 5~6점 / 중: 3~4점 / 하: 2점 이하" /></h4>
         {maxScore > 0 && (
           <p className="text-sm text-blue-600 mb-2">
             권장: <strong>{recommendedLevel}</strong> (최고점 {maxScore}점)
@@ -2123,7 +2153,7 @@ function Sheet4Content({
       {/* 2. 요소작업별 평가 카드 */}
       {assessment.elementWorks.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-800 mb-3">요소작업별 평가</h4>
+          <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-1.5">요소작업별 평가 <HelpTooltip content="각 요소작업에 대해 Sheet2·3에서 산정된 점수를 확인하고, 종합 의견을 작성할 수 있습니다." /></h4>
           <div className="space-y-4">
             {assessment.elementWorks
               .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -2218,7 +2248,7 @@ function Sheet4Content({
       {/* 3. 개선방안 */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-medium text-gray-800">개선방안</h4>
+          <h4 className="font-medium text-gray-800 flex items-center gap-1.5">개선방안 <HelpTooltip content="유해요인에 대한 문제점과 개선방안을 작성하세요. 담당자와 완료일을 지정할 수 있습니다." /></h4>
           <Button
             size="sm"
             variant="outline"
