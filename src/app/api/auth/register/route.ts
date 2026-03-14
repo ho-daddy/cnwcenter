@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { sendNewUserNotification } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, name } = body
+    const { email, password, name, phone, organization, privacyAgreed } = body
 
     // 필수 필드 체크
     if (!email || !password || !name) {
       return NextResponse.json(
         { error: '이메일, 비밀번호, 이름은 필수입니다.' },
+        { status: 400 }
+      )
+    }
+
+    // 개인정보 동의 체크
+    if (!privacyAgreed) {
+      return NextResponse.json(
+        { error: '개인정보 수집 및 이용에 동의해주세요.' },
         { status: 400 }
       )
     }
@@ -53,8 +62,11 @@ export async function POST(request: NextRequest) {
         email,
         password: hashedPassword,
         name,
+        phone: phone || null,
+        organization: organization || null,
         role: 'WORKPLACE_USER',
         status: 'PENDING',
+        privacyAgreedAt: new Date(),
       },
       select: {
         id: true,
@@ -64,6 +76,15 @@ export async function POST(request: NextRequest) {
         status: true,
         createdAt: true,
       },
+    })
+
+    // 관리자에게 이메일 알림 (비동기, 실패해도 회원가입은 성공)
+    sendNewUserNotification({
+      name: user.name || name,
+      email: user.email,
+      phone: phone || null,
+      organization: organization || null,
+      provider: 'email',
     })
 
     return NextResponse.json({

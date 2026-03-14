@@ -5,6 +5,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { UserStatus } from '@prisma/client'
+import { sendNewUserNotification } from './email'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -103,7 +104,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     // JWT 토큰에 role, status 추가
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
@@ -138,9 +139,25 @@ export const authOptions: NextAuthOptions = {
   events: {
     // 새 사용자 생성 시 (소셜 로그인)
     async createUser({ user }) {
+      // PrismaAdapter가 기본값을 무시하므로 강제로 설정
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: 'WORKPLACE_USER',
+          status: 'PENDING',
+        },
+      })
+
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Auth] 새 사용자 생성: ${user.email} (승인 대기)`)
+        console.log(`[Auth] 새 사용자 생성: ${user.email} (승인 대기, WORKPLACE_USER)`)
       }
+
+      // Google 로그인 신규 사용자 이메일 알림
+      sendNewUserNotification({
+        name: user.name || '이름 미입력',
+        email: user.email!,
+        provider: 'google',
+      })
     },
   },
 }
