@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
+import { archiveRiskImprovement } from '@/lib/archive-utils'
 import { ImprovementStatus, HazardCategory } from '@prisma/client'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
 
@@ -70,6 +71,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const access = await requireWorkplaceAccess(record.hazard.workplaceId)
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: 403 })
+
+  // 삭제 전 아카이브
+  await archiveRiskImprovement(params.improvementId, auth.user!.id)
 
   await prisma.riskImprovementRecord.delete({ where: { id: params.improvementId } })
   return NextResponse.json({ success: true })

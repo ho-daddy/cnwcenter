@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkplaceAccess } from '@/lib/auth-utils'
+import { archiveMusculoskeletalAssessment } from '@/lib/archive-utils'
 
 // 근골조사 상세 조회
 export async function GET(
@@ -162,6 +163,9 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    // 삭제 전 아카이브
+    await archiveMusculoskeletalAssessment(params.assessmentId, authCheck.user!.id)
 
     await prisma.musculoskeletalAssessment.delete({
       where: { id: params.assessmentId },

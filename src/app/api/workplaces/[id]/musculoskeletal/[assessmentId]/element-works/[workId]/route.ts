@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkplaceAccess } from '@/lib/auth-utils'
+import { archiveElementWork } from '@/lib/archive-utils'
 
 // 요소작업 상세 조회
 export async function GET(
@@ -151,6 +152,9 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    // 삭제 전 아카이브
+    await archiveElementWork(params.workId, authCheck.user!.id)
 
     await prisma.elementWork.delete({
       where: { id: params.workId },
