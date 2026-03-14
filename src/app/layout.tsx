@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { SessionProvider } from "@/components/providers/session-provider"
+import { Footer } from "@/components/layout/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,8 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className={inter.className}>
-        <SessionProvider>{children}</SessionProvider>
+      <body className={`${inter.className} flex flex-col min-h-screen`}>
+        <SessionProvider>
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </SessionProvider>
       </body>
     </html>
   )
