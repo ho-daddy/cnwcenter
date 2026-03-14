@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   Bell,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -86,6 +87,9 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   if (role === 'SUPER_ADMIN' || role === 'STAFF') {
     items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
   }
+
+  // 휴지통 (모든 역할)
+  items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
 
   // SUPER_ADMIN 전용 메뉴
   if (role === 'SUPER_ADMIN') {
