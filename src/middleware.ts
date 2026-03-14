@@ -9,8 +9,7 @@ const ROLE_ACCESS: Record<string, string[]> = {
 
   // STAFF 이상 접근 가능
   '/admin': ['SUPER_ADMIN', 'STAFF'],
-  '/calendar/new': ['SUPER_ADMIN', 'STAFF'],
-  '/calendar/edit': ['SUPER_ADMIN', 'STAFF'],
+  '/calendar': ['SUPER_ADMIN', 'STAFF'],
   '/workplaces': ['SUPER_ADMIN', 'STAFF'],
   '/notices/new': ['SUPER_ADMIN', 'STAFF'],
   '/notices/edit': ['SUPER_ADMIN', 'STAFF'],
@@ -26,6 +25,9 @@ const PUBLIC_PATHS = [
   '/api/auth',
   '/api/briefing',  // 브리핑 자동 수집/분석
   '/s/',           // 공개 설문 URL
+  '/privacy',      // 개인정보처리방침
+  '/terms',        // 이용약관
+  '/contact',      // 문의하기
 ]
 
 // 승인된 사용자만 접근 가능한 경로

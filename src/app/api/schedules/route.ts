@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 import { ScheduleType } from '@prisma/client'
 import { validateEnum } from '@/lib/api-utils'
 
-// 일정 목록 조회 (모든 승인된 사용자 조회 가능)
+// 일정 목록 조회 (STAFF 이상만)
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user || user.status !== 'APPROVED') {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
+  const authCheck = await requireStaffOrAbove()
+  if (!authCheck.authorized) {
+    return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
 
   try {

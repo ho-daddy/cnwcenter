@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 
-// 일정 상세 조회
+// 일정 상세 조회 (STAFF 이상만)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = await getCurrentUser()
-  if (!user || user.status !== 'APPROVED') {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 401 })
+  const authCheck = await requireStaffOrAbove()
+  if (!authCheck.authorized) {
+    return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
 
   try {

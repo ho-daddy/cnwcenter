@@ -32,11 +32,11 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   const items: NavItem[] = [
     { title: '오늘의 새움터', href: '/', icon: LayoutDashboard },
     { title: '공지사항', href: '/notices', icon: Bell },
-    { title: '일정 관리', href: '/calendar', icon: Calendar },
   ]
 
-  // STAFF 이상: 상담 관리
+  // STAFF 이상: 일정 관리, 상담 관리
   if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+    items.push({ title: '일정 관리', href: '/calendar', icon: Calendar })
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
   }
 
