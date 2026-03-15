@@ -23,6 +23,11 @@ import {
   FolderTree,
   Camera,
   Upload,
+  Video,
+  Play,
+  HardDrive,
+  Clock,
+  RefreshCw,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -41,6 +46,7 @@ import {
 // Import modals
 import { Sheet2Modal } from '@/components/musculoskeletal/sheet2-modal'
 import { Sheet3Modal } from '@/components/musculoskeletal/sheet3-modal'
+import { VideoRecordModal } from '@/components/musculoskeletal/video-record-modal'
 
 interface Workplace {
   id: string
@@ -210,6 +216,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 
 const SHEET_TABS = [
   { id: 'overview', label: '개요·관리카드', icon: FileText },
+  { id: 'videos', label: '작업영상', icon: Video },
   { id: 'sheet2', label: '2.공구,중량물,자세', icon: Calculator },
   { id: 'sheet3', label: '3.RULA/REBA', icon: BarChart3 },
   { id: 'sheet4', label: '4.종합평가', icon: CheckCircle },
@@ -1174,6 +1181,13 @@ function AssessmentDetail({
             assessment={assessment}
             workplaceId={workplaceId}
             onUpdate={onUpdate}
+          />
+        )}
+
+        {/* 작업영상 Tab */}
+        {activeTab === 'videos' && (
+          <VideoContent
+            assessment={assessment}
           />
         )}
       </CardContent>
@@ -2737,6 +2751,374 @@ function MeasurementSection({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ==========================================
+// Video Content (작업영상 탭)
+// ==========================================
+
+interface VideoItem {
+  id: string
+  elementWorkId: string
+  processName: string
+  recorder: string
+  recordedAt: string
+  driveFileId: string | null
+  driveUrl: string | null
+  thumbnailUrl: string | null
+  fileName: string
+  mimeType: string
+  originalSize: number | null
+  durationSec: number | null
+  status: 'PROCESSING' | 'UPLOADING' | 'UPLOADED' | 'FAILED'
+  uploadProgress: number
+  errorMessage: string | null
+  createdAt: string
+  elementWork: { id: string; name: string; sortOrder: number }
+}
+
+interface VideoDetail {
+  id: string
+  processName: string
+  recorder: string
+  recordedAt: string
+  driveFileId: string | null
+  streamUrl: string | null
+  embedUrl: string | null
+  thumbnailUrl: string | null
+  durationSec: number | null
+  originalSize: number | null
+  status: string
+}
+
+function VideoContent({ assessment }: { assessment: Assessment }) {
+  const [videos, setVideos] = useState<VideoItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [recordingWorkId, setRecordingWorkId] = useState<string | null>(null)
+  const [recordingWorkName, setRecordingWorkName] = useState('')
+  const [selectedVideo, setSelectedVideo] = useState<VideoDetail | null>(null)
+  const [showPlayer, setShowPlayer] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  const fetchVideos = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const res = await fetch(`/api/videos?assessmentId=${assessment.id}`)
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '영상 목록을 불러올 수 없습니다.')
+      }
+      const data = await res.json()
+      setVideos(data.videos)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [assessment.id])
+
+  useEffect(() => {
+    fetchVideos()
+  }, [fetchVideos])
+
+  const openPlayer = async (videoId: string) => {
+    try {
+      const res = await fetch(`/api/videos/${videoId}`)
+      if (!res.ok) throw new Error('영상 정보를 불러올 수 없습니다.')
+      const data = await res.json()
+      setSelectedVideo(data.video)
+      setShowPlayer(true)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '오류 발생')
+    }
+  }
+
+  const deleteVideo = async (videoId: string) => {
+    if (!confirm('영상을 삭제하시겠습니까? Google Drive에서도 삭제됩니다.')) return
+    setDeleting(videoId)
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '삭제에 실패했습니다.')
+      }
+      setVideos((prev) => prev.filter((v) => v.id !== videoId))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '삭제 오류')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const formatDuration = (sec: number | null) => {
+    if (!sec) return '--:--'
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  const formatSize = (bytes: number | null) => {
+    if (!bytes) return '-'
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+  }
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`
+  }
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'UPLOADED': return null
+      case 'UPLOADING': return { text: '업로드 중', color: 'text-blue-600 bg-blue-50' }
+      case 'PROCESSING': return { text: '처리 중', color: 'text-amber-600 bg-amber-50' }
+      case 'FAILED': return { text: '실패', color: 'text-red-600 bg-red-50' }
+      default: return null
+    }
+  }
+
+  // 요소작업별 영상 그룹핑
+  const videosByWork = assessment.elementWorks.map((ew) => ({
+    ...ew,
+    videos: videos.filter((v) => v.elementWorkId === ew.id),
+  }))
+
+  return (
+    <div className="space-y-6">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">작업 영상</h3>
+          <p className="text-sm text-gray-500 mt-0.5">
+            요소작업별 현장 촬영 영상 · 총 {videos.length}개
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchVideos} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          새로고침
+        </Button>
+      </div>
+
+      {/* 에러 */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertCircle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+
+      {/* 요소작업이 없으면 안내 */}
+      {assessment.elementWorks.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Video className="w-12 h-12 mx-auto mb-3" />
+          <p className="font-medium">요소작업이 없습니다</p>
+          <p className="text-sm mt-1">개요·관리카드 탭에서 먼저 요소작업을 추가하세요.</p>
+        </div>
+      )}
+
+      {/* 요소작업별 영상 목록 */}
+      {videosByWork.map((ew) => (
+        <Card key={ew.id} className="overflow-hidden">
+          <CardHeader className="py-3 px-4 bg-gray-50 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                  {ew.sortOrder}
+                </span>
+                <span className="font-medium text-gray-800">{ew.name}</span>
+                <span className="text-xs text-gray-400">{ew.videos.length}개 영상</span>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setRecordingWorkId(ew.id)
+                  setRecordingWorkName(ew.name)
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Camera className="w-4 h-4 mr-1" />
+                촬영
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {ew.videos.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <Video className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">촬영된 영상이 없습니다</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ew.videos.map((video) => {
+                  const badge = statusBadge(video.status)
+                  return (
+                    <div
+                      key={video.id}
+                      className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
+                    >
+                      {/* 썸네일 */}
+                      <div
+                        className="relative aspect-video bg-gray-900 cursor-pointer"
+                        onClick={() => video.status === 'UPLOADED' && openPlayer(video.id)}
+                      >
+                        {video.thumbnailUrl && video.status === 'UPLOADED' ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={video.thumbnailUrl}
+                            alt={video.processName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Video className="w-8 h-8 text-gray-600" />
+                          </div>
+                        )}
+
+                        {video.status === 'UPLOADED' && (
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="bg-white/90 rounded-full p-2">
+                              <Play className="w-5 h-5 text-gray-800" />
+                            </div>
+                          </div>
+                        )}
+
+                        {video.durationSec && (
+                          <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                            {formatDuration(video.durationSec)}
+                          </div>
+                        )}
+
+                        {badge && (
+                          <div className={`absolute top-1.5 left-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${badge.color}`}>
+                            {badge.text}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 정보 */}
+                      <div className="p-2.5">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm text-gray-900 truncate">
+                              {video.processName}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                              <span>{video.recorder}</span>
+                              <span>{formatDate(video.recordedAt)}</span>
+                            </div>
+                            {video.originalSize && (
+                              <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
+                                <HardDrive className="w-3 h-3" />
+                                {formatSize(video.originalSize)}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            onClick={() => deleteVideo(video.id)}
+                            disabled={deleting === video.id}
+                          >
+                            {deleting === video.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* 촬영 모달 */}
+      {recordingWorkId && (
+        <VideoRecordModal
+          elementWorkId={recordingWorkId}
+          elementWorkName={recordingWorkName}
+          onClose={() => setRecordingWorkId(null)}
+          onUploaded={() => {
+            fetchVideos()
+          }}
+        />
+      )}
+
+      {/* 영상 재생 모달 */}
+      {showPlayer && selectedVideo && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          onClick={() => setShowPlayer(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+              onClick={() => setShowPlayer(false)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="mb-3 text-white">
+              <h3 className="text-lg font-medium">{selectedVideo.processName}</h3>
+              <div className="flex items-center gap-3 text-sm text-gray-300">
+                <span>{selectedVideo.recorder}</span>
+                <span>{formatDate(selectedVideo.recordedAt)}</span>
+                {selectedVideo.durationSec && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    {formatDuration(selectedVideo.durationSec)}
+                  </span>
+                )}
+                {selectedVideo.originalSize && (
+                  <span className="flex items-center gap-1">
+                    <HardDrive className="w-3.5 h-3.5" />
+                    {formatSize(selectedVideo.originalSize)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {selectedVideo.embedUrl ? (
+              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                <iframe
+                  src={selectedVideo.embedUrl}
+                  className="w-full h-full"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center text-gray-400">
+                <p>영상을 재생할 수 없습니다.</p>
+              </div>
+            )}
+
+            {selectedVideo.driveFileId && (
+              <div className="mt-3 text-center">
+                <a
+                  href={`https://drive.google.com/file/d/${selectedVideo.driveFileId}/view`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-400 hover:text-blue-300 underline"
+                >
+                  Google Drive에서 열기
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
