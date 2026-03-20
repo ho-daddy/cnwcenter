@@ -3,7 +3,8 @@ import { Readable } from 'stream'
 
 // Google Drive OAuth2 클라이언트 (싱글톤)
 // Service Account 대신 OAuth2 + Refresh Token 방식 사용
-// cnwcenter@gmail.com 계정의 Google Drive에 파일 저장
+// whatfor44@gmail.com 계정의 Google Drive에 파일 저장
+// OAuth 스코프: drive.file (앱이 생성한 파일만 접근 가능)
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_DRIVE_CLIENT_ID,
@@ -21,6 +22,17 @@ const drive = google.drive({ version: 'v3', auth: oauth2Client })
 const ROOT_FOLDER_NAME = '새움터_작업영상'
 
 let cachedRootFolderId: string | null = null
+
+/**
+ * Google Drive 환경변수 설정 여부 확인
+ */
+export function isDriveConfigured(): boolean {
+  return !!(
+    process.env.GOOGLE_DRIVE_CLIENT_ID &&
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET &&
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN
+  )
+}
 
 /**
  * 루트 폴더 ID 조회 (없으면 생성)
@@ -51,6 +63,34 @@ async function getRootFolderId(): Promise<string> {
 
   cachedRootFolderId = folder.data.id!
   return cachedRootFolderId
+}
+
+/**
+ * 파일이 '새움터_작업영상' 루트 폴더 하위에 있는지 검증
+ * 루트 폴더까지 parents 체인을 따라가며 확인
+ */
+async function isFileUnderRootFolder(fileId: string): Promise<boolean> {
+  const rootId = await getRootFolderId()
+
+  let currentId = fileId
+  const maxDepth = 10 // 무한루프 방지
+
+  for (let i = 0; i < maxDepth; i++) {
+    const file = await drive.files.get({
+      fileId: currentId,
+      fields: 'id, parents',
+    })
+
+    const parents = file.data.parents
+    if (!parents || parents.length === 0) return false
+
+    if (parents.includes(rootId)) return true
+
+    // 상위 폴더로 이동
+    currentId = parents[0]
+  }
+
+  return false
 }
 
 /**
@@ -104,6 +144,10 @@ export async function uploadVideoToDrive(params: {
   mimeType: string
   folderId: string
 }): Promise<{ fileId: string; webViewLink: string }> {
+  if (!isDriveConfigured()) {
+    throw new Error('Google Drive API가 설정되지 않았습니다. 환경변수를 확인해주세요.')
+  }
+
   const { buffer, fileName, mimeType, folderId } = params
 
   const stream = new Readable()
@@ -164,8 +208,17 @@ export function getThumbnailUrl(fileId: string): string {
 
 /**
  * Google Drive에서 파일 삭제
+ * 안전장치: '새움터_작업영상' 폴더 하위 파일만 삭제 가능
  */
 export async function deleteFileFromDrive(fileId: string): Promise<void> {
+  // 삭제 전 파일이 루트 폴더 하위인지 검증
+  const isUnderRoot = await isFileUnderRootFolder(fileId)
+  if (!isUnderRoot) {
+    throw new Error(
+      `안전장치: 파일(${fileId})이 '${ROOT_FOLDER_NAME}' 폴더 하위에 있지 않아 삭제할 수 없습니다.`
+    )
+  }
+
   await drive.files.delete({ fileId })
 }
 
@@ -184,6 +237,8 @@ export async function getFileMetadata(fileId: string) {
  * Google Drive API 연결 테스트
  */
 export async function testConnection(): Promise<boolean> {
+  if (!isDriveConfigured()) return false
+
   try {
     await drive.about.get({ fields: 'storageQuota' })
     return true
