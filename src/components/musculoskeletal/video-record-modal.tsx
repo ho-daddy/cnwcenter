@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Video,
-  Square,
-  CircleDot,
   CheckCircle,
   AlertCircle,
   Wifi,
@@ -17,7 +15,7 @@ import {
   Upload,
 } from 'lucide-react'
 
-type RecordingState = 'idle' | 'recording' | 'recorded' | 'uploading' | 'uploaded' | 'error'
+type UploadState = 'idle' | 'selected' | 'uploading' | 'uploaded' | 'error'
 
 interface VideoRecordModalProps {
   elementWorkId: string
@@ -32,21 +30,15 @@ export function VideoRecordModal({
   onClose,
   onUploaded,
 }: VideoRecordModalProps) {
-  const [recordingState, setRecordingState] = useState<RecordingState>('idle')
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
-  const [recordingDuration, setRecordingDuration] = useState(0)
+  const [uploadState, setUploadState] = useState<UploadState>('idle')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [isOnline, setIsOnline] = useState(true)
-  const [mode, setMode] = useState<'record' | 'upload'>('record')
   const { data: session } = useSession()
   const userName = session?.user?.name || ''
 
   const videoRef = useRef<HTMLVideoElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 네트워크 상태 감지
@@ -61,90 +53,7 @@ export function VideoRecordModal({
     }
   }, [])
 
-  // 언마운트 시 정리
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop())
-      }
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [])
-
-  // 촬영 시작
-  const startRecording = useCallback(async () => {
-    try {
-      setErrorMessage('')
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: true,
-      })
-
-      streamRef.current = stream
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
-
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9'
-        : MediaRecorder.isTypeSupported('video/webm')
-          ? 'video/webm'
-          : 'video/mp4'
-
-      const recorder = new MediaRecorder(stream, { mimeType })
-      mediaRecorderRef.current = recorder
-      chunksRef.current = []
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
-      }
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType.split(';')[0] })
-        setRecordedBlob(blob)
-        setRecordingState('recorded')
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = null
-          videoRef.current.src = URL.createObjectURL(blob)
-          videoRef.current.controls = true
-        }
-      }
-
-      recorder.start(1000)
-      setRecordingState('recording')
-      setRecordingDuration(0)
-
-      timerRef.current = setInterval(() => {
-        setRecordingDuration((d) => d + 1)
-      }, 1000)
-    } catch {
-      setErrorMessage('카메라 접근에 실패했습니다. 카메라 권한을 확인해주세요.')
-    }
-  }, [])
-
-  // 촬영 중지
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop()
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }, [])
-
-  // 파일 선택 업로드
+  // 파일 선택
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -159,8 +68,9 @@ export function VideoRecordModal({
       return
     }
 
-    setRecordedBlob(file)
-    setRecordingState('recorded')
+    setErrorMessage('')
+    setSelectedFile(file)
+    setUploadState('selected')
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -171,7 +81,7 @@ export function VideoRecordModal({
 
   // 업로드
   const uploadVideo = useCallback(async () => {
-    if (!recordedBlob) return
+    if (!selectedFile) return
 
     const conn = (navigator as unknown as { connection?: { type?: string } }).connection
     if (conn?.type === 'cellular') {
@@ -179,17 +89,15 @@ export function VideoRecordModal({
       if (!ok) return
     }
 
-    setRecordingState('uploading')
+    setUploadState('uploading')
     setUploadProgress(0)
 
     const formData = new FormData()
-    const ext = recordedBlob.type.includes('webm') ? 'webm' : 'mp4'
-    const fileName = recordedBlob instanceof File ? recordedBlob.name : `recording_${Date.now()}.${ext}`
-    formData.append('file', recordedBlob, fileName)
+    formData.append('file', selectedFile, selectedFile.name)
     formData.append('elementWorkId', elementWorkId)
     formData.append('processName', elementWorkName)
     formData.append('recorder', userName || '촬영자')
-    formData.append('durationSec', String(recordingDuration))
+    formData.append('durationSec', '0')
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -215,32 +123,29 @@ export function VideoRecordModal({
         xhr.send(formData)
       })
 
-      setRecordingState('uploaded')
+      setUploadState('uploaded')
       onUploaded()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : '업로드에 실패했습니다.')
-      setRecordingState('error')
+      setUploadState('error')
     }
-  }, [recordedBlob, elementWorkId, elementWorkName, userName, recordingDuration, onUploaded])
+  }, [selectedFile, elementWorkId, elementWorkName, userName, onUploaded])
 
   // 리셋
   const resetForNext = useCallback(() => {
-    setRecordingState('idle')
-    setRecordedBlob(null)
-    setRecordingDuration(0)
+    setUploadState('idle')
+    setSelectedFile(null)
     setUploadProgress(0)
     setErrorMessage('')
     if (videoRef.current) {
       videoRef.current.src = ''
       videoRef.current.controls = false
     }
+    // 파일 입력 초기화
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }, [])
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -248,7 +153,7 @@ export function VideoRecordModal({
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">작업 영상 촬영</h2>
+            <h2 className="text-lg font-bold text-gray-900">작업 영상 업로드</h2>
             <p className="text-sm text-gray-500 mt-0.5">{elementWorkName}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -264,82 +169,16 @@ export function VideoRecordModal({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* 모드 선택 (idle일 때만) */}
-          {recordingState === 'idle' && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMode('record')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
-                  mode === 'record'
-                    ? 'bg-red-50 border-red-200 text-red-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <CircleDot className="w-4 h-4 inline mr-1" />
-                직접 촬영
-              </button>
-              <button
-                onClick={() => setMode('upload')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
-                  mode === 'upload'
-                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <Upload className="w-4 h-4 inline mr-1" />
-                파일 업로드
-              </button>
-            </div>
-          )}
-
           {/* 촬영자 표시 */}
-          {recordingState === 'idle' && (
+          {uploadState === 'idle' && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Video className="w-4 h-4" />
               <span>촬영자: {userName || '(로그인 사용자)'}</span>
             </div>
           )}
 
-          {/* 비디오 영역 */}
-          <div className="relative bg-black aspect-video rounded-lg overflow-hidden">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-contain"
-              playsInline
-              muted={recordingState === 'recording'}
-            />
-
-            {recordingState === 'recording' && (
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
-                  <CircleDot className="w-4 h-4 animate-pulse" />
-                  REC {formatTime(recordingDuration)}
-                </div>
-              </div>
-            )}
-
-            {recordingState === 'idle' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                <Video className="w-12 h-12 mb-2" />
-                <p className="text-sm">
-                  {mode === 'record' ? '촬영 버튼을 눌러 시작하세요' : '파일을 선택해주세요'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* 컨트롤 */}
-          {recordingState === 'idle' && mode === 'record' && (
-            <Button
-              onClick={startRecording}
-              className="w-full h-12 text-base bg-red-600 hover:bg-red-700"
-            >
-              <CircleDot className="w-5 h-5 mr-2" />
-              촬영 시작
-            </Button>
-          )}
-
-          {recordingState === 'idle' && mode === 'upload' && (
+          {/* 파일 선택 버튼 (idle 상태) */}
+          {uploadState === 'idle' && (
             <>
               <input
                 ref={fileInputRef}
@@ -348,27 +187,32 @@ export function VideoRecordModal({
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              <Button
+              <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700"
+                className="w-full flex flex-col items-center justify-center gap-3 py-12 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-colors"
               >
-                <Upload className="w-5 h-5 mr-2" />
-                영상 파일 선택
-              </Button>
+                <Upload className="w-10 h-10 text-blue-500" />
+                <span className="text-lg font-medium text-blue-700">영상 촬영/선택</span>
+                <span className="text-sm text-blue-500">
+                  mp4, webm, mov, avi, mkv (최대 500MB)
+                </span>
+              </button>
             </>
           )}
 
-          {recordingState === 'recording' && (
-            <Button
-              onClick={stopRecording}
-              className="w-full h-12 text-base bg-gray-800 hover:bg-gray-900"
-            >
-              <Square className="w-5 h-5 mr-2" />
-              촬영 중지 ({formatTime(recordingDuration)})
-            </Button>
+          {/* 비디오 미리보기 (선택됨 이후) */}
+          {uploadState !== 'idle' && (
+            <div className="relative bg-black aspect-video rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                playsInline
+              />
+            </div>
           )}
 
-          {recordingState === 'recorded' && (
+          {/* 선택된 파일 업로드 */}
+          {uploadState === 'selected' && (
             <div className="space-y-2">
               <Button
                 onClick={uploadVideo}
@@ -388,12 +232,13 @@ export function VideoRecordModal({
                 )}
               </Button>
               <Button variant="outline" onClick={resetForNext} className="w-full h-10">
-                다시 촬영
+                다른 영상 선택
               </Button>
             </div>
           )}
 
-          {recordingState === 'uploading' && (
+          {/* 업로드 진행 */}
+          {uploadState === 'uploading' && (
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="space-y-2">
@@ -407,9 +252,9 @@ export function VideoRecordModal({
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  {recordedBlob && (
+                  {selectedFile && (
                     <p className="text-xs text-gray-400">
-                      {(recordedBlob.size / 1024 / 1024).toFixed(1)}MB
+                      {(selectedFile.size / 1024 / 1024).toFixed(1)}MB
                     </p>
                   )}
                 </div>
@@ -417,7 +262,8 @@ export function VideoRecordModal({
             </Card>
           )}
 
-          {recordingState === 'uploaded' && (
+          {/* 업로드 완료 */}
+          {uploadState === 'uploaded' && (
             <div className="space-y-3">
               <Card className="border-green-200 bg-green-50">
                 <CardContent className="pt-4 pb-4">
@@ -435,7 +281,7 @@ export function VideoRecordModal({
                 className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="w-5 h-5 mr-2" />
-                추가 촬영
+                추가 영상 업로드
               </Button>
               <Button variant="outline" onClick={onClose} className="w-full h-10">
                 닫기
@@ -443,7 +289,8 @@ export function VideoRecordModal({
             </div>
           )}
 
-          {recordingState === 'error' && (
+          {/* 에러 */}
+          {uploadState === 'error' && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center gap-2 text-red-700">
@@ -463,7 +310,7 @@ export function VideoRecordModal({
             </Card>
           )}
 
-          {errorMessage && recordingState === 'idle' && (
+          {errorMessage && uploadState === 'idle' && (
             <p className="text-sm text-red-600 text-center">{errorMessage}</p>
           )}
         </div>
