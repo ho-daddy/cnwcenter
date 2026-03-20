@@ -39,6 +39,7 @@ model User {
   noticeComments  NoticeComment[]                        // 공지사항 댓글
   surveys         Survey[]                               // 설문조사 (작성자)
   archivedDeletions ArchivedAssessment[]                 // 삭제한 아카이브
+  uploadedVideos    WorkVideo[]                          // 업로드한 작업 영상
 }
 
 enum UserRole {
@@ -906,6 +907,7 @@ model ElementWork {
   bodyPartScores   BodyPartScore[]
   improvements     MSurveyImprovement[]
   measurements     WorkMeasurement[]
+  videos           WorkVideo[]           // 작업 영상
 
   @@index([assessmentId])
 }
@@ -1154,4 +1156,56 @@ model SurveyAnswer {
   @@unique([responseId, questionId])
   @@index([responseId])
   @@index([questionId])
+}
+
+// ============================================
+// 작업 영상 관리 (근골조사/위험성평가 현장 촬영)
+// ============================================
+
+enum VideoUploadStatus {
+  PROCESSING  // 처리 중
+  UPLOADING   // 업로드 중
+  UPLOADED    // 완료
+  FAILED      // 실패
+}
+
+model WorkVideo {
+  id              String            @id @default(cuid())
+
+  // 요소작업 연결 (근골조사)
+  elementWorkId   String
+  elementWork     ElementWork       @relation(fields: [elementWorkId], references: [id], onDelete: Cascade)
+
+  // 공정 정보
+  processName     String            // 공정명 (요소작업명과 동일하거나 상세 설명)
+  recorder        String            // 촬영자명
+  recordedAt      DateTime          @default(now()) // 촬영 일시
+
+  // Google Drive 파일 정보
+  driveFileId     String?           @unique
+  driveUrl        String?           @db.Text
+  thumbnailUrl    String?           @db.Text
+
+  // 파일 메타데이터
+  fileName        String            // 원본 파일명
+  mimeType        String            @default("video/webm")
+  originalSize    BigInt?           // bytes
+  durationSec     Int?              // 영상 길이 (초)
+  resolution      String?           // "1920x1080"
+
+  // 업로드 상태
+  status          VideoUploadStatus @default(PROCESSING)
+  uploadProgress  Int               @default(0) // 0-100
+  errorMessage    String?           @db.Text
+
+  // 업로드한 사용자
+  uploadedById    String
+  uploadedBy      User              @relation(fields: [uploadedById], references: [id])
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([elementWorkId])
+  @@index([status])
+  @@index([uploadedById])
 }
