@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string } }
 
 // POST /api/surveys/[surveyId]/publish — 설문조사 배포
 export async function POST(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({

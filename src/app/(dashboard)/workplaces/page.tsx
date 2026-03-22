@@ -57,7 +57,7 @@ export default function WorkplacesPage() {
           <Building2 className="h-6 w-6" />
           사업장 관리
         </h1>
-        <Link href="/workplaces/new">
+        <Link href="/workplaces/new" data-tutorial="wp-add-button">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             사업장 등록
@@ -68,7 +68,7 @@ export default function WorkplacesPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative flex-1 max-w-sm" data-tutorial="wp-search">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
@@ -95,7 +95,7 @@ export default function WorkplacesPage() {
                 : '등록된 사업장이 없습니다. 새 사업장을 등록해주세요.'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" data-tutorial="wp-list">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>

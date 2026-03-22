@@ -21,11 +21,22 @@ import {
   ChevronRight,
   Bell,
   Trash2,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { NavItem } from '@/types/dashboard'
 import { UserRole } from '@prisma/client'
+import { useTutorial } from '@/hooks/use-tutorial'
+import type { TutorialId } from '@/components/tutorial/tutorial-steps'
+import { TUTORIAL_LABELS } from '@/components/tutorial/tutorial-steps'
+
+// 메뉴별 data-tutorial 매핑
+const TUTORIAL_ATTR_MAP: Record<string, string> = {
+  '/risk-assessment': 'ra-sidebar-menu',
+  '/musculoskeletal': 'ms-sidebar-menu',
+  '/workplaces': 'wp-sidebar-menu',
+}
 
 // 역할별 메뉴 정의
 const getNavItems = (role?: UserRole): NavItem[] => {
@@ -34,9 +45,11 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     { title: '공지사항', href: '/notices', icon: Bell },
   ]
 
-  // STAFF 이상: 일정 관리, 상담 관리
+  // 일정 관리: 모든 역할 (WORKPLACE_USER는 회의실 일정만 조회)
+  items.push({ title: '일정 관리', href: '/calendar', icon: Calendar })
+
+  // 상담 관리: STAFF 이상
   if (role === 'SUPER_ADMIN' || role === 'STAFF') {
-    items.push({ title: '일정 관리', href: '/calendar', icon: Calendar })
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
   }
 
@@ -70,18 +83,16 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     ],
   })
 
-  // 설문조사 (STAFF 이상)
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
-    items.push({
-      title: '설문조사',
-      href: '/survey',
-      icon: ClipboardCheck,
-      subItems: [
-        { title: '설문 목록', href: '/survey' },
-        { title: '새 설문', href: '/survey/create' },
-      ],
-    })
-  }
+  // 설문조사 (모든 역할 - WORKPLACE_USER는 자기 사업장 설문만)
+  items.push({
+    title: '설문조사',
+    href: '/survey',
+    icon: ClipboardCheck,
+    subItems: [
+      { title: '설문 목록', href: '/survey' },
+      { title: '새 설문', href: '/survey/create' },
+    ],
+  })
 
   // 사업장 관리 (모든 역할 - WORKPLACE_USER는 자기 사업장만 관리 가능)
   items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
@@ -100,11 +111,19 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   return items
 }
 
+const GUIDE_ITEMS: { id: TutorialId; label: string }[] = [
+  { id: 'riskAssessment', label: TUTORIAL_LABELS.riskAssessment },
+  { id: 'musculoskeletal', label: TUTORIAL_LABELS.musculoskeletal },
+  { id: 'workplaces', label: TUTORIAL_LABELS.workplaces },
+]
+
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { isCollapsed, isMobileOpen, toggle, setMobileOpen } = useSidebarStore()
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [guideOpen, setGuideOpen] = useState(false)
+  const { startTutorial } = useTutorial()
 
   const navItems = getNavItems(session?.user?.role)
 
@@ -126,6 +145,12 @@ export function Sidebar() {
   // 메뉴가 확장되어 있는지 확인
   const isMenuExpanded = (item: NavItem): boolean => {
     return expandedMenus.includes(item.href) || isInSubMenu(item)
+  }
+
+  const handleStartGuide = (id: TutorialId) => {
+    setGuideOpen(false)
+    setMobileOpen(false)
+    startTutorial(id)
   }
 
   return (
@@ -181,11 +206,12 @@ export function Sidebar() {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             const isExpanded = hasSubItems && isMenuExpanded(item)
             const Icon = item.icon
+            const tutorialAttr = TUTORIAL_ATTR_MAP[item.href]
 
             if (hasSubItems && !isCollapsed) {
               // 서브메뉴가 있는 경우
               return (
-                <div key={item.href}>
+                <div key={item.href} data-tutorial={tutorialAttr}>
                   <button
                     onClick={() => toggleMenu(item.href)}
                     className={cn(
@@ -235,6 +261,7 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
+                data-tutorial={tutorialAttr}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isActive
@@ -251,12 +278,60 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* 접기/펼치기 버튼 (데스크톱 전용) */}
-        <div className="hidden lg:block border-t border-gray-200 p-2">
+        {/* 사용 가이드 + 접기/펼치기 */}
+        <div className="border-t border-gray-200 p-2 space-y-1">
+          {/* 사용 가이드 */}
+          <div className="relative">
+            <button
+              onClick={() => setGuideOpen(prev => !prev)}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors w-full',
+                isCollapsed && 'justify-center px-2'
+              )}
+              title={isCollapsed ? '사용 가이드' : undefined}
+            >
+              <BookOpen className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>사용 가이드</span>}
+              {!isCollapsed && (
+                guideOpen
+                  ? <ChevronDown className="w-4 h-4 ml-auto" />
+                  : <ChevronRight className="w-4 h-4 ml-auto" />
+              )}
+            </button>
+            {guideOpen && !isCollapsed && (
+              <div className="ml-4 mt-1 space-y-0.5 border-l border-emerald-200 pl-4 pb-1">
+                {GUIDE_ITEMS.map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => handleStartGuide(g.id)}
+                    className="block w-full px-3 py-2 rounded-lg text-sm text-left text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {guideOpen && isCollapsed && (
+              <div className="absolute left-full top-0 ml-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48 z-50">
+                <div className="px-3 py-2 text-xs font-medium text-gray-500 border-b">사용 가이드</div>
+                {GUIDE_ITEMS.map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => handleStartGuide(g.id)}
+                    className="block w-full px-3 py-2 text-sm text-left text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 접기/펼치기 버튼 (데스크톱 전용) */}
           <button
             onClick={toggle}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors w-full',
+              'hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors w-full',
               isCollapsed && 'justify-center px-2'
             )}
           >

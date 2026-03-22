@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import ExcelJS from 'exceljs'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string } }
 
 // GET /api/surveys/[surveyId]/analytics/export — 설문 원본 데이터 Excel 내보내기
 export async function GET(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({

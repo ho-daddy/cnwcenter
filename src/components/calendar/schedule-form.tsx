@@ -30,6 +30,7 @@ const SCHEDULE_TYPES = [
   { value: 'COUNSELING', label: '상담' },
   { value: 'RISK_ASSESSMENT', label: '위험성평가' },
   { value: 'MUSCULOSKELETAL', label: '근골조사' },
+  { value: 'MEETING_ROOM', label: '회의실 사용' },
 ]
 
 export function ScheduleForm({ date, schedule, onClose, onSubmit }: ScheduleFormProps) {

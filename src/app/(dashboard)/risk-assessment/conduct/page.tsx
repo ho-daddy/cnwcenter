@@ -288,11 +288,11 @@ function ConductPageInner() {
 
       <div className="grid grid-cols-12 gap-4">
         {/* Workplace list */}
-        <Card className="col-span-12 lg:col-span-2">
+        <Card className="col-span-12 lg:col-span-2" data-tutorial="ra-workplace-list">
           <CardHeader className="py-3">
             <CardTitle className="text-sm flex items-center gap-2"><Building2 className="w-4 h-4" />사업장</CardTitle>
           </CardHeader>
-          <CardContent className="p-2 max-h-64 overflow-y-auto">
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
             {isLoading ? (
               <div className="text-center py-4 text-gray-500 text-sm">로딩중...</div>
             ) : workplaces.length === 0 ? (
@@ -313,7 +313,7 @@ function ConductPageInner() {
         </Card>
 
         {/* Org tree */}
-        <Card className="col-span-12 lg:col-span-10">
+        <Card className="col-span-12 lg:col-span-3" data-tutorial="ra-org-tree">
           <CardHeader className="py-3">
             <div className="flex items-center justify-between gap-4">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -337,7 +337,7 @@ function ConductPageInner() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="p-2 max-h-80 overflow-y-auto">
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
             {!selectedWorkplace ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" /><p>사업장을 선택하세요.</p>
@@ -349,9 +349,38 @@ function ConductPageInner() {
               </div>
             ) : (
               <OrgTreeView
-                units={orgUnits} cards={cards} selectedUnit={selectedUnit}
-                selectedCardId={selectedCard?.id} searchTerm={searchTerm}
-                onSelectUnit={setSelectedUnit} onSelectCard={handleSelectCard}
+                units={orgUnits} cardCounts={cards.reduce<Record<string, number>>((acc, c) => { acc[c.organizationUnit.id] = (acc[c.organizationUnit.id] || 0) + 1; return acc }, {})}
+                selectedUnit={selectedUnit} searchTerm={searchTerm}
+                onSelectUnit={setSelectedUnit}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card list for selected unit */}
+        <Card className="col-span-12 lg:col-span-7" data-tutorial="ra-card-section">
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4" />평가 목록
+              {selectedUnit?.isLeaf && <span className="text-gray-500 font-normal">- {selectedUnit.name}</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+            {!selectedUnit ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>조직도에서 단위를 선택하세요.</p>
+              </div>
+            ) : !selectedUnit.isLeaf ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>하위 단위를 선택하세요.</p>
+              </div>
+            ) : (
+              <CardPanel unit={selectedUnit}
+                unitCards={cards.filter(c => c.organizationUnit.id === selectedUnit.id)}
+                selectedCardId={selectedCard?.id}
+                onSelectCard={handleSelectCard}
                 onCreateCard={handleCreateCard}
               />
             )}
@@ -361,7 +390,7 @@ function ConductPageInner() {
 
       {/* Bottom detail panel */}
       {selectedCard && (
-        <div ref={bottomRef}>
+        <div ref={bottomRef} data-tutorial="ra-hazard-section">
           <Card>
             <CardHeader className="py-3 border-b">
               <div className="flex items-center justify-between">
@@ -451,18 +480,13 @@ function ConductPageInner() {
 
 // ───────── OrgTreeView ─────────
 function OrgTreeView({
-  units, cards, selectedUnit, selectedCardId, searchTerm,
-  onSelectUnit, onSelectCard, onCreateCard,
+  units, cardCounts, selectedUnit, searchTerm,
+  onSelectUnit,
 }: {
-  units: OrganizationUnit[]; cards: RiskCard[]
-  selectedUnit: OrganizationUnit | null; selectedCardId?: string
+  units: OrganizationUnit[]; cardCounts: Record<string, number>
+  selectedUnit: OrganizationUnit | null
   searchTerm: string
   onSelectUnit: (u: OrganizationUnit) => void
-  onSelectCard: (c: RiskCard) => void
-  onCreateCard: (unit: OrganizationUnit, data: {
-    year: number; evaluationType: string; evaluationReason: string;
-    workerName: string; evaluatorName: string; workDescription: string
-  }) => Promise<RiskCard | null>
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   useEffect(() => {
@@ -483,14 +507,12 @@ function OrgTreeView({
     const t = searchTerm.toLowerCase()
     return u.name.toLowerCase().includes(t) || u.children.some(matchSearch)
   }
-  const getUnitCards = (unitId: string) => cards.filter(c => c.organizationUnit.id === unitId)
-
   const renderUnit = (unit: OrganizationUnit, depth = 0): React.ReactNode => {
     if (!matchSearch(unit)) return null
     const isExpanded = expanded.has(unit.id)
     const hasChildren = unit.children.length > 0
     const isSelected = selectedUnit?.id === unit.id
-    const unitCards = unit.isLeaf ? getUnitCards(unit.id) : []
+    const count = unit.isLeaf ? (cardCounts[unit.id] || 0) : 0
 
     return (
       <div key={unit.id}>
@@ -506,15 +528,11 @@ function OrgTreeView({
           ) : <span className="w-5" />}
           <span className={`flex-1 truncate font-medium ${unit.isLeaf ? 'text-green-700' : ''}`}>{unit.name}</span>
           {unit.isLeaf && (
-            unitCards.length > 0
-              ? <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">{unitCards.length}건</span>
+            count > 0
+              ? <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">{count}건</span>
               : <span className="text-xs text-gray-400">평가없음</span>
           )}
         </div>
-        {unit.isLeaf && isSelected && (
-          <CardPanel unit={unit} unitCards={unitCards} selectedCardId={selectedCardId}
-            onSelectCard={onSelectCard} onCreateCard={onCreateCard} />
-        )}
         {hasChildren && isExpanded && unit.children.map(child => renderUnit(child, depth + 1))}
       </div>
     )
@@ -522,7 +540,7 @@ function OrgTreeView({
   return <div className="space-y-0.5">{units.map(u => renderUnit(u))}</div>
 }
 
-// ───────── CardPanel (inline in tree) ─────────
+// ───────── CardPanel (3rd column) ─────────
 function CardPanel({
   unit, unitCards, selectedCardId, onSelectCard, onCreateCard,
 }: {
@@ -550,7 +568,7 @@ function CardPanel({
   }
 
   return (
-    <div className="ml-9 mt-1 mb-2 space-y-1">
+    <div className="space-y-1">
       {unitCards.map(card => (
         <button key={card.id}
           onClick={() => onSelectCard(card)}
@@ -562,6 +580,7 @@ function CardPanel({
       ))}
       {!showForm ? (
         <button onClick={() => setShowForm(true)}
+          data-tutorial="ra-add-card"
           className="w-full flex items-center justify-center gap-1 p-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors">
           <Plus className="w-3.5 h-3.5" />새 평가 추가
         </button>

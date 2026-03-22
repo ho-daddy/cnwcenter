@@ -221,6 +221,7 @@ enum ScheduleType {
   COUNSELING        // 상담
   RISK_ASSESSMENT   // 위험성평가
   MUSCULOSKELETAL   // 근골조사
+  MEETING_ROOM      // 회의실 사용
 }
 
 // 상담 케이스 관리

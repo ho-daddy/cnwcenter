@@ -404,7 +404,13 @@ function SurveyListPageInner() {
 
   // Filter assessments by unit if selected
   const filteredAssessments = assessments.filter((a) => {
-    if (searchTerm && !a.organizationUnit.name.includes(searchTerm)) return false
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      const matchesOrg = a.organizationUnit.name.toLowerCase().includes(term)
+      const matchesWorker = a.workerName?.toLowerCase().includes(term)
+      const matchesType = a.assessmentType.toLowerCase().includes(term)
+      if (!matchesOrg && !matchesWorker && !matchesType) return false
+    }
     if (statusFilter && a.status !== statusFilter) return false
     if (selectedUnit && a.organizationUnit.id !== selectedUnit.id) return false
     return true
@@ -544,14 +550,14 @@ function SurveyListPageInner() {
       {/* Top Section: Workplace + Organization Tree with Search */}
       <div className="grid grid-cols-12 gap-4">
         {/* Workplace Selector */}
-        <Card className="col-span-12 lg:col-span-2">
+        <Card className="col-span-12 lg:col-span-2" data-tutorial="ms-workplace-list">
           <CardHeader className="py-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               사업장
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2 max-h-64 overflow-y-auto">
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
             {isLoading ? (
               <div className="text-center py-4 text-gray-500 text-sm">로딩중...</div>
             ) : workplaces.length === 0 ? (
@@ -580,26 +586,68 @@ function SurveyListPageInner() {
           </CardContent>
         </Card>
 
-        {/* Organization Tree with Search */}
-        <Card className="col-span-12 lg:col-span-10">
+        {/* Organization Tree */}
+        <Card className="col-span-12 lg:col-span-3" data-tutorial="ms-org-tree">
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FolderTree className="w-4 h-4" />
+              조직도
+              {selectedWorkplace && (
+                <span className="text-gray-500 font-normal">- {selectedWorkplace.name}</span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+            {!selectedWorkplace ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>사업장을 선택하세요.</p>
+              </div>
+            ) : orgUnits.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>조직도가 없습니다.</p>
+              </div>
+            ) : (
+              <IntegratedTreeView
+                units={orgUnits}
+                assessmentCounts={(() => {
+                  const counts: Record<string, number> = {}
+                  assessments.forEach((a) => {
+                    counts[a.organizationUnit.id] = (counts[a.organizationUnit.id] || 0) + 1
+                  })
+                  return counts
+                })()}
+                selectedUnit={selectedUnit}
+                searchTerm={searchTerm}
+                onSelectUnit={(unit) => {
+                  setSelectedUnit(unit)
+                  setSelectedAssessment(null)
+                }}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Assessment List for Selected Unit */}
+        <Card className="col-span-12 lg:col-span-7" data-tutorial="ms-assessment-list">
           <CardHeader className="py-3">
             <div className="flex items-center justify-between gap-4">
               <CardTitle className="text-sm flex items-center gap-2">
-                <FolderTree className="w-4 h-4" />
-                조직도
-                {selectedWorkplace && (
-                  <span className="text-gray-500 font-normal">- {selectedWorkplace.name}</span>
+                <ClipboardList className="w-4 h-4" />
+                조사 목록
+                {selectedUnit && (
+                  <span className="text-gray-500 font-normal">- {selectedUnit.name}</span>
                 )}
               </CardTitle>
             </div>
-            {/* Search */}
-            {selectedWorkplace && orgUnits.length > 0 && (
+            {selectedUnit && selectedUnit.isLeaf && (
               <div className="flex gap-2 mt-2">
-                <div className="relative flex-1 max-w-xs">
+                <div className="relative flex-1">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="조직/공정 검색..."
+                    placeholder="검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-8 pr-3 py-1 border rounded text-sm"
@@ -626,29 +674,21 @@ function SurveyListPageInner() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="p-2 max-h-64 overflow-y-auto">
-            {!selectedWorkplace ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>사업장을 선택하세요.</p>
-              </div>
-            ) : orgUnits.length === 0 ? (
+          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+            {!selectedUnit ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>조직도가 없습니다.</p>
+                <p>조직도에서 단위를 선택하세요.</p>
+              </div>
+            ) : !selectedUnit.isLeaf ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>하위 단위를 선택하세요.</p>
               </div>
             ) : (
-              <IntegratedTreeView
-                units={orgUnits}
-                assessments={assessments}
-                selectedUnit={selectedUnit}
+              <AssessmentListPanel
+                unitAssessments={filteredAssessments}
                 selectedAssessment={selectedAssessment}
-                searchTerm={searchTerm}
-                statusFilter={statusFilter}
-                onSelectUnit={(unit) => {
-                  setSelectedUnit(unit)
-                  setSelectedAssessment(null)
-                }}
                 onSelectAssessment={fetchAssessmentDetails}
                 onNewAssessment={handleNewAssessment}
               />
@@ -719,27 +759,19 @@ function SurveyListPageInner() {
   )
 }
 
-// Integrated Tree View Component with assessments
+// Integrated Tree View Component (tree navigation only)
 function IntegratedTreeView({
   units,
-  assessments,
+  assessmentCounts,
   selectedUnit,
-  selectedAssessment,
   searchTerm,
-  statusFilter,
   onSelectUnit,
-  onSelectAssessment,
-  onNewAssessment,
 }: {
   units: OrganizationUnit[]
-  assessments: Assessment[]
+  assessmentCounts: Record<string, number>
   selectedUnit: OrganizationUnit | null
-  selectedAssessment: Assessment | null
   searchTerm: string
-  statusFilter: string
   onSelectUnit: (unit: OrganizationUnit) => void
-  onSelectAssessment: (assessmentId: string) => void
-  onNewAssessment: (year?: number, assessmentType?: string) => void
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -793,23 +825,7 @@ function IntegratedTreeView({
     const term = searchTerm.toLowerCase()
     if (unit.name.toLowerCase().includes(term)) return true
     if (unit.children?.some(matchesSearch)) return true
-    // Check if any assessment for this unit matches
-    if (unit.isLeaf) {
-      const unitAssessments = assessments.filter((a) => a.organizationUnit.id === unit.id)
-      if (unitAssessments.some((a) => a.organizationUnit.name.toLowerCase().includes(term))) {
-        return true
-      }
-    }
     return false
-  }
-
-  // Filter assessments by status
-  const getUnitAssessments = (unitId: string) => {
-    return assessments.filter((a) => {
-      if (a.organizationUnit.id !== unitId) return false
-      if (statusFilter && a.status !== statusFilter) return false
-      return true
-    })
   }
 
   const renderUnit = (unit: OrganizationUnit, depth: number = 0): React.ReactNode => {
@@ -818,7 +834,7 @@ function IntegratedTreeView({
     const isExpanded = expanded.has(unit.id)
     const hasChildren = unit.children && unit.children.length > 0
     const isSelected = selectedUnit?.id === unit.id
-    const unitAssessments = unit.isLeaf ? getUnitAssessments(unit.id) : []
+    const count = unit.isLeaf ? (assessmentCounts[unit.id] || 0) : 0
 
     return (
       <div key={unit.id}>
@@ -858,9 +874,9 @@ function IntegratedTreeView({
           {/* Leaf indicator + assessment count */}
           {unit.isLeaf && (
             <div className="flex items-center gap-1">
-              {unitAssessments.length > 0 ? (
+              {count > 0 ? (
                 <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
-                  {unitAssessments.length}건
+                  {count}건
                 </span>
               ) : (
                 <span className="text-xs text-gray-400">조사없음</span>
@@ -868,16 +884,6 @@ function IntegratedTreeView({
             </div>
           )}
         </div>
-
-        {/* Assessments for this unit (shown when selected or has few items) */}
-        {unit.isLeaf && isSelected && (
-          <NewAssessmentPanel
-            unitAssessments={unitAssessments}
-            selectedAssessment={selectedAssessment}
-            onSelectAssessment={onSelectAssessment}
-            onNewAssessment={onNewAssessment}
-          />
-        )}
 
         {/* Children */}
         {hasChildren && isExpanded && (
@@ -929,8 +935,8 @@ function IntegratedTreeView({
   )
 }
 
-// New Assessment Panel with year + type selection
-function NewAssessmentPanel({
+// Assessment List Panel for 3rd column
+function AssessmentListPanel({
   unitAssessments,
   selectedAssessment,
   onSelectAssessment,
@@ -946,11 +952,11 @@ function NewAssessmentPanel({
   const [newType, setNewType] = useState('정기조사')
 
   return (
-    <div className="ml-9 mt-1 mb-2 space-y-1">
+    <div className="space-y-2">
       {unitAssessments.length === 0 && !showForm && (
-        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded text-sm">
           <span className="text-gray-500">조사 내역이 없습니다.</span>
-          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+          <Button size="sm" variant="outline" onClick={() => setShowForm(true)} data-tutorial="ms-add-assessment">
             <Plus className="w-3 h-3 mr-1" />
             새 조사
           </Button>
@@ -961,19 +967,21 @@ function NewAssessmentPanel({
           {unitAssessments.map((assessment) => (
             <button
               key={assessment.id}
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelectAssessment(assessment.id)
-              }}
-              className={`w-full flex items-center justify-between p-2 rounded text-left text-sm transition-colors ${
+              onClick={() => onSelectAssessment(assessment.id)}
+              className={`w-full flex items-center justify-between p-3 rounded text-left text-sm transition-colors ${
                 selectedAssessment?.id === assessment.id
                   ? 'bg-blue-100 border border-blue-300'
                   : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
               }`}
             >
-              <span className="text-gray-700">
-                {assessment.year}년 {assessment.assessmentType}
-              </span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-gray-700 font-medium">
+                  {assessment.year}년 {assessment.assessmentType}
+                </span>
+                {assessment.workerName && (
+                  <span className="text-xs text-gray-500">작업자: {assessment.workerName}</span>
+                )}
+              </div>
               <StatusBadge status={assessment.status} />
             </button>
           ))}
@@ -991,12 +999,12 @@ function NewAssessmentPanel({
         </>
       )}
       {showForm && (
-        <div className="p-2 bg-blue-50 rounded border border-blue-200 space-y-2">
+        <div className="p-3 bg-blue-50 rounded border border-blue-200 space-y-2">
           <div className="flex gap-2">
             <select
               value={newYear}
               onChange={(e) => setNewYear(parseInt(e.target.value))}
-              className="text-xs px-2 py-1 border rounded flex-1"
+              className="text-sm px-2 py-1.5 border rounded flex-1"
             >
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
                 <option key={y} value={y}>{y}년</option>
@@ -1005,16 +1013,16 @@ function NewAssessmentPanel({
             <select
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
-              className="text-xs px-2 py-1 border rounded flex-1"
+              className="text-sm px-2 py-1.5 border rounded flex-1"
             >
               <option value="정기조사">정기조사</option>
               <option value="수시조사">수시조사</option>
             </select>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button
               size="sm"
-              className="flex-1 text-xs"
+              className="flex-1"
               onClick={() => {
                 onNewAssessment(newYear, newType)
                 setShowForm(false)
@@ -1025,7 +1033,6 @@ function NewAssessmentPanel({
             <Button
               size="sm"
               variant="outline"
-              className="text-xs"
               onClick={() => setShowForm(false)}
             >
               취소
@@ -1109,13 +1116,14 @@ function AssessmentDetail({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-4 border-b pb-2 overflow-x-auto">
+        <div className="flex gap-1 mt-4 border-b pb-2 overflow-x-auto" data-tutorial="ms-sheet-tabs">
           {SHEET_TABS.map((tab) => {
             const Icon = tab.icon
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                data-tutorial={tab.id === 'videos' ? 'ms-video-tab' : undefined}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-t text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'

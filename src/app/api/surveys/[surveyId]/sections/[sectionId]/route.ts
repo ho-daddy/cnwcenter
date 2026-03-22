@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string; sectionId: string } }
 
 // PUT /api/surveys/[surveyId]/sections/[sectionId] — 섹션 수정
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 // DELETE /api/surveys/[surveyId]/sections/[sectionId] — 섹션 삭제 (질문 포함 cascade)
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({

@@ -9,11 +9,9 @@ const ROLE_ACCESS: Record<string, string[]> = {
 
   // STAFF 이상 접근 가능
   '/admin': ['SUPER_ADMIN', 'STAFF'],
-  '/calendar': ['SUPER_ADMIN', 'STAFF'],
   '/notices/new': ['SUPER_ADMIN', 'STAFF'],
   '/notices/edit': ['SUPER_ADMIN', 'STAFF'],
   '/counseling': ['SUPER_ADMIN', 'STAFF'],
-  '/survey': ['SUPER_ADMIN', 'STAFF'],
   // /workplaces는 모든 역할 접근 가능 (API에서 권한 체크)
 }
 
@@ -41,6 +39,7 @@ const PROTECTED_PATHS = [
   '/admin',
   '/settings',
   '/workplaces',
+  '/survey',
 ]
 
 export default withAuth(

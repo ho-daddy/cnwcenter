@@ -27,6 +27,7 @@ const typeConfig = {
   COUNSELING: { color: 'border-blue-500', bg: 'bg-blue-500', icon: Phone, label: '상담' },
   RISK_ASSESSMENT: { color: 'border-green-500', bg: 'bg-green-500', icon: FileText, label: '위험성평가' },
   MUSCULOSKELETAL: { color: 'border-amber-500', bg: 'bg-amber-500', icon: Users, label: '근골조사' },
+  MEETING_ROOM: { color: 'border-rose-500', bg: 'bg-rose-500', icon: Flag, label: '회의실' },
 }
 
 // 시간 포맷 헬퍼

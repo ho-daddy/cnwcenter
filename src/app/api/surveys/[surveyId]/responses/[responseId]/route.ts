@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string; responseId: string } }
 
 // GET /api/surveys/[surveyId]/responses/[responseId] — 응답 상세 (STAFF+)
 export async function GET(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const response = await prisma.surveyResponse.findUnique({
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 // DELETE /api/surveys/[surveyId]/responses/[responseId] — 응답 삭제 (STAFF+)
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const response = await prisma.surveyResponse.findUnique({

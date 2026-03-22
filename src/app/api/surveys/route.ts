@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { QuestionType, Prisma } from '@prisma/client'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireAuth, getAccessibleWorkplaceIds } from '@/lib/auth-utils'
 
 // GET /api/surveys — 설문조사 목록
 export async function GET(req: NextRequest) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireAuth()
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const { searchParams } = req.nextUrl
@@ -18,6 +18,12 @@ export async function GET(req: NextRequest) {
   if (year) where.year = parseInt(year)
   if (workplaceId) where.workplaceId = workplaceId
   if (status) where.status = status as Prisma.EnumSurveyStatusFilter['equals']
+
+  // WORKPLACE_USER는 자신의 소속 사업장 설문만 조회
+  const accessibleIds = await getAccessibleWorkplaceIds(auth.user!.id, auth.user!.role)
+  if (accessibleIds !== null) {
+    where.workplaceId = { in: accessibleIds }
+  }
 
   const surveys = await prisma.survey.findMany({
     where,
@@ -39,7 +45,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/surveys — 설문조사 생성
 export async function POST(req: NextRequest) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireAuth()
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   try {
@@ -51,6 +57,14 @@ export async function POST(req: NextRequest) {
     }
     if (!year) {
       return NextResponse.json({ error: '연도를 입력해주세요.' }, { status: 400 })
+    }
+
+    // WORKPLACE_USER는 자신의 소속 사업장만 지정 가능
+    const postAccessibleIds = await getAccessibleWorkplaceIds(auth.user!.id, auth.user!.role)
+    if (postAccessibleIds !== null) {
+      if (!workplaceId || !postAccessibleIds.includes(workplaceId)) {
+        return NextResponse.json({ error: '해당 사업장에 대한 권한이 없습니다.' }, { status: 403 })
+      }
     }
 
     // 템플릿이 있으면 구조 가져오기

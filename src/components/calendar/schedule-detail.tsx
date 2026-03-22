@@ -35,6 +35,7 @@ const SCHEDULE_TYPE_COLORS: Record<string, string> = {
   COUNSELING: 'bg-green-500',
   RISK_ASSESSMENT: 'bg-orange-500',
   MUSCULOSKELETAL: 'bg-purple-500',
+  MEETING_ROOM: 'bg-rose-500',
 }
 
 const SCHEDULE_TYPE_LABELS: Record<string, string> = {
@@ -42,6 +43,7 @@ const SCHEDULE_TYPE_LABELS: Record<string, string> = {
   COUNSELING: '상담',
   RISK_ASSESSMENT: '위험성평가',
   MUSCULOSKELETAL: '근골조사',
+  MEETING_ROOM: '회의실',
 }
 
 export function ScheduleDetail({

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string } }
 
 // GET /api/surveys/[surveyId] — 설문조사 상세
 export async function GET(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
-  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+  const auth = await requireSurveyAccess(params.surveyId)
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.error === '설문조사를 찾을 수 없습니다.' ? 404 : 401 })
 
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 // PUT /api/surveys/[surveyId] — 설문조사 수정 (DRAFT 상태만)
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({
@@ -87,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 // DELETE /api/surveys/[surveyId] — 설문조사 삭제 (DRAFT 상태만)
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({

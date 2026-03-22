@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { QuestionType } from '@prisma/client'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireSurveyAccess } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string; sectionId: string } }
 
@@ -20,7 +20,7 @@ const VALID_QUESTION_TYPES: QuestionType[] = [
 
 // POST /api/surveys/[surveyId]/sections/[sectionId]/questions — 질문 추가
 export async function POST(req: NextRequest, { params }: Params) {
-  const auth = await requireStaffOrAbove()
+  const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const survey = await prisma.survey.findUnique({

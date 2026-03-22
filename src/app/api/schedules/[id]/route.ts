@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireAuth, requireStaffOrAbove } from '@/lib/auth-utils'
 
-// 일정 상세 조회 (STAFF 이상만)
+// 일정 상세 조회 (WORKPLACE_USER는 MEETING_ROOM만)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireAuth()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -28,6 +28,11 @@ export async function GET(
 
     if (!schedule) {
       return NextResponse.json({ error: '일정을 찾을 수 없습니다.' }, { status: 404 })
+    }
+
+    // WORKPLACE_USER는 MEETING_ROOM 일정만 조회 가능
+    if (authCheck.user!.role === 'WORKPLACE_USER' && schedule.scheduleType !== 'MEETING_ROOM') {
+      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
     return NextResponse.json({ schedule })

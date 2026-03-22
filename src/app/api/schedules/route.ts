@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaffOrAbove } from '@/lib/auth-utils'
+import { requireAuth, requireStaffOrAbove } from '@/lib/auth-utils'
 import { ScheduleType } from '@prisma/client'
 import { validateEnum } from '@/lib/api-utils'
 
-// 일정 목록 조회 (STAFF 이상만)
+// 일정 목록 조회 (WORKPLACE_USER는 MEETING_ROOM만)
 export async function GET(request: NextRequest) {
-  const authCheck = await requireStaffOrAbove()
+  const authCheck = await requireAuth()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -19,6 +19,11 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
 
+    // WORKPLACE_USER는 회의실 사용 일정만 조회 가능
+    if (authCheck.user!.role === 'WORKPLACE_USER') {
+      where.scheduleType = 'MEETING_ROOM'
+    }
+
     // 날짜 범위 필터
     if (startDate || endDate) {
       where.startDate = {}
@@ -30,9 +35,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 일정 유형 필터
-    if (type && ['GENERAL', 'COUNSELING', 'RISK_ASSESSMENT', 'MUSCULOSKELETAL'].includes(type)) {
-      where.scheduleType = type
+    // 일정 유형 필터 (WORKPLACE_USER가 아닌 경우에만 적용)
+    if (type && ['GENERAL', 'COUNSELING', 'RISK_ASSESSMENT', 'MUSCULOSKELETAL', 'MEETING_ROOM'].includes(type)) {
+      if (authCheck.user!.role !== 'WORKPLACE_USER') {
+        where.scheduleType = type
+      }
     }
 
     const schedules = await prisma.schedule.findMany({
