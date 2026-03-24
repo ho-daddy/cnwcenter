@@ -240,3 +240,80 @@ GOOGLE_CLIENT_SECRET=...
 # 화학물질 정보 API
 KOSHA_API_KEY=...
 ```
+
+---
+
+## 파일 업로드 설정 (중요!)
+
+### nginx 설정
+
+Next.js 프로덕션 모드에서는 `public/uploads/` 폴더의 파일을 직접 서빙하지 못하므로 nginx 설정이 필요합니다.
+
+**`/etc/nginx/sites-available/cnwcenter`에 다음 추가:**
+
+```nginx
+server {
+  server_name yourdomain.com;
+  
+  # ... 기존 설정 ...
+  
+  location /_next/static/ {
+    proxy_pass http://127.0.0.1:3000;
+    expires 365d;
+    add_header Cache-Control "public, immutable";
+  }
+
+  # ✨ 파일 업로드 경로 추가
+  location /uploads/ {
+    alias /home/deploy/cnwcenter/public/uploads/;
+    expires 30d;
+    add_header Cache-Control "public, immutable";
+  }
+  
+  # ... SSL 설정 등 ...
+}
+```
+
+### 권한 설정
+
+nginx가 업로드된 파일에 접근할 수 있도록 권한 설정:
+
+```bash
+# nginx가 폴더를 통과할 수 있도록 실행 권한 부여
+sudo chmod o+x /home/deploy
+sudo chmod o+x /home/deploy/cnwcenter
+sudo chmod o+x /home/deploy/cnwcenter/public
+sudo chmod o+x /home/deploy/cnwcenter/public/uploads
+
+# 업로드된 파일에 읽기 권한 부여
+sudo chmod -R o+r /home/deploy/cnwcenter/public/uploads
+
+# nginx 재시작
+sudo systemctl reload nginx
+```
+
+### 자동 권한 설정 (선택사항)
+
+새로 업로드되는 파일에도 자동으로 권한이 적용되도록 하려면, 파일 업로드 API에서 다음 코드 추가:
+
+```typescript
+// src/app/api/upload/route.ts (예시)
+import { writeFile, chmod } from 'fs/promises';
+
+// 파일 저장 후
+await writeFile(filepath, buffer);
+await chmod(filepath, 0o644); // rw-r--r--
+```
+
+### 문제 해결
+
+**증상:** 업로드는 되는데 이미지가 깨진 아이콘으로 표시됨
+
+**원인:** nginx가 파일에 접근 못 함 (403 Forbidden)
+
+**해결:**
+1. nginx 에러 로그 확인: `sudo tail -50 /var/log/nginx/error.log`
+2. "Permission denied" 에러 → 위 권한 설정 명령어 실행
+3. 브라우저 캐시 삭제 후 새로고침 (Ctrl+F5)
+
+---
