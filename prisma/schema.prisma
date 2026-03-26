@@ -25,6 +25,12 @@ model User {
   phone           String?     // 전화번호
   organization    String?     // 소속사업장
   privacyAgreedAt DateTime?   // 개인정보 수집·이용 동의 일시
+  
+  // 튜토리얼 완료 상태
+  tutorialCompletedRiskAssessment Boolean @default(false)
+  tutorialCompletedMusculoskeletal Boolean @default(false)
+  tutorialCompletedWorkplaces Boolean @default(false)
+  
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

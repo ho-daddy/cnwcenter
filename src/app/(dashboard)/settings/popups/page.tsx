@@ -93,7 +93,15 @@ export default function PopupsManagementPage() {
   const isCurrentlyActive = (popup: Popup) => {
     if (!popup.isActive) return false
     const now = new Date()
-    return new Date(popup.startDate) <= now && new Date(popup.endDate) >= now
+    const start = new Date(popup.startDate)
+    const end = new Date(popup.endDate)
+    
+    // 날짜만 비교 (시간 무시)
+    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    
+    return startDate <= nowDate && nowDate <= endDate
   }
 
   return (

@@ -41,19 +41,37 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     const tutorialId = tutorialMap[pathname]
     if (!tutorialId) return
 
-    try {
-      const completed = localStorage.getItem(`${STORAGE_KEY_PREFIX}${tutorialId}`)
-      if (!completed) {
-        // Small delay to let the page render first
-        const timer = setTimeout(() => {
-          setActiveTutorial(tutorialId)
-          setCurrentStep(0)
-        }, 800)
-        return () => clearTimeout(timer)
-      }
-    } catch {
-      // localStorage not available
-    }
+    // Fetch tutorial status from API
+    fetch('/api/user/tutorial-status')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+      .then(data => {
+        const completed = data[tutorialId]
+        if (!completed) {
+          // Small delay to let the page render first
+          setTimeout(() => {
+            setActiveTutorial(tutorialId)
+            setCurrentStep(0)
+          }, 800)
+        }
+      })
+      .catch(err => {
+        console.error('Failed to check tutorial status:', err)
+        // Fallback to localStorage on error
+        try {
+          const completed = localStorage.getItem(`${STORAGE_KEY_PREFIX}${tutorialId}`)
+          if (!completed) {
+            setTimeout(() => {
+              setActiveTutorial(tutorialId)
+              setCurrentStep(0)
+            }, 800)
+          }
+        } catch {
+          // Ignore localStorage errors
+        }
+      })
   }, [pathname, activeTutorial])
 
   const startTutorial = useCallback((id: TutorialId) => {
@@ -86,11 +104,30 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   const handleClose = useCallback(() => {
     if (activeTutorial) {
-      try {
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}${activeTutorial}`, 'true')
-      } catch {
-        // localStorage not available
-      }
+      // Save to API
+      fetch('/api/user/tutorial-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tutorialId: activeTutorial }),
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to save')
+          // Also save to localStorage as fallback
+          try {
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}${activeTutorial}`, 'true')
+          } catch {
+            // Ignore localStorage errors
+          }
+        })
+        .catch(err => {
+          console.error('Failed to save tutorial status:', err)
+          // Still save to localStorage on error
+          try {
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}${activeTutorial}`, 'true')
+          } catch {
+            // Ignore localStorage errors
+          }
+        })
     }
     setActiveTutorial(null)
     setCurrentStep(0)

@@ -8,12 +8,17 @@ export async function GET() {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const now = new Date()
+  
+  // 오늘 날짜 (시간 제외)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const todayEnd = new Date(todayStart)
+  todayEnd.setDate(todayEnd.getDate() + 1) // 내일 00:00
 
   const popups = await prisma.popup.findMany({
     where: {
       isActive: true,
-      startDate: { lte: now },
-      endDate: { gte: now },
+      startDate: { lt: todayEnd },   // 시작일 < 내일 00:00
+      endDate: { gte: todayStart },  // 종료일 >= 오늘 00:00
     },
     orderBy: { createdAt: 'desc' },
     select: {
