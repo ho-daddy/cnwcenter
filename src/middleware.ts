@@ -24,6 +24,7 @@ const PUBLIC_PATHS = [
   '/pending-approval',
   '/api/auth',
   '/api/briefing',  // 브리핑 자동 수집/분석
+  '/api/surveys/public/',  // 공개 설문 API
   '/s/',           // 공개 설문 URL
   '/privacy',      // 개인정보처리방침
   '/terms',        // 이용약관
