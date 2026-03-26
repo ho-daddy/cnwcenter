@@ -4,8 +4,10 @@ import { NextResponse } from 'next/server'
 // 역할별 접근 권한 정의
 const ROLE_ACCESS: Record<string, string[]> = {
   // 최고관리자만 접근 가능
-  '/settings': ['SUPER_ADMIN'],
   '/admin/users': ['SUPER_ADMIN'],
+
+  // STAFF 이상 접근 가능
+  '/settings': ['SUPER_ADMIN', 'STAFF'],
 
   // STAFF 이상 접근 가능
   '/admin': ['SUPER_ADMIN', 'STAFF'],

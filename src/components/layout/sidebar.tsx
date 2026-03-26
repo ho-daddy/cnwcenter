@@ -100,12 +100,22 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   // 휴지통 (모든 역할)
   items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
 
-  // SUPER_ADMIN 전용 메뉴
+  // SUPER_ADMIN 전용
   if (role === 'SUPER_ADMIN') {
-    items.push(
-      { title: '사용자 관리', href: '/admin/users', icon: UserCog },
-      { title: '설정', href: '/settings', icon: Settings }
-    )
+    items.push({ title: '사용자 관리', href: '/admin/users', icon: UserCog })
+  }
+
+  // STAFF 이상: 설정 메뉴 (하위 메뉴 포함)
+  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+    items.push({
+      title: '설정',
+      href: '/settings',
+      icon: Settings,
+      subItems: [
+        { title: '브리핑 관리', href: '/settings' },
+        { title: '팝업 관리', href: '/settings/popups' },
+      ],
+    })
   }
 
   return items

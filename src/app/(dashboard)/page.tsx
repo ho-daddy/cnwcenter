@@ -5,6 +5,7 @@ import { ScheduleWidget } from '@/components/dashboard/schedule-widget'
 import { BriefingWidget } from '@/components/dashboard/briefing-widget'
 import { DailyBriefingCard } from '@/components/dashboard/daily-briefing-card'
 import { NoticeWidget } from '@/components/dashboard/notice-widget'
+import { PopupDisplay } from '@/components/popups/popup-display'
 
 // 항상 최신 데이터를 조회하도록 동적 렌더링 강제
 export const dynamic = 'force-dynamic'
@@ -103,6 +104,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* 팝업 표시 */}
+      <PopupDisplay />
+
       {/* 통합 업무 현황 - 전체 너비 */}
       <WorkStatusWidget data={workStatus} />
 

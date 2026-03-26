@@ -40,6 +40,7 @@ model User {
   surveys         Survey[]                               // 설문조사 (작성자)
   archivedDeletions ArchivedAssessment[]                 // 삭제한 아카이브
   uploadedVideos    WorkVideo[]                          // 업로드한 작업 영상
+  popups            Popup[]                              // 생성한 팝업
 }
 
 enum UserRole {
@@ -1209,4 +1210,21 @@ model WorkVideo {
   @@index([elementWorkId])
   @@index([status])
   @@index([uploadedById])
+}
+
+// 팝업 관리
+model Popup {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  @@index([isActive, startDate, endDate])
+  @@index([createdById])
 }
