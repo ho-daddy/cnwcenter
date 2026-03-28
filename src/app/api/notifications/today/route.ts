@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     })
 
     // 4. 최신 AI 브리핑 (오늘 생성)
-    const latestBriefing = await prisma.briefingReport.findFirst({
+    const latestBriefing = await prisma.dailyReport.findFirst({
       where: {
         createdAt: {
           gte: today,
