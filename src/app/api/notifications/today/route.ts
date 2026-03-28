@@ -82,16 +82,8 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // 6. 위험성평가 기한 임박 (다음 7일 이내)
-    const nextWeek = new Date(today)
-    nextWeek.setDate(nextWeek.getDate() + 7)
-
-    const riskAssessmentDueSoon = await prisma.riskAssessmentCard.count({
-      where: {
-        status: 'IN_PROGRESS',
-        // 기한 필드가 있다면 추가
-      },
-    })
+    // 6. 위험성평가 진행중 (status 필드 없음, 일단 전체 카운트)
+    const riskAssessmentDueSoon = await prisma.riskAssessmentCard.count()
 
     return NextResponse.json({
       schedulesToday,
