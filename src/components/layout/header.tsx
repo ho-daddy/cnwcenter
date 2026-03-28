@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { Menu, Bell, User, LogOut, Settings, ChevronDown } from 'lucide-react'
+import { Menu, User, LogOut, Settings, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { UserRole } from '@prisma/client'
+import { NotificationPopover } from '@/components/notifications/notification-popover'
 
 const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: '최고관리자',
@@ -44,10 +45,7 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         {/* 알림 */}
-        <button className="p-2 rounded-lg hover:bg-gray-100 relative">
-          <Bell className="w-5 h-5 text-gray-600" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <NotificationPopover />
 
         {/* 사용자 메뉴 */}
         {session?.user ? (

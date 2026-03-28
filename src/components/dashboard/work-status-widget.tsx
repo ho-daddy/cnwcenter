@@ -71,7 +71,7 @@ export function WorkStatusWidget({ data }: { data: WorkStatusData }) {
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
       icon: FileText,
-      href: '/surveys',
+      href: '/survey',
     },
     {
       label: '이번 주 일정',
