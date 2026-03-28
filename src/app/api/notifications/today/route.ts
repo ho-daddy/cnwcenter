@@ -27,13 +27,13 @@ export async function GET(req: NextRequest) {
         userId: session.user.id,
         OR: [
           {
-            startTime: {
+            startDate: {
               gte: today,
               lt: tomorrow,
             },
           },
           {
-            endTime: {
+            endDate: {
               gte: today,
               lt: tomorrow,
             },
