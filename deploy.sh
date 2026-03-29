@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# nvm 로드
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+# Node.js 힙 메모리 증가 (3GB)
+export NODE_OPTIONS="--max-old-space-size=3072"
+
 APP_DIR="/home/deploy/cnwcenter"
 cd $APP_DIR
 
