@@ -26,9 +26,11 @@ const PUBLIC_PATHS = [
   '/api/briefing',  // 브리핑 자동 수집/분석
   '/api/surveys/public/',  // 공개 설문 API
   '/s/',           // 공개 설문 URL
-  '/privacy',      // 개인정보처리방침
-  '/terms',        // 이용약관
-  '/contact',      // 문의하기
+  '/privacy',           // 개인정보처리방침
+  '/terms',             // 이용약관
+  '/contact',           // 문의하기
+  '/forgot-password',   // 비밀번호 찾기
+  '/reset-password',    // 비밀번호 재설정
 ]
 
 // 승인된 사용자만 접근 가능한 경로

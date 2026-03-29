@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { UserTable } from '@/components/admin/user-table'
+import { EmailModal } from '@/components/admin/email-modal'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Users } from 'lucide-react'
+import { Mail, RefreshCw, Users } from 'lucide-react'
 
 interface WorkplaceOption {
   id: string
@@ -14,6 +15,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([])
   const [workplaces, setWorkplaces] = useState<WorkplaceOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [showBulkEmailModal, setShowBulkEmailModal] = useState(false)
   const [filter, setFilter] = useState({
     status: '',
     role: '',
@@ -79,10 +81,16 @@ export default function AdminUsersPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          새로고침
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowBulkEmailModal(true)}>
+            <Mail className="h-4 w-4 mr-2" />
+            전체 메일 발송
+          </Button>
+          <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+        </div>
       </div>
 
       {/* 필터 */}
@@ -136,6 +144,13 @@ export default function AdminUsersPage() {
       ) : (
         <UserTable users={users} workplaces={workplaces} onRefresh={fetchUsers} />
       )}
+
+      {/* 전체 메일 발송 모달 */}
+      <EmailModal
+        open={showBulkEmailModal}
+        onClose={() => setShowBulkEmailModal(false)}
+        userCount={users.length}
+      />
     </div>
   )
 }

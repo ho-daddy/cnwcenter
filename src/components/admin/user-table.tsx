@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { UserDetailModal } from '@/components/admin/user-detail-modal'
+import { EmailModal } from '@/components/admin/email-modal'
 
 interface UserData {
   id: string
@@ -65,6 +66,8 @@ export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showRoleMenu, setShowRoleMenu] = useState<string | null>(null)
   const [showWorkplaceMenu, setShowWorkplaceMenu] = useState<string | null>(null)
+  const [emailTarget, setEmailTarget] = useState<string | null>(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   const handleApprove = async (userId: string) => {
     if (!confirm('이 사용자를 승인하시겠습니까?')) return
@@ -269,7 +272,16 @@ export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
                         </div>
                         <div>
                           <div className="font-medium text-sm">{user.name || '(이름 없음)'}</div>
-                          <div className="text-xs text-gray-500">{user.email}</div>
+                          <button
+                            onClick={() => {
+                              setEmailTarget(user.email)
+                              setShowEmailModal(true)
+                            }}
+                            className="text-xs text-blue-600 hover:underline"
+                            title="클릭하여 이메일 발송"
+                          >
+                            {user.email}
+                          </button>
                         </div>
                       </div>
                     </td>
@@ -403,6 +415,16 @@ export function UserTable({ users, workplaces, onRefresh }: UserTableProps) {
           onRefresh={onRefresh}
         />
       )}
+
+      {/* 이메일 발송 모달 */}
+      <EmailModal
+        open={showEmailModal}
+        onClose={() => {
+          setShowEmailModal(false)
+          setEmailTarget(null)
+        }}
+        to={emailTarget}
+      />
     </div>
   )
 }

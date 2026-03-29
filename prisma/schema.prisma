@@ -22,6 +22,8 @@ model User {
   approvedBy      String?
   rejectedAt      DateTime?
   rejectedReason  String?
+  resetToken      String?     // 비밀번호 재설정 토큰
+  resetExpires    DateTime?   // 비밀번호 재설정 토큰 만료시간
   phone           String?     // 전화번호
   organization    String?     // 소속사업장
   privacyAgreedAt DateTime?   // 개인정보 수집·이용 동의 일시
