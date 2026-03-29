@@ -12,8 +12,8 @@ git pull origin main
 # 의존성 업데이트
 npm ci
 
-# Prisma 스키마 동기화
-npx prisma db push
+# Prisma 마이그레이션 (안전)
+npx prisma migrate deploy
 npx prisma generate
 
 # 프로덕션 빌드
