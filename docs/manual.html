@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새움터 사용자 매뉴얼 | CNW Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Noto Sans KR', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #fafaf9;
+    --bg-alt: #f5f4f0;
+    --surface: #ffffff;
+    --border: rgba(0, 0, 0, 0.07);
+    --border-bright: rgba(0, 0, 0, 0.14);
+    --text: #1c1c1c;
+    --text-dim: #666;
+    --text-muted: #999;
+    --accent: #1a6b4e;
+    --accent-bg: #e8f5ef;
+    --accent-dim: rgba(26, 107, 78, 0.06);
+    --warn: #c17817;
+    --warn-bg: #fff8ed;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --info: #2563eb;
+    --info-bg: #eff6ff;
+    --sidebar-w: 280px;
+    --header-h: 56px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111110;
+      --bg-alt: #1a1918;
+      --surface: #1e1d1c;
+      --border: rgba(255,255,255,0.07);
+      --border-bright: rgba(255,255,255,0.14);
+      --text: #e6e4df;
+      --text-dim: #9a9890;
+      --text-muted: #6b6960;
+      --accent: #4ade80;
+      --accent-bg: rgba(74,222,128,0.08);
+      --accent-dim: rgba(74,222,128,0.04);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251,191,36,0.08);
+      --danger: #f87171;
+      --danger-bg: rgba(248,113,113,0.08);
+      --info: #60a5fa;
+      --info-bg: rgba(96,165,250,0.08);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg);
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6, p, li, span, a, nav a, .sidebar__link {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: color-mix(in srgb, var(--bg) 85%, transparent 15%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+  }
+
+  .header__toggle {
+    display: none;
+    background: none; border: none; color: var(--text);
+    cursor: pointer; padding: 8px;
+  }
+
+  .header__logo {
+    font-weight: 700;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .header__logo span { color: var(--accent); }
+
+  .header__search {
+    margin-left: auto;
+    position: relative;
+    max-width: 280px;
+    width: 100%;
+  }
+
+  .header__search input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .header__search input::placeholder { color: var(--text-muted); }
+  .header__search input:focus { border-color: var(--accent); }
+
+  .header__search svg {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .header__progress {
+    position: absolute; bottom: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width 0.15s;
+    width: 0;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--bg-alt);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 0;
+    z-index: 100;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    transition: transform 0.3s;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sidebar__group { margin-bottom: 8px; }
+
+  .sidebar__group-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    padding: 12px 20px 6px;
+  }
+
+  .sidebar__link {
+    display: block;
+    padding: 7px 20px 7px 28px;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.5;
+  }
+
+  .sidebar__link:hover {
+    color: var(--text);
+    background: var(--accent-dim);
+  }
+
+  .sidebar__link.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--accent-dim);
+    font-weight: 500;
+  }
+
+  .sidebar__link--sub {
+    padding-left: 40px;
+    font-size: 12.5px;
+  }
+
+  /* ===== MAIN ===== */
+  .main {
+    margin-left: var(--sidebar-w);
+    margin-top: var(--header-h);
+    min-height: calc(100vh - var(--header-h));
+  }
+
+  .content {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  /* ===== TYPOGRAPHY ===== */
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 12px; line-height: 1.3; }
+  h2 {
+    font-size: 24px; font-weight: 700; margin: 56px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    line-height: 1.3;
+  }
+  h3 { font-size: 18px; font-weight: 600; margin: 32px 0 10px; }
+  h4 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; color: var(--text-dim); }
+  p { margin-bottom: 12px; font-size: 15px; }
+  ul, ol { margin: 8px 0 16px 24px; font-size: 15px; }
+  li { margin-bottom: 6px; }
+  li ul, li ol { margin-top: 4px; margin-bottom: 4px; }
+
+  strong { font-weight: 600; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* ===== CALLOUTS ===== */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 16px 0;
+    font-size: 14px;
+    border-left: 3px solid;
+    line-height: 1.7;
+  }
+  .callout--tip { background: var(--accent-bg); border-color: var(--accent); }
+  .callout--warn { background: var(--warn-bg); border-color: var(--warn); }
+  .callout--danger { background: var(--danger-bg); border-color: var(--danger); }
+  .callout--info { background: var(--info-bg); border-color: var(--info); }
+  .callout__title { font-weight: 600; margin-bottom: 4px; font-size: 14px; }
+  .callout--tip .callout__title { color: var(--accent); }
+  .callout--warn .callout__title { color: var(--warn); }
+  .callout--danger .callout__title { color: var(--danger); }
+  .callout--info .callout__title { color: var(--info); }
+
+  /* ===== STEPS ===== */
+  .steps { counter-reset: step; margin: 16px 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+    counter-increment: step;
+    align-items: start;
+  }
+  .step::before {
+    content: counter(step);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step h4 { margin-top: 6px; margin-bottom: 6px; color: var(--text); }
+  .step p { margin-bottom: 4px; }
+
+  /* ===== TABLES ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    background: var(--bg-alt);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) { background: var(--accent-dim); }
+
+  /* ===== STATUS BADGES ===== */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .badge--green { background: var(--accent-bg); color: var(--accent); }
+  .badge--warn { background: var(--warn-bg); color: var(--warn); }
+  .badge--danger { background: var(--danger-bg); color: var(--danger); }
+  .badge--info { background: var(--info-bg); color: var(--info); }
+  .badge--gray { background: var(--bg-alt); color: var(--text-dim); }
+
+  /* ===== FLOW DIAGRAM (CSS) ===== */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .flow__node {
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .flow__node--active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .flow__arrow {
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* ===== GRID CARDS ===== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card__icon { font-size: 28px; margin-bottom: 8px; }
+  .card h4 { margin: 0 0 6px; font-size: 15px; color: var(--text); }
+  .card p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+  /* ===== SCORE TABLE ===== */
+  .score-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .score-label--critical { background: #fef2f2; color: #dc2626; }
+  .score-label--high { background: #fff7ed; color: #ea580c; }
+  .score-label--medium { background: #fefce8; color: #ca8a04; }
+  .score-label--low { background: #f0fdf4; color: #16a34a; }
+
+  @media (prefers-color-scheme: dark) {
+    .score-label--critical { background: rgba(220,38,38,0.12); }
+    .score-label--high { background: rgba(234,88,12,0.12); }
+    .score-label--medium { background: rgba(202,138,4,0.12); }
+    .score-label--low { background: rgba(22,163,74,0.12); }
+  }
+
+  /* ===== SEARCH RESULTS ===== */
+  .search-results {
+    display: none;
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    z-index: 300;
+  }
+  .search-results.show { display: block; }
+  .search-result {
+    display: block;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .search-result:last-child { border-bottom: none; }
+  .search-result:hover { background: var(--accent-dim); }
+  .search-result__section {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .search-no-result {
+    padding: 20px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); box-shadow: 4px 0 16px rgba(0,0,0,0.1); }
+    .main { margin-left: 0; }
+    .header__toggle { display: block; }
+    .content { padding: 24px 20px 64px; }
+  }
+
+  /* ===== PRINT ===== */
+  @media print {
+    .header, .sidebar { display: none; }
+    .main { margin: 0; }
+    .content { max-width: 100%; padding: 0; }
+    h2 { break-before: page; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <button class="header__toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="메뉴">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>
+  </button>
+  <div class="header__logo"><span>새움터</span> 사용자 매뉴얼</div>
+  <div class="header__search">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
+    <input type="text" id="searchInput" placeholder="검색... (Ctrl+K)" autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+  <div class="header__progress" id="progressBar"></div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">시작하기</div>
+    <a href="#overview" class="sidebar__link">개요</a>
+    <a href="#dashboard" class="sidebar__link">대시보드</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">뉴스 브리핑</div>
+    <a href="#briefing" class="sidebar__link">뉴스 브리핑</a>
+    <a href="#briefing-collect" class="sidebar__link sidebar__link--sub">자동 수집</a>
+    <a href="#briefing-analysis" class="sidebar__link sidebar__link--sub">AI 분석</a>
+    <a href="#briefing-filter" class="sidebar__link sidebar__link--sub">필터링 기준</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">상담 관리</div>
+    <a href="#counseling" class="sidebar__link">상담관리 시스템</a>
+    <a href="#counseling-register" class="sidebar__link sidebar__link--sub">상담 등록</a>
+    <a href="#counseling-type" class="sidebar__link sidebar__link--sub">유형 분류</a>
+    <a href="#counseling-status" class="sidebar__link sidebar__link--sub">상태 관리</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">위험성평가</div>
+    <a href="#risk" class="sidebar__link">위험성평가 시스템</a>
+    <a href="#risk-steps" class="sidebar__link sidebar__link--sub">단계별 입력</a>
+    <a href="#risk-scoring" class="sidebar__link sidebar__link--sub">평가 기준</a>
+    <a href="#risk-categories" class="sidebar__link sidebar__link--sub">카테고리별 기준</a>
+    <a href="#risk-improvement" class="sidebar__link sidebar__link--sub">개선이력 관리</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">근골격계유해요인조사</div>
+    <a href="#musculo" class="sidebar__link">근골조사 시스템</a>
+    <a href="#musculo-sheets" class="sidebar__link sidebar__link--sub">4-Sheet 구조</a>
+    <a href="#musculo-bodypart" class="sidebar__link sidebar__link--sub">부위별 평가</a>
+    <a href="#musculo-rulreba" class="sidebar__link sidebar__link--sub">RULA/REBA</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">화학물질</div>
+    <a href="#chemical" class="sidebar__link">화학물질 중대성 평가</a>
+    <a href="#chemical-auto" class="sidebar__link sidebar__link--sub">자동 판정 기준</a>
+    <a href="#chemical-score" class="sidebar__link sidebar__link--sub">점수 계산</a>
+    <a href="#chemical-msds" class="sidebar__link sidebar__link--sub">MSDS 연동</a>
+  </div>
+  <div class="sidebar__group">
+    <div class="sidebar__group-title">기타</div>
+    <a href="#workplace" class="sidebar__link">사업장 관리</a>
+    <a href="#survey" class="sidebar__link">설문조사</a>
+    <a href="#calendar" class="sidebar__link">일정 관리</a>
+    <a href="#notice" class="sidebar__link">공지사항</a>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="mainContent">
+<div class="content">
+
+<!-- OVERVIEW -->
+<h1 id="overview">새움터 사용자 매뉴얼</h1>
+<p>이 매뉴얼은 CNW Center(새움터)의 모든 기능을 상세히 안내합니다. 좌측 사이드바 또는 상단 검색을 이용해 원하는 섹션으로 이동하세요.</p>
+
+<div class="callout callout--info">
+  <div class="callout__title">대상 독자</div>
+  이 매뉴얼은 일반 사용자(APPROVED 상태)를 대상으로 합니다. 관리자 전용 기능(사용자 관리, 시스템 설정 등)은 별도 관리자 가이드를 참고하세요.
+</div>
+
+<!-- DASHBOARD -->
+<h2 id="dashboard">대시보드 &mdash; 오늘의 새움터</h2>
+<p>로그인 후 가장 먼저 보이는 화면입니다. 4개의 위젯으로 오늘 해야 할 일과 중요 정보를 한눈에 보여줍니다.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card__icon">&#128203;</div>
+    <h4>업무현황</h4>
+    <p>진행 중인 상담 건수, 승인 대기, 월별 종료 건수, 연간 평가 현황을 표시합니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#128197;</div>
+    <h4>이번 주 일정</h4>
+    <p>이번 주에 예정된 방문, 회의, 평가 일정을 미리 확인합니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#128240;</div>
+    <h4>일일 브리핑</h4>
+    <p>AI가 분석한 오늘의 산업안전 핵심 이슈 3가지를 요약합니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#128227;</div>
+    <h4>최근 공지</h4>
+    <p>최신 공지사항 3개를 표시하며, 댓글 수도 함께 확인할 수 있습니다.</p>
+  </div>
+</div>
+
+<!-- ===================== BRIEFING ===================== -->
+<h2 id="briefing">뉴스 브리핑</h2>
+<p>노동안전보건 관련 뉴스를 자동으로 수집하고, AI가 핵심 이슈를 분석하여 매일 브리핑을 제공합니다.</p>
+
+<h3 id="briefing-collect">자동 수집 방식</h3>
+<p>시스템은 다음 5개 뉴스 소스에서 기사를 자동으로 스크래핑합니다:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>소스</th><th>카테고리</th><th>수집 방식</th></tr></thead>
+  <tbody>
+    <tr><td>매일노동뉴스</td><td>노동 전문지</td><td>HTML 파싱</td></tr>
+    <tr><td>안전신문</td><td>안전 전문지</td><td>HTML 파싱</td></tr>
+    <tr><td>세이프티퍼스트닷뉴스</td><td>안전 전문지</td><td>HTML 파싱</td></tr>
+    <tr><td>안전저널</td><td>안전 전문지</td><td>HTML 파싱</td></tr>
+    <tr><td>산업안전보건연구원</td><td>정부 기관</td><td>HTML 파싱</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>수집된 기사는 URL 해시 기반으로 중복을 제거하고, 데이터베이스에 저장됩니다.</p>
+
+<h3 id="briefing-analysis">AI 분석 결과</h3>
+<p>수집된 기사는 2단계 분석을 거칩니다:</p>
+
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>관련성 점수 산출</h4>
+      <p>Claude AI가 각 기사에 0~100점의 관련성 점수를 부여합니다. <strong>70점 이상</strong>인 기사만 브리핑에 포함됩니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>일일 브리핑 분석</h4>
+      <p>필터링된 기사를 종합 분석하여 <strong>상위 3대 이슈</strong>를 도출합니다. 각 이슈에 대해 배경, 시사점, 실무 권고사항을 제공합니다.</p>
+    </div>
+  </div>
+</div>
+
+<div class="callout callout--tip">
+  <div class="callout__title">브리핑 확인</div>
+  매일 아침 대시보드의 '일일 브리핑' 위젯에서 오늘의 핵심 이슈를 확인하세요. 각 이슈를 클릭하면 상세 분석(배경, 시사점, 권고사항)을 볼 수 있습니다.
+</div>
+
+<h3 id="briefing-filter">필터링 기준</h3>
+<p>기사는 우선순위 키워드 매칭으로 분류됩니다:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>우선순위</th><th>키워드 예시</th><th>의미</th></tr></thead>
+  <tbody>
+    <tr><td><span class="score-label score-label--critical">CRITICAL</span></td><td>사망, 중대재해, 추락사, 끼임사고</td><td>즉시 확인 필요</td></tr>
+    <tr><td><span class="score-label score-label--high">HIGH</span></td><td>구속, 판결, 벌금, 징역, 기소</td><td>법률/사법 관련</td></tr>
+    <tr><td><span class="score-label score-label--medium">MEDIUM</span></td><td>산안법 개정, 위험성평가, 특별감독</td><td>정책/제도 변화</td></tr>
+    <tr><td><span class="score-label score-label--low">LOW</span></td><td>산업안전, 보건관리, 안전교육</td><td>일반 안전보건</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ===================== COUNSELING ===================== -->
+<h2 id="counseling">상담관리 시스템</h2>
+<p>산업재해(사고, 질병, 출퇴근 재해) 관련 상담을 체계적으로 관리합니다. 접수부터 결과 통보까지 전 과정을 추적합니다.</p>
+
+<h3 id="counseling-register">상담 등록 방법</h3>
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>상담관리 메뉴 진입</h4>
+      <p>좌측 사이드바에서 <strong>상담관리</strong>를 클릭합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>새 상담 등록</h4>
+      <p><strong>새 상담 등록</strong> 버튼을 클릭하여 등록 양식을 엽니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>노동자 정보 입력</h4>
+      <p>피해 노동자의 이름, 연락처를 입력합니다. 보호자 정보는 선택사항입니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>재해 정보 입력</h4>
+      <p>사업장명, 사고유형(사고/질병/출퇴근), 사고일자, 진단명을 입력합니다. 질병의 경우 세부 카테고리(외상, 근골격계, 심혈관계, 소음성난청, 기타)를 선택합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>저장</h4>
+      <p>등록 버튼을 클릭하면 상담 건이 생성되고, 고유 사건번호가 부여됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<h3 id="counseling-type">상담 유형 분류</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>유형</th><th>코드</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge--danger">사고성 재해</span></td><td>ACCIDENT</td><td>작업 중 발생한 사고(추락, 끼임, 전도 등)</td></tr>
+    <tr><td><span class="badge badge--warn">직업병</span></td><td>DISEASE</td><td>업무로 인한 질병(근골격계, 심혈관계, 소음성난청 등)</td></tr>
+    <tr><td><span class="badge badge--info">출퇴근 재해</span></td><td>COMMUTE</td><td>출퇴근 중 발생한 재해</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>질병 세부 카테고리</h4>
+<ul>
+  <li><strong>TRAUMA</strong> &mdash; 외상 (작업 중 부상)</li>
+  <li><strong>MUSCULOSKELETAL</strong> &mdash; 근골격계질환</li>
+  <li><strong>CARDIOVASCULAR</strong> &mdash; 심혈관질환 (과로사 등)</li>
+  <li><strong>NOISE_HEARING</strong> &mdash; 소음성난청</li>
+  <li><strong>OTHER</strong> &mdash; 기타 직업병</li>
+</ul>
+
+<h3 id="counseling-status">상태 관리</h3>
+<p>각 상담 건은 다음 6단계의 상태를 순차적으로 거칩니다:</p>
+
+<div class="flow">
+  <div class="flow__node flow__node--active">접수</div>
+  <div class="flow__arrow">&rarr;</div>
+  <div class="flow__node">진행중</div>
+  <div class="flow__arrow">&rarr;</div>
+  <div class="flow__node">신청완료</div>
+  <div class="flow__arrow">&rarr;</div>
+  <div class="flow__node">결과통보</div>
+  <div class="flow__arrow">&rarr;</div>
+  <div class="flow__node">이의신청</div>
+  <div class="flow__arrow">&rarr;</div>
+  <div class="flow__node">종결</div>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>상태</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge--info">접수 (RECEIVED)</span></td><td>최초 상담 등록 상태</td></tr>
+    <tr><td><span class="badge badge--warn">진행중 (IN_PROGRESS)</span></td><td>상담 진행 중, 자료 수집 등</td></tr>
+    <tr><td><span class="badge badge--green">신청완료 (APPLICATION_COMPLETE)</span></td><td>산재 신청서 제출 완료</td></tr>
+    <tr><td><span class="badge badge--info">결과통보 (RESULT_NOTIFIED)</span></td><td>근로복지공단 결정 통보</td></tr>
+    <tr><td><span class="badge badge--danger">이의신청 (OBJECTION)</span></td><td>불승인 시 이의신청 진행</td></tr>
+    <tr><td><span class="badge badge--gray">종결 (CLOSED)</span></td><td>사건 최종 종결</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>각 상담 건에서 할 수 있는 추가 작업:</p>
+<ul>
+  <li><strong>상담 기록 추가</strong>: 전화/방문/이메일 상담 내용과 날짜를 기록합니다.</li>
+  <li><strong>문서 관리</strong>: 진단서, 신청서, 증거자료 등을 업로드하고 관리합니다.</li>
+  <li><strong>담당자 지정</strong>: 해당 사건의 담당 스탭을 지정합니다.</li>
+</ul>
+
+<!-- ===================== RISK ASSESSMENT ===================== -->
+<h2 id="risk">위험성평가 시스템</h2>
+<p>사업장의 유해위험요인을 체계적으로 식별, 평가하고 개선 조치를 관리합니다. 조직도 기반으로 작업 단위별 평가를 수행합니다.</p>
+
+<h3 id="risk-steps">단계별 입력 방법</h3>
+
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>사업장 &middot; 조직단위 선택</h4>
+      <p><strong>위험성평가 &gt; 평가수행</strong> 메뉴에서 사업장을 선택합니다. 좌측 조직도 트리에서 평가 대상 조직단위(공정/작업)를 클릭합니다.</p>
+      <div class="callout callout--warn">
+        <div class="callout__title">사전 준비</div>
+        조직도가 등록되어 있어야 합니다. 사업장 관리에서 먼저 조직도를 구성하세요.
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>평가카드 작성</h4>
+      <p>선택한 조직단위에 대해 평가카드를 생성합니다. 입력 항목:</p>
+      <ul>
+        <li><strong>평가유형</strong>: 정기조사 또는 수시조사</li>
+        <li><strong>연도</strong>: 평가 대상 연도</li>
+        <li><strong>작업자명</strong>: 해당 공정의 대표 작업자</li>
+        <li><strong>평가자명</strong>: 평가를 수행하는 담당자</li>
+        <li><strong>근무조건</strong>: 일일근무시간, 일일생산량, 연간근무일수, 작업주기 등</li>
+        <li><strong>작업 설명</strong>: 해당 작업의 상세 내용</li>
+      </ul>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>유해위험요인 등록</h4>
+      <p>평가카드 내에서 유해위험요인을 하나씩 등록합니다. 각 요인에 대해:</p>
+      <ul>
+        <li><strong>카테고리 선택</strong>: 사고, 근골격계, 화학물질, 소음 중 택1</li>
+        <li><strong>유해요인 기술</strong>: 구체적인 위험 요인 서술</li>
+        <li><strong>심각성 점수</strong> (1~5): 카테고리별 기준에 따라 입력</li>
+        <li><strong>가능성 점수</strong> (1~5): 카테고리별 기준에 따라 입력</li>
+        <li><strong>추가점수</strong> (0~3): 카테고리별 추가 요소 체크</li>
+        <li><strong>개선계획</strong>: 해당 위험요인에 대한 개선 방안</li>
+      </ul>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>사진 첨부</h4>
+      <p>작업 현장 사진, 위험요인 사진을 업로드할 수 있습니다. 썸네일 자동 생성 및 라이트박스 보기를 지원합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>저장 및 확인</h4>
+      <p>위험점수가 자동 계산되며, 위험등급이 색상으로 표시됩니다. <strong>평가조회</strong> 메뉴에서 전체 평가 결과를 필터링하고 확인할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<h3 id="risk-scoring">평가 기준 &mdash; 점수 체계</h3>
+
+<p>위험점수는 다음 공식으로 계산됩니다:</p>
+
+<div class="callout callout--info">
+  <div class="callout__title">위험점수 계산 공식</div>
+  <code style="font-size:16px;">위험점수 = 심각성(1~5) &times; 가능성(1~5) + 추가점수(0~3)</code><br>
+  최소 1점, 최대 28점 (5 &times; 5 + 3)
+</div>
+
+<h4>위험등급 판정</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수 범위</th><th>위험등급</th><th>조치</th></tr></thead>
+  <tbody>
+    <tr><td>16점 이상</td><td><span class="score-label score-label--critical">매우높음</span></td><td>즉시 개선 조치, 작업 중지 검토</td></tr>
+    <tr><td>9~15점</td><td><span class="score-label score-label--high">높음</span></td><td>단기 개선 계획 수립, 우선 조치</td></tr>
+    <tr><td>5~8점</td><td><span class="score-label score-label--medium">보통</span></td><td>개선 계획 수립, 주기적 점검</td></tr>
+    <tr><td>4점 이하</td><td><span class="score-label score-label--low">낮음</span></td><td>현 상태 유지, 정기 점검</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="risk-categories">카테고리별 평가 기준</h3>
+
+<h4>1. 사고성 재해 (ACCIDENT)</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수</th><th>심각성</th><th>가능성</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>부상 없음</td><td>극히 드묾 (연 1회 미만, 월 10일 미만 노출)</td></tr>
+    <tr><td>2</td><td>경미한 부상 (14일 이하 휴업)</td><td>가끔 발생 (연 1회 미만, 월 10일 이상 노출)</td></tr>
+    <tr><td>3</td><td>중등도 부상 (15~30일 휴업)</td><td>때때로 발생</td></tr>
+    <tr><td>4</td><td>중대 부상 (30일 초과 휴업)</td><td>자주 발생</td></tr>
+    <tr><td>5</td><td>사망 또는 영구장해</td><td>매우 빈번 (매일 노출)</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>추가점수</strong>: 사고 이력 +1, 사고 우려 +1 (최대 2점)</p>
+
+<h4>2. 화학물질 (CHEMICAL)</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수</th><th>심각성</th><th>가능성 (노출빈도)</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>비유해 물질</td><td>연 2~3회</td></tr>
+    <tr><td>2</td><td>경고 물질</td><td>월 2~3회</td></tr>
+    <tr><td>3</td><td>유해 물질</td><td>주 2~3회</td></tr>
+    <tr><td>4</td><td>고유해 물질</td><td>일 4시간 이하</td></tr>
+    <tr><td>5</td><td>매우 고유해 물질 (MSDS 기반)</td><td>일 4시간 초과</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>추가점수</strong>: 관리 미흡 +1, 환기 문제 +1, 작업자 우려 +1 (최대 3점)</p>
+
+<div class="callout callout--tip">
+  <div class="callout__title">자동 심각성 산출</div>
+  화학물질 카테고리에서 제품을 선택하면, MSDS 유해성 문구 기반으로 심각성 점수가 자동 제안됩니다.
+</div>
+
+<h4>3. 근골격계질환 (MUSCULOSKELETAL)</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수</th><th>심각성 (Borg 척도)</th><th>가능성 (정기)</th><th>가능성 (수시)</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Borg 6~8 (매우 가벼움)</td><td>연 2~3회</td><td>월 20시간 미만</td></tr>
+    <tr><td>2</td><td>Borg 9~11 (가벼움)</td><td>주 1~3일, 2시간 미만</td><td>월 20~50시간</td></tr>
+    <tr><td>3</td><td>Borg 12~14 (다소 힘듦)</td><td>일 4시간 이하</td><td>월 50~75시간</td></tr>
+    <tr><td>4</td><td>Borg 15~17 (힘듦)</td><td>일 4~8시간</td><td>월 75~100시간</td></tr>
+    <tr><td>5</td><td>Borg 18~20 (매우 힘듦)</td><td>일 8시간 초과</td><td>월 100시간 초과</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>추가점수</strong>: 치료 이력 +1, 현재 통증 +1 (최대 2점)</p>
+
+<h4>4. 소음 (NOISE)</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수</th><th>심각성 (소음 수준)</th><th>가능성 (노출 시간)</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>60dB 미만</td><td>일 2시간 이하</td></tr>
+    <tr><td>2</td><td>60~70dB</td><td>일 4시간 이하</td></tr>
+    <tr><td>3</td><td>70~80dB</td><td>일 8시간 이하</td></tr>
+    <tr><td>4</td><td>80~90dB</td><td>일 8~10시간</td></tr>
+    <tr><td>5</td><td>90dB 이상</td><td>일 10시간 이상</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>추가점수</strong>: 스트레스 +1, 청력 손실 +2 (최대 3점)</p>
+
+<h4>5. 절대기준 (ABSOLUTE)</h4>
+<p>특정 위험요인은 점수 계산 없이 <strong>항상 16점(매우높음)</strong>으로 평가됩니다. 즉시 개선이 필요한 비협상적 위험요인에 적용합니다.</p>
+
+<h3 id="risk-improvement">개선이력 관리</h3>
+<p>위험요인별로 개선 계획을 수립하고 완료까지 추적합니다.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>항목</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td>상태</td><td><span class="badge badge--warn">계획 (PLANNED)</span> 또는 <span class="badge badge--green">완료 (COMPLETED)</span></td></tr>
+    <tr><td>개선일자</td><td>개선 조치를 시행한 날짜</td></tr>
+    <tr><td>개선내용</td><td>구체적인 개선 조치 사항</td></tr>
+    <tr><td>담당자</td><td>개선 조치 책임자</td></tr>
+    <tr><td>개선 후 점수</td><td>개선 후 심각성, 가능성, 추가점수를 재평가</td></tr>
+    <tr><td>사진/파일</td><td>개선 전후 비교 사진, 관련 문서 첨부</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ===================== MUSCULOSKELETAL ===================== -->
+<h2 id="musculo">근골격계유해요인조사</h2>
+<p>고용노동부 양식에 기반한 체계적인 근골격계유해요인조사를 수행합니다. 조직도와 연계하여 작업단위별로 관리합니다.</p>
+
+<h3 id="musculo-sheets">4-Sheet 구조</h3>
+<p>조사는 엑셀 양식과 동일한 4개 시트로 구성됩니다:</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card__icon">&#128203;</div>
+    <h4>Sheet 1: 관리카드</h4>
+    <p>사업장, 작업자, 조사자 기본정보. 근무시간, 고용형태, 교대근무, 작업자율성, 유해요인 존재 여부를 기록합니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#129506;</div>
+    <h4>Sheet 2: 부위별 증상조사</h4>
+    <p>6개 신체 부위별 자세 점수와 추가 요인을 평가합니다. 작업단위(ElementWork)별로 관리됩니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#128170;</div>
+    <h4>Sheet 3: RULA/REBA</h4>
+    <p>작업자세 평가 도구(RULA/REBA)를 적용합니다. 밀기/당기기 힘, 손/팔 자세 등을 평가합니다.</p>
+  </div>
+  <div class="card">
+    <div class="card__icon">&#128221;</div>
+    <h4>Sheet 4: 종합평가</h4>
+    <p>관리수준(상/중상/중/하) 판정과 종합 소견. 개선항목 목록을 관리합니다.</p>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>조사 생성</h4>
+      <p><strong>근골조사 &gt; 조사수행</strong>에서 사업장과 조직단위를 선택하고 새 조사를 생성합니다. Sheet 1의 기본정보를 입력합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>작업단위 추가</h4>
+      <p>조사 내에 작업단위(ElementWork)를 추가합니다. 각 작업단위별로 측정도구(중량물, 공구, 진동원 등)를 등록합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>부위별 평가 (Sheet 2)</h4>
+      <p>작업단위별로 6개 부위를 평가합니다. 각 부위의 자세 각도를 입력하면 점수가 자동 계산됩니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>RULA/REBA 평가 (Sheet 3)</h4>
+      <p>작업자세 평가 도구를 적용합니다. 설문 형태로 답변하면 RULA/REBA 점수가 자동 산출됩니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>종합평가 및 개선 (Sheet 4)</h4>
+      <p>관리수준을 판정하고 종합 소견을 작성합니다. 개선항목을 등록하고 추적합니다.</p>
+    </div>
+  </div>
+</div>
+
+<h3 id="musculo-bodypart">부위별 평가 상세</h3>
+<p>6개 신체 부위 각각에 대해 자세 점수와 추가요인을 평가합니다:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>부위</th><th>자세 평가 요소</th><th>추가 요인 (예)</th><th>총점 범위</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>손/손목</strong></td>
+      <td>굴곡/신전 각도, 내전/외전 각도</td>
+      <td>공구 1kg+/2kg+, 진동, 손가락 집기, 과도한 신전, 접촉 압력</td>
+      <td>1~7</td>
+    </tr>
+    <tr>
+      <td><strong>팔꿈치/아래팔</strong></td>
+      <td>굴곡 각도, 회내/회외</td>
+      <td>공구 1kg+/2kg+, 저온 노출, 장갑, 손목 편향, 반복</td>
+      <td>1~7</td>
+    </tr>
+    <tr>
+      <td><strong>어깨/위팔</strong></td>
+      <td>외전, 굴곡, 거상 높이</td>
+      <td>공구 2kg+/5kg+, 반복, 휴식 부족, 작업 자세, 팔 지지</td>
+      <td>1~7</td>
+    </tr>
+    <tr>
+      <td><strong>목</strong></td>
+      <td>굴곡/신전, 회전, 측면 굴곡</td>
+      <td>시각 부담, 회전, 압력, 반복, 힘 발휘</td>
+      <td>1~7</td>
+    </tr>
+    <tr>
+      <td><strong>허리/고관절</strong></td>
+      <td>굴곡, 회전/측면, 좌식/입식</td>
+      <td>중량물 7kg+/20kg+, 비틀림, 반복, 팔 지지, 진동</td>
+      <td>1~7</td>
+    </tr>
+    <tr>
+      <td><strong>무릎/발목</strong></td>
+      <td>무릎 꿇기, 쪼그리기 등</td>
+      <td>무릎 꿇기, 쪼그림, 장시간 서기, 사다리, 저온</td>
+      <td>1~7</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>각 부위의 총점 = <strong>자세 점수(0~5)</strong> + <strong>추가 요인 점수</strong>이며, 최소 1점, 최대 7점으로 제한됩니다.</p>
+
+<h3 id="musculo-rulreba">RULA/REBA 작업자세 평가</h3>
+<p>Sheet 3에서는 표준화된 작업자세 평가 도구를 적용합니다:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>도구</th><th>평가 대상</th><th>점수 범위</th><th>위험수준</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>RULA</strong></td>
+      <td>상지(팔, 손목, 목) 중심의 반복 작업</td>
+      <td>1~7</td>
+      <td>1~2: 적합 / 3~4: 추가조사 / 5~6: 단기개선 / 7: 즉시개선</td>
+    </tr>
+    <tr>
+      <td><strong>REBA</strong></td>
+      <td>전신 자세의 인체공학적 부담</td>
+      <td>1~15</td>
+      <td>1: 무시 / 2~3: 낮음 / 4~7: 중간 / 8~10: 높음 / 11+: 매우높음</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>설문 형태의 질문에 답변하면 시스템이 자동으로 점수를 산출합니다. 추가로 밀기/당기기 힘 평가도 수행할 수 있습니다.</p>
+
+<div class="callout callout--tip">
+  <div class="callout__title">Sheet 건너뛰기</div>
+  필요에 따라 Sheet 2(부위별)와 Sheet 3(RULA/REBA)를 건너뛸 수 있습니다. 조사 생성 시 건너뛰기 옵션을 활성화하세요.
+</div>
+
+<!-- ===================== CHEMICAL ===================== -->
+<h2 id="chemical">화학물질 중대성 평가</h2>
+<p>사업장에서 사용하는 화학물질의 유해성을 MSDS(물질안전보건자료) 기반으로 자동 평가합니다.</p>
+
+<h3 id="chemical-auto">자동 판정 기준</h3>
+<p>화학물질의 심각성 점수는 MSDS에 기재된 유해성 문구를 분석하여 자동으로 산출됩니다. 다음 규칙이 적용됩니다:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>점수</th><th>유해성 등급</th><th>해당 유해성 문구 (예)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="score-label score-label--critical">5점</span></td>
+      <td>극히 위험</td>
+      <td>발암성(모든 구분), 생식독성, 변이원성(유전독성)</td>
+    </tr>
+    <tr>
+      <td><span class="score-label score-label--high">4점</span></td>
+      <td>매우 위험</td>
+      <td>급성독성 흡입 구분1, 흡인유해성, 호흡기 과민성</td>
+    </tr>
+    <tr>
+      <td><span class="score-label score-label--medium">3점</span></td>
+      <td>위험</td>
+      <td>급성독성 구분2~4, 눈 손상/자극성, 표적장기독성</td>
+    </tr>
+    <tr>
+      <td><span class="score-label score-label--low">2점</span></td>
+      <td>경고</td>
+      <td>피부/눈 자극성, 피부 과민성</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge--gray">1점</span></td>
+      <td>비유해</td>
+      <td>위 항목에 해당하지 않는 물질</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout callout--warn">
+  <div class="callout__title">최고점 원칙</div>
+  하나의 화학물질이 여러 유해성에 해당하면, 가장 높은 점수가 해당 물질의 심각성 점수가 됩니다. 제품의 점수는 구성 성분 중 최고 점수입니다.
+</div>
+
+<h3 id="chemical-score">점수 계산 방식</h3>
+<p>화학물질 관리는 3단계 구조로 이루어집니다:</p>
+
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>화학 성분 (ChemicalComponent)</h4>
+      <p>CAS 번호 기반의 전역 마스터 데이터베이스입니다. 성분의 유해성 문구(MSDS B02)와 규제 정보(MSDS O02)를 저장합니다. 유해성 문구에서 자동으로 심각성 점수가 산출됩니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>화학 제품 (ChemicalProduct)</h4>
+      <p>사업장에서 실제 사용하는 제품입니다. 하나의 제품은 여러 성분으로 구성되며, <strong>제품 점수 = 구성 성분 중 최고 점수</strong>로 결정됩니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>위험성평가 연동</h4>
+      <p>화학물질 카테고리의 위험요인을 등록할 때 제품을 선택하면, 해당 제품의 심각성 점수가 자동으로 반영됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<h3 id="chemical-msds">MSDS 연동</h3>
+<p>화학 성분 등록 시 MSDS 문서의 다음 항목을 입력합니다:</p>
+<ul>
+  <li><strong>CAS 번호</strong>: 화학물질의 고유 식별 번호</li>
+  <li><strong>유해성 정보 (B02 섹션)</strong>: GHS 유해성 분류 및 문구</li>
+  <li><strong>규제 정보 (O02 섹션)</strong>: 해당 규제 사항</li>
+</ul>
+
+<p>입력된 유해성 문구에서 키워드를 매칭하여 심각성 점수를 자동 산출합니다. 예를 들어 "발암성"이라는 키워드가 포함되면 자동으로 5점이 부여됩니다.</p>
+
+<div class="callout callout--info">
+  <div class="callout__title">조직단위 자동 연결</div>
+  화학물질 카테고리로 위험요인을 등록하면, 해당 제품이 조직단위에 자동으로 연결됩니다. 이를 통해 어떤 공정에서 어떤 화학물질을 사용하는지 추적할 수 있습니다.
+</div>
+
+<!-- ===================== WORKPLACE ===================== -->
+<h2 id="workplace">사업장 관리</h2>
+<p>위험성평가와 근골조사의 기반이 되는 사업장과 조직도를 관리합니다.</p>
+
+<h3>사업장 등록</h3>
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>기본 정보 입력</h4>
+      <p>사업장명, 업종, 주요 생산품/서비스, 주소, 근로자 수를 입력합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>담당자 등록</h4>
+      <p>안전관리자, 노동조합 대표 등 주요 담당자의 이름, 직위, 연락처를 등록합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>조직도 구성</h4>
+      <p>최대 5단계 계층 구조로 조직도를 구성합니다. 예: 부서 &rarr; 팀 &rarr; 공정 &rarr; 작업단위. 드래그앤드롭으로 순서를 변경할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<div class="callout callout--warn">
+  <div class="callout__title">조직단위 삭제 시 주의</div>
+  조직단위를 삭제하면 연결된 모든 평가 데이터가 <strong>아카이브</strong>로 이동합니다. 데이터가 완전히 삭제되지는 않으며, 필요 시 복구할 수 있습니다.
+</div>
+
+<!-- ===================== SURVEY ===================== -->
+<h2 id="survey">설문조사</h2>
+<p>3종 기본 템플릿과 10가지 질문 유형으로 다양한 설문을 생성할 수 있습니다.</p>
+
+<h3>설문 생성</h3>
+<div class="steps">
+  <div class="step">
+    <div>
+      <h4>템플릿 선택</h4>
+      <p>기본(DEFAULT), 위험성평가(RISK_ASSESSMENT), 근골조사(MUSCULOSKELETAL) 중 템플릿을 선택하거나, 빈 설문부터 시작할 수 있습니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>질문 구성</h4>
+      <p>섹션 단위로 질문을 추가합니다. 10가지 질문 유형을 지원합니다:</p>
+      <ul>
+        <li>단답형(TEXT), 숫자(NUMBER), 라디오(RADIO), 체크박스(CHECKBOX)</li>
+        <li>슬라이더(RANGE), 드롭다운(DROPDOWN), 표(TABLE)</li>
+        <li>순위선택(RANKED_CHOICE), 동의(CONSENT)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>조건 분기 설정</h4>
+      <p>이전 답변에 따라 질문을 표시/숨김 처리할 수 있습니다. AND/OR 조합으로 복잡한 조건도 구현 가능합니다.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div>
+      <h4>배포</h4>
+      <p>설문을 게시하면 고유한 공개 URL이 생성됩니다. 이 URL을 공유하거나 QR코드로 변환하여 배포합니다. 인증 없이 누구나 응답할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<h3>응답 분석</h3>
+<p>수집된 응답은 질문별 분석과 함께 CSV/Excel로 내보낼 수 있습니다. 설문 복제 기능으로 기존 설문을 다른 사업장이나 연도에 재활용할 수 있습니다.</p>
+
+<!-- ===================== CALENDAR ===================== -->
+<h2 id="calendar">일정 관리</h2>
+<p>캘린더 기반으로 다양한 유형의 업무 일정을 관리합니다.</p>
+
+<h4>일정 유형</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>유형</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge--gray">일반</span></td><td>일반적인 업무 일정</td></tr>
+    <tr><td><span class="badge badge--info">상담</span></td><td>상담 관련 일정 (방문, 전화 등)</td></tr>
+    <tr><td><span class="badge badge--warn">위험성평가</span></td><td>사업장 방문 평가 일정</td></tr>
+    <tr><td><span class="badge badge--green">근골조사</span></td><td>근골격계유해요인조사 일정</td></tr>
+    <tr><td><span class="badge badge--danger">회의실</span></td><td>회의실 예약</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>각 일정에 제목, 설명, 장소, 온라인 여부를 설정할 수 있으며, 날짜 범위와 종일 일정을 지원합니다.</p>
+
+<!-- ===================== NOTICE ===================== -->
+<h2 id="notice">공지사항</h2>
+<p>팀 내 공지사항을 작성하고 공유합니다.</p>
+
+<ul>
+  <li><strong>고정 공지</strong>: 중요한 공지는 상단에 고정할 수 있습니다.</li>
+  <li><strong>댓글</strong>: 공지에 댓글을 달아 의견을 교환합니다.</li>
+  <li><strong>이미지 첨부</strong>: 공지에 이미지를 첨부할 수 있습니다.</li>
+  <li><strong>검색</strong>: 제목으로 공지를 검색합니다.</li>
+  <li><strong>페이지네이션</strong>: 한 페이지에 20개씩 표시됩니다.</li>
+</ul>
+
+<div style="height:40px;"></div>
+
+<p style="text-align:center; color:var(--text-muted); font-size:13px;">
+  &copy; 2026 충남노동건강인권센터 &middot; 새움터(CNW Center) 사용자 매뉴얼
+</p>
+
+</div>
+</main>
+
+<script>
+  // ===== SCROLL PROGRESS =====
+  const progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+    progressBar.style.width = pct + '%';
+  });
+
+  // ===== SIDEBAR ACTIVE LINK =====
+  const sidebarLinks = document.querySelectorAll('.sidebar__link');
+  const sections = [];
+  sidebarLinks.forEach(link => {
+    const id = link.getAttribute('href');
+    if (id && id.startsWith('#')) {
+      const el = document.querySelector(id);
+      if (el) sections.push({ el, link });
+    }
+  });
+
+  const sidebarObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        sidebarLinks.forEach(l => l.classList.remove('active'));
+        const match = sections.find(s => s.el === entry.target);
+        if (match) {
+          match.link.classList.add('active');
+          // Scroll sidebar to show active link
+          match.link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '-80px 0px -70% 0px' });
+
+  sections.forEach(s => sidebarObserver.observe(s.el));
+
+  // Close sidebar on link click (mobile)
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      document.querySelector('.sidebar').classList.remove('open');
+    });
+  });
+
+  // ===== SEARCH =====
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+
+  // Build search index
+  const searchIndex = [];
+  document.querySelectorAll('h1[id], h2[id], h3[id], h4[id]').forEach(el => {
+    const section = el.closest('h2') ? el.closest('h2').textContent : '';
+    searchIndex.push({
+      title: el.textContent,
+      id: el.id,
+      section: el.tagName === 'H2' ? '' : (el.previousElementSibling && el.previousElementSibling.tagName === 'H2' ? el.previousElementSibling.textContent : ''),
+      content: el.nextElementSibling ? el.nextElementSibling.textContent.substring(0, 100) : ''
+    });
+  });
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) { searchResults.classList.remove('show'); return; }
+    const matches = searchIndex.filter(item =>
+      item.title.toLowerCase().includes(q) || item.content.toLowerCase().includes(q)
+    ).slice(0, 8);
+    if (matches.length === 0) {
+      searchResults.innerHTML = '<div class="search-no-result">검색 결과가 없습니다</div>';
+    } else {
+      searchResults.innerHTML = matches.map(m =>
+        '<a class="search-result" href="#' + m.id + '">' +
+        '<div>' + m.title + '</div>' +
+        (m.section ? '<div class="search-result__section">' + m.section + '</div>' : '') +
+        '</a>'
+      ).join('');
+    }
+    searchResults.classList.add('show');
+  });
+
+  searchResults.addEventListener('click', e => {
+    const link = e.target.closest('.search-result');
+    if (link) {
+      searchResults.classList.remove('show');
+      searchInput.value = '';
+      document.querySelector('.sidebar').classList.remove('open');
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.header__search')) searchResults.classList.remove('show');
+  });
+
+  // Ctrl+K shortcut
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      searchInput.focus();
+    }
+    if (e.key === 'Escape') {
+      searchResults.classList.remove('show');
+      searchInput.blur();
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새움터 사용 매뉴얼 슬라이드 | CNW Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Noto Sans KR', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: rgba(139, 148, 158, 0.08);
+    --border-bright: rgba(139, 148, 158, 0.16);
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-dim: rgba(88, 166, 255, 0.08);
+    --green: #3fb950;
+    --green-dim: rgba(63, 185, 80, 0.08);
+    --warn: #d29922;
+    --warn-dim: rgba(210, 153, 34, 0.08);
+    --red: #f85149;
+    --red-dim: rgba(248, 81, 73, 0.08);
+    --purple: #bc8cff;
+    --purple-dim: rgba(188, 140, 255, 0.08);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #f0f3f6;
+      --border: rgba(0,0,0,0.08);
+      --border-bright: rgba(0,0,0,0.14);
+      --text: #1f2328;
+      --text-dim: #656d76;
+      --accent: #0969da;
+      --accent-dim: rgba(9,105,218,0.06);
+      --green: #1a7f37;
+      --green-dim: rgba(26,127,55,0.06);
+      --warn: #9a6700;
+      --warn-dim: rgba(154,103,0,0.06);
+      --red: #cf222e;
+      --red-dim: rgba(207,34,46,0.06);
+      --purple: #8250df;
+      --purple-dim: rgba(130,80,223,0.06);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-body); font-size: 18px; color: var(--text); background: var(--bg); overflow: hidden; }
+
+  h1, h2, h3, h4, h5, h6, p, li, span, a, div {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .deck { height: 100dvh; overflow-y: auto; scroll-snap-type: y mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+  .slide { height: 100dvh; scroll-snap-align: start; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: center; padding: clamp(32px,5vh,72px) clamp(32px,6vw,100px); isolation: isolate; opacity: 0; transform: translateY(30px) scale(0.98); transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1); }
+  .slide.visible { opacity: 1; transform: none; }
+  .slide .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1), transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.08s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.16s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.24s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.32s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.40s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.48s; }
+  .slide.visible .reveal:nth-child(7) { transition-delay: 0.56s; }
+  .slide.visible .reveal:nth-child(8) { transition-delay: 0.64s; }
+
+  @media (prefers-reduced-motion: reduce) { .slide, .slide .reveal { opacity: 1 !important; transform: none !important; transition: none !important; } }
+
+  /* NAV */
+  .deck-progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 100; transition: width 0.3s; pointer-events: none; }
+  .deck-dots { position: fixed; right: clamp(8px,1.5vw,20px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 100; padding: 6px; background: color-mix(in srgb, var(--bg) 70%, transparent 30%); border-radius: 16px; backdrop-filter: blur(4px); }
+  .deck-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); opacity: 0.25; border: none; padding: 0; cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
+  .deck-dot:hover { opacity: 0.5; }
+  .deck-dot.active { opacity: 1; transform: scale(1.6); background: var(--accent); }
+  .deck-counter { position: fixed; bottom: clamp(8px,1.5vh,20px); right: clamp(8px,1.5vw,20px); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); z-index: 100; }
+  .deck-hints { position: fixed; bottom: clamp(8px,1.5vh,20px); left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); opacity: 0.5; z-index: 100; transition: opacity 0.5s; white-space: nowrap; }
+  .deck-hints.faded { opacity: 0; pointer-events: none; }
+
+  /* TYPOGRAPHY */
+  .s-display { font-size: clamp(40px,8vw,80px); font-weight: 800; letter-spacing: -2px; line-height: 0.95; }
+  .s-h1 { font-size: clamp(28px,5vw,48px); font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; }
+  .s-h2 { font-size: clamp(20px,3vw,32px); font-weight: 700; line-height: 1.25; }
+  .s-body { font-size: clamp(14px,1.8vw,20px); line-height: 1.65; color: var(--text-dim); }
+  .s-label { font-family: var(--font-mono); font-size: clamp(10px,1.1vw,12px); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .s-mono { font-family: var(--font-mono); font-size: clamp(11px,1.2vw,14px); }
+  .s-small { font-size: clamp(12px,1.4vw,15px); line-height: 1.6; color: var(--text-dim); }
+
+  /* DECORATIVE */
+  .s-decor { position: absolute; pointer-events: none; z-index: 0; }
+  .s-number { font-size: clamp(80px,18vw,200px); font-weight: 200; line-height: 0.85; opacity: 0.03; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-55%); pointer-events: none; color: var(--accent); }
+
+  /* SLIDE TYPES */
+  .slide--title { justify-content: center; align-items: center; text-align: center; background-image: radial-gradient(ellipse at 50% 30%, var(--accent-dim) 0%, transparent 50%); }
+  .slide--divider { justify-content: center; }
+  .slide--split { padding: 0; }
+  .slide--split .panels { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
+  .slide--split .panel { padding: clamp(32px,5vh,64px) clamp(24px,3vw,48px); display: flex; flex-direction: column; justify-content: center; }
+  .slide--split .panel--a { background: var(--surface); }
+  .slide--split .panel--b { background: var(--surface2); }
+
+  /* CARDS */
+  .card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 16px; transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
+  .card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+  .card h4 { font-size: clamp(13px,1.5vw,16px); font-weight: 600; margin-bottom: 6px; }
+  .card p { font-size: clamp(11px,1.2vw,13px); color: var(--text-dim); line-height: 1.5; margin: 0; }
+  .card__icon { font-size: 24px; margin-bottom: 8px; }
+
+  /* FLOW */
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 12px 0; }
+  .flow__node { padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: clamp(11px,1.3vw,14px); font-weight: 500; white-space: nowrap; }
+  .flow__node--accent { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .flow__node--green { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .flow__node--warn { border-color: var(--warn); color: var(--warn); background: var(--warn-dim); }
+  .flow__node--red { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+  .flow__arrow { color: var(--text-dim); font-size: 16px; padding: 0 3px; }
+
+  /* STEPS */
+  .steps { counter-reset: step; margin-top: 12px; }
+  .step { display: grid; grid-template-columns: 32px 1fr; gap: 12px; margin-bottom: 14px; counter-increment: step; align-items: start; }
+  .step::before { content: counter(step); width: 32px; height: 32px; border-radius: 50%; background: var(--accent-dim); color: var(--accent); font-family: var(--font-mono); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); flex-shrink: 0; }
+  .step h4 { font-size: clamp(13px,1.5vw,16px); font-weight: 600; margin-bottom: 3px; }
+  .step p { font-size: clamp(12px,1.3vw,14px); color: var(--text-dim); line-height: 1.5; margin: 0; }
+
+  /* TABLE */
+  .tbl-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: clamp(11px,1.3vw,14px); }
+  .tbl th { background: var(--surface2); font-weight: 600; text-align: left; padding: 8px 12px; font-size: clamp(10px,1.1vw,12px); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:nth-child(even) { background: var(--accent-dim); }
+
+  /* BADGES */
+  .badge { display: inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .badge--red { background: var(--red-dim); color: var(--red); }
+  .badge--warn { background: var(--warn-dim); color: var(--warn); }
+  .badge--green { background: var(--green-dim); color: var(--green); }
+  .badge--accent { background: var(--accent-dim); color: var(--accent); }
+  .badge--purple { background: var(--purple-dim); color: var(--purple); }
+
+  /* DIAGRAM */
+  .mermaid-wrap { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; overflow: auto; flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; }
+  .mermaid .nodeLabel { color: var(--text) !important; }
+  .mermaid .edgeLabel { color: var(--text-dim) !important; background-color: var(--bg) !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .slide .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+  .zoom-controls { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 2px; }
+  .zoom-controls button { width: 24px; height: 24px; border: none; background: transparent; color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; justify-content: center; }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .slide--split .panels { grid-template-columns: 1fr; }
+    .card-row { grid-template-columns: 1fr; }
+    .flow { gap: 4px; }
+  }
+  @media (max-height: 600px) {
+    .slide { padding: clamp(16px,3vh,32px) clamp(24px,4vw,60px); }
+    .s-display { font-size: clamp(28px,6vw,48px); }
+    .deck-dots { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1: TITLE -->
+  <section class="slide slide--title">
+    <div class="reveal">
+      <p class="s-label" style="color:var(--accent);">CNW CENTER USER GUIDE</p>
+    </div>
+    <h1 class="s-display reveal" style="color:var(--accent);">새움터<br>사용 매뉴얼</h1>
+    <div class="reveal" style="margin-top:clamp(16px,2vh,32px);">
+      <p class="s-body" style="max-width:500px; margin:0 auto;">노동안전보건 통합 플랫폼의<br>주요 기능별 사용법을 안내합니다</p>
+    </div>
+  </section>
+
+  <!-- 2: TOC -->
+  <section class="slide" style="background-image:radial-gradient(ellipse at 30% 50%, var(--accent-dim) 0%, transparent 40%);">
+    <p class="s-label reveal" style="color:var(--accent);">목차</p>
+    <h2 class="s-h1 reveal">기능별 안내</h2>
+    <div class="card-row" style="margin-top:20px;">
+      <div class="card reveal"><div class="card__icon">&#128240;</div><h4>뉴스 브리핑</h4><p>자동 수집 &middot; AI 분석 &middot; 일일 리포트</p></div>
+      <div class="card reveal"><div class="card__icon">&#9888;&#65039;</div><h4>위험성평가</h4><p>점수 체계 &middot; 카테고리 &middot; 개선 관리</p></div>
+      <div class="card reveal"><div class="card__icon">&#129506;</div><h4>근골조사</h4><p>4-Sheet &middot; 부위별 평가 &middot; RULA/REBA</p></div>
+      <div class="card reveal"><div class="card__icon">&#129514;</div><h4>화학물질</h4><p>MSDS 자동 판정 &middot; 점수 산출</p></div>
+      <div class="card reveal"><div class="card__icon">&#128172;</div><h4>상담 관리</h4><p>등록 &middot; 상태 추적 &middot; 문서 관리</p></div>
+      <div class="card reveal"><div class="card__icon">&#128203;</div><h4>설문 &middot; 사업장</h4><p>설문조사 &middot; 조직도 &middot; 일정</p></div>
+    </div>
+  </section>
+
+  <!-- 3: BRIEFING DIVIDER -->
+  <section class="slide slide--divider" style="background-image:radial-gradient(ellipse at 70% 50%, var(--accent-dim) 0%, transparent 40%);">
+    <span class="s-number">01</span>
+    <div>
+      <p class="s-label reveal" style="color:var(--accent);">BRIEFING</p>
+      <h2 class="s-h1 reveal">뉴스 브리핑</h2>
+      <p class="s-body reveal" style="margin-top:8px;">자동 수집 &rarr; 키워드 필터 &rarr; AI 분석 &rarr; 일일 리포트</p>
+    </div>
+  </section>
+
+  <!-- 4: BRIEFING FLOW -->
+  <section class="slide" style="background-image:radial-gradient(ellipse at 20% 80%, var(--accent-dim) 0%, transparent 45%);">
+    <p class="s-label reveal" style="color:var(--accent);">브리핑 워크플로우</p>
+    <h2 class="s-h2 reveal">뉴스 수집부터 리포트까지</h2>
+
+    <div class="mermaid-wrap reveal" style="margin-top:16px;">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.2)">+</button>
+        <button onclick="zoomDiagram(this,0.8)">&minus;</button>
+        <button onclick="resetZoom(this)">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+graph TD
+  SRC["5개 뉴스 소스"] --> SCRAPE["자동 스크래핑"]
+  SCRAPE --> DEDUP["URL 해시 중복 제거"]
+  DEDUP --> KW["키워드 필터링<br/>4단계 우선순위"]
+  KW --> SCORE["AI 관련성 점수<br/>0~100점"]
+  SCORE --> FILTER{"70점 이상?"}
+  FILTER -->|Yes| ANALYZE["AI 종합 분석"]
+  FILTER -->|No| SKIP["제외"]
+  ANALYZE --> REPORT["일일 브리핑<br/>상위 3대 이슈"]
+
+  classDef primary fill:#58a6ff22,stroke:#58a6ff,stroke-width:2px
+  classDef success fill:#3fb95022,stroke:#3fb950,stroke-width:2px
+  classDef dim fill:#8b949e11,stroke:#8b949e44
+
+  class SRC,SCRAPE,DEDUP primary
+  class KW,SCORE,ANALYZE success
+  class SKIP dim
+      </pre>
+    </div>
+
+    <div class="reveal" style="margin-top:12px;">
+      <p class="s-small"><strong>키워드 우선순위:</strong>
+        <span class="badge badge--red">CRITICAL</span> 사망, 중대재해 &nbsp;
+        <span class="badge badge--warn">HIGH</span> 판결, 벌금 &nbsp;
+        <span class="badge badge--accent">MEDIUM</span> 산안법 개정 &nbsp;
+        <span class="badge badge--green">LOW</span> 안전교육
+      </p>
+    </div>
+  </section>
+
+  <!-- 5: RISK DIVIDER -->
+  <section class="slide slide--divider" style="background-image:radial-gradient(ellipse at 30% 40%, var(--warn-dim) 0%, transparent 40%);">
+    <span class="s-number">02</span>
+    <div>
+      <p class="s-label reveal" style="color:var(--warn);">RISK ASSESSMENT</p>
+      <h2 class="s-h1 reveal">위험성평가</h2>
+      <p class="s-body reveal" style="margin-top:8px;">조직도 기반 체계적 평가, 4개 카테고리</p>
+    </div>
+  </section>
+
+  <!-- 6: RISK STEPS -->
+  <section class="slide">
+    <p class="s-label reveal" style="color:var(--warn);">위험성평가 수행 단계</p>
+    <h2 class="s-h2 reveal">5단계 평가 프로세스</h2>
+    <div class="steps">
+      <div class="step reveal">
+        <div><h4>사업장 &middot; 조직단위 선택</h4><p>조직도 트리에서 평가 대상 공정/작업을 선택합니다</p></div>
+      </div>
+      <div class="step reveal">
+        <div><h4>평가카드 작성</h4><p>평가유형(정기/수시), 작업자명, 근무조건 입력</p></div>
+      </div>
+      <div class="step reveal">
+        <div><h4>유해위험요인 등록</h4><p>카테고리별(사고/근골/화학/소음) 위험요인과 점수 입력</p></div>
+      </div>
+      <div class="step reveal">
+        <div><h4>사진 첨부</h4><p>현장 사진, 위험요인 사진 업로드 (라이트박스 지원)</p></div>
+      </div>
+      <div class="step reveal">
+        <div><h4>결과 확인 &middot; 개선 등록</h4><p>자동 산출된 위험등급 확인, 개선 계획 수립</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7: RISK SCORING -->
+  <section class="slide slide--split">
+    <div class="panels">
+      <div class="panel panel--a">
+        <p class="s-label reveal" style="color:var(--warn);">점수 체계</p>
+        <h2 class="s-h2 reveal">위험점수 계산</h2>
+        <div class="reveal" style="margin-top:16px; padding:16px; background:var(--warn-dim); border:1px solid var(--warn); border-radius:8px;">
+          <p style="font-family:var(--font-mono); font-size:clamp(14px,1.6vw,18px); text-align:center; margin:0;">
+            위험점수 = <strong>심각성</strong>(1~5) &times; <strong>가능성</strong>(1~5)<br>+ <strong>추가점수</strong>(0~3)
+          </p>
+          <p style="font-family:var(--font-mono); font-size:12px; text-align:center; color:var(--text-dim); margin:8px 0 0;">최대 28점 (5&times;5+3)</p>
+        </div>
+        <div class="reveal" style="margin-top:16px;">
+          <p class="s-small"><strong>4개 카테고리:</strong> 사고, 근골격계, 화학물질, 소음 &mdash; 각각 심각성/가능성 기준이 다릅니다.</p>
+        </div>
+      </div>
+      <div class="panel panel--b">
+        <p class="s-label reveal" style="color:var(--warn);">위험등급</p>
+        <div class="tbl-wrap reveal">
+          <table class="tbl">
+            <thead><tr><th>점수</th><th>등급</th><th>조치</th></tr></thead>
+            <tbody>
+              <tr><td>16+</td><td><span class="badge badge--red">매우높음</span></td><td>즉시 개선, 작업 중지</td></tr>
+              <tr><td>9~15</td><td><span class="badge badge--warn">높음</span></td><td>단기 개선 계획</td></tr>
+              <tr><td>5~8</td><td><span class="badge badge--accent">보통</span></td><td>주기적 점검</td></tr>
+              <tr><td>~4</td><td><span class="badge badge--green">낮음</span></td><td>현 상태 유지</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="reveal" style="margin-top:16px;">
+          <p class="s-small"><strong>개선이력:</strong> 계획(PLANNED) &rarr; 완료(COMPLETED), 개선 전후 점수 비교, 사진/파일 첨부 가능</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8: MUSCULO DIVIDER -->
+  <section class="slide slide--divider" style="background-image:radial-gradient(ellipse at 60% 60%, var(--green-dim) 0%, transparent 40%);">
+    <span class="s-number">03</span>
+    <div>
+      <p class="s-label reveal" style="color:var(--green);">MUSCULOSKELETAL</p>
+      <h2 class="s-h1 reveal">근골격계유해요인조사</h2>
+      <p class="s-body reveal" style="margin-top:8px;">4-Sheet 구조, 6개 부위, RULA/REBA</p>
+    </div>
+  </section>
+
+  <!-- 9: MUSCULO SHEETS -->
+  <section class="slide">
+    <p class="s-label reveal" style="color:var(--green);">4-Sheet 구조</p>
+    <h2 class="s-h2 reveal">조사 시트 구성</h2>
+    <div class="card-row">
+      <div class="card reveal" style="border-top:2px solid var(--accent);">
+        <h4>Sheet 1: 관리카드</h4>
+        <p>사업장, 작업자, 조사자 기본정보<br>근무시간, 고용형태, 교대근무<br>유해요인 존재 여부 체크</p>
+      </div>
+      <div class="card reveal" style="border-top:2px solid var(--green);">
+        <h4>Sheet 2: 부위별 평가</h4>
+        <p>6개 부위 자세 각도 입력<br>추가 요인(도구, 진동 등) 체크<br>총점 자동 산출 (1~7점)</p>
+      </div>
+      <div class="card reveal" style="border-top:2px solid var(--warn);">
+        <h4>Sheet 3: RULA/REBA</h4>
+        <p>표준 작업자세 평가 도구<br>설문 답변 &rarr; 점수 자동 산출<br>밀기/당기기 힘 평가</p>
+      </div>
+      <div class="card reveal" style="border-top:2px solid var(--purple);">
+        <h4>Sheet 4: 종합평가</h4>
+        <p>관리수준 판정 (상/중상/중/하)<br>종합 소견 작성<br>개선항목 등록 &middot; 추적</p>
+      </div>
+    </div>
+    <div class="reveal" style="margin-top:16px;">
+      <div class="flow">
+        <div class="flow__node flow__node--accent">Sheet 1</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node flow__node--green">Sheet 2 (부위별)</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node" style="border-color:var(--warn);color:var(--warn);background:var(--warn-dim);">Sheet 3 (RULA/REBA)</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node" style="border-color:var(--purple);color:var(--purple);background:var(--purple-dim);">Sheet 4 (종합)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10: MUSCULO BODY PARTS -->
+  <section class="slide">
+    <p class="s-label reveal" style="color:var(--green);">부위별 평가</p>
+    <h2 class="s-h2 reveal">6개 신체 부위 점수 체계</h2>
+    <div class="tbl-wrap reveal" style="margin-top:12px;">
+      <table class="tbl">
+        <thead><tr><th>부위</th><th>자세 평가</th><th>추가 요인 예시</th><th>범위</th></tr></thead>
+        <tbody>
+          <tr><td><strong>손/손목</strong></td><td>굴곡/신전, 내전/외전</td><td>공구 중량, 진동, 손가락 집기</td><td>1~7</td></tr>
+          <tr><td><strong>팔꿈치</strong></td><td>굴곡, 회내/회외</td><td>공구 중량, 저온, 손목 편향</td><td>1~7</td></tr>
+          <tr><td><strong>어깨/위팔</strong></td><td>외전, 굴곡, 거상</td><td>공구 중량, 반복, 팔 지지</td><td>1~7</td></tr>
+          <tr><td><strong>목</strong></td><td>굴곡/신전, 회전</td><td>시각 부담, 압력, 힘 발휘</td><td>1~7</td></tr>
+          <tr><td><strong>허리</strong></td><td>굴곡, 회전, 좌식/입식</td><td>중량물, 비틀림, 진동</td><td>1~7</td></tr>
+          <tr><td><strong>무릎/발목</strong></td><td>무릎 꿇기, 쪼그리기</td><td>장시간 서기, 사다리, 저온</td><td>1~7</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="reveal" style="margin-top:12px;">
+      <p class="s-small"><strong>총점</strong> = 자세 점수(0~5) + 추가 요인 점수, 최소 1점 ~ 최대 7점</p>
+    </div>
+  </section>
+
+  <!-- 11: CHEMICAL DIVIDER -->
+  <section class="slide slide--divider" style="background-image:radial-gradient(ellipse at 40% 40%, var(--purple-dim) 0%, transparent 40%);">
+    <span class="s-number">04</span>
+    <div>
+      <p class="s-label reveal" style="color:var(--purple);">CHEMICAL</p>
+      <h2 class="s-h1 reveal">화학물질 중대성 평가</h2>
+      <p class="s-body reveal" style="margin-top:8px;">MSDS 기반 자동 심각성 판정</p>
+    </div>
+  </section>
+
+  <!-- 12: CHEMICAL SCORING -->
+  <section class="slide slide--split">
+    <div class="panels">
+      <div class="panel panel--a">
+        <p class="s-label reveal" style="color:var(--purple);">자동 판정 기준</p>
+        <h2 class="s-h2 reveal">MSDS 심각성 점수</h2>
+        <div class="tbl-wrap reveal" style="margin-top:12px;">
+          <table class="tbl">
+            <thead><tr><th>점수</th><th>유해성</th><th>키워드</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge badge--red">5</span></td><td>극히 위험</td><td>발암성, 생식독성, 변이원성</td></tr>
+              <tr><td><span class="badge badge--warn">4</span></td><td>매우 위험</td><td>급성독성 흡입 구분1, 흡인유해성</td></tr>
+              <tr><td><span class="badge badge--accent">3</span></td><td>위험</td><td>급성독성 구분2~4, 표적장기독성</td></tr>
+              <tr><td><span class="badge badge--green">2</span></td><td>경고</td><td>피부/눈 자극성, 피부 과민성</td></tr>
+              <tr><td>1</td><td>비유해</td><td>해당 없음</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel panel--b">
+        <p class="s-label reveal" style="color:var(--purple);">3단계 구조</p>
+
+        <div class="mermaid-wrap reveal" style="margin-top:12px;">
+          <pre class="mermaid">
+graph TD
+  COMP["화학 성분<br/>CAS 번호 기반"] --> PROD["화학 제품<br/>사업장별 등록"]
+  PROD --> RISK["위험성평가<br/>심각성 자동 반영"]
+  COMP -.->|MSDS 유해성| SCORE["자동 점수 산출"]
+  SCORE -.-> PROD
+
+  classDef main fill:#bc8cff22,stroke:#bc8cff,stroke-width:2px
+  classDef sub fill:#58a6ff22,stroke:#58a6ff,stroke-width:1.5px
+
+  class COMP,PROD,RISK main
+  class SCORE sub
+          </pre>
+        </div>
+
+        <div class="reveal" style="margin-top:12px;">
+          <p class="s-small"><strong>최고점 원칙:</strong> 제품 점수 = 구성 성분 중 최고 점수. 여러 유해성 해당 시 가장 높은 점수 적용.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13: COUNSELING DIVIDER -->
+  <section class="slide slide--divider" style="background-image:radial-gradient(ellipse at 60% 50%, var(--red-dim) 0%, transparent 40%);">
+    <span class="s-number">05</span>
+    <div>
+      <p class="s-label reveal" style="color:var(--red);">COUNSELING</p>
+      <h2 class="s-h1 reveal">상담 관리</h2>
+      <p class="s-body reveal" style="margin-top:8px;">산업재해 상담 등록 &middot; 추적 &middot; 문서 관리</p>
+    </div>
+  </section>
+
+  <!-- 14: COUNSELING WORKFLOW -->
+  <section class="slide">
+    <p class="s-label reveal" style="color:var(--red);">상담 워크플로우</p>
+    <h2 class="s-h2 reveal">등록부터 종결까지</h2>
+
+    <div class="reveal" style="margin-top:16px;">
+      <div class="flow">
+        <div class="flow__node flow__node--accent">접수</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node flow__node--warn">진행중</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node flow__node--green">신청완료</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node flow__node--accent">결과통보</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node flow__node--red">이의신청</div>
+        <div class="flow__arrow">&rarr;</div>
+        <div class="flow__node">종결</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:20px;">
+      <div>
+        <h3 class="s-h2 reveal" style="font-size:clamp(15px,1.6vw,18px);">상담 유형</h3>
+        <div class="tbl-wrap reveal" style="margin-top:8px;">
+          <table class="tbl">
+            <tbody>
+              <tr><td><span class="badge badge--red">ACCIDENT</span></td><td>사고성 재해</td></tr>
+              <tr><td><span class="badge badge--warn">DISEASE</span></td><td>직업병</td></tr>
+              <tr><td><span class="badge badge--accent">COMMUTE</span></td><td>출퇴근 재해</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 class="s-h2 reveal" style="font-size:clamp(15px,1.6vw,18px);">추가 기능</h3>
+        <div class="steps reveal" style="margin-top:8px;">
+          <div class="step"><div><h4>상담 기록</h4><p>전화/방문/이메일 상담 내용 기록</p></div></div>
+          <div class="step"><div><h4>문서 관리</h4><p>진단서, 신청서, 증거자료 업로드</p></div></div>
+          <div class="step"><div><h4>담당자 지정</h4><p>사건별 담당 스탭 배정</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15: SURVEY & WORKPLACE -->
+  <section class="slide" style="background-image:radial-gradient(ellipse at 50% 70%, var(--accent-dim) 0%, transparent 40%);">
+    <p class="s-label reveal" style="color:var(--accent);">기타 기능</p>
+    <h2 class="s-h2 reveal">설문조사 &middot; 사업장 &middot; 일정</h2>
+
+    <div class="card-row" style="margin-top:16px;">
+      <div class="card reveal">
+        <div class="card__icon">&#128203;</div>
+        <h4>설문조사</h4>
+        <p>3종 템플릿, 10가지 질문유형<br>조건 분기 로직, 공개 URL 배포<br>응답 분석 &middot; CSV/Excel 내보내기</p>
+      </div>
+      <div class="card reveal">
+        <div class="card__icon">&#127981;</div>
+        <h4>사업장 관리</h4>
+        <p>사업장 등록 &middot; 담당자 관리<br>5단계 조직도 트리 구성<br>드래그앤드롭 순서 변경</p>
+      </div>
+      <div class="card reveal">
+        <div class="card__icon">&#128197;</div>
+        <h4>일정 &middot; 공지</h4>
+        <p>5가지 일정 유형별 캘린더<br>공지사항 (고정, 댓글, 이미지)<br>대시보드 위젯 연동</p>
+      </div>
+    </div>
+
+    <div class="reveal" style="margin-top:20px;">
+      <p class="s-small">
+        <strong>설문 질문 유형:</strong> TEXT &middot; NUMBER &middot; RADIO &middot; CHECKBOX &middot; RANGE &middot; DROPDOWN &middot; TABLE &middot; RANKED_CHOICE &middot; CONSENT
+      </p>
+    </div>
+  </section>
+
+  <!-- 16: TIPS -->
+  <section class="slide slide--split">
+    <div class="panels">
+      <div class="panel panel--a">
+        <p class="s-label reveal" style="color:var(--green);">알아두면 좋은 팁</p>
+        <h2 class="s-h2 reveal">효율적인 사용법</h2>
+        <div class="steps reveal" style="margin-top:12px;">
+          <div class="step"><div><h4>조직도 먼저</h4><p>위험성평가와 근골조사 전에 사업장 조직도를 먼저 구성하세요</p></div></div>
+          <div class="step"><div><h4>화학물질 DB 활용</h4><p>CAS 번호 기반 마스터 DB로 성분을 한 번만 등록하면 모든 사업장에서 재사용됩니다</p></div></div>
+          <div class="step"><div><h4>일일 브리핑 확인</h4><p>매일 아침 대시보드에서 AI 분석 뉴스를 확인하고 팀과 공유하세요</p></div></div>
+          <div class="step"><div><h4>Ctrl+K로 검색</h4><p>매뉴얼 페이지에서 Ctrl+K를 누르면 빠른 검색을 이용할 수 있습니다</p></div></div>
+        </div>
+      </div>
+      <div class="panel panel--b">
+        <p class="s-label reveal" style="color:var(--warn);">주의사항</p>
+        <h2 class="s-h2 reveal">꼭 확인하세요</h2>
+        <div class="steps reveal" style="margin-top:12px;">
+          <div class="step"><div><h4>조직단위 삭제</h4><p>삭제 시 연결된 평가가 아카이브로 이동합니다. 신중하게 결정하세요</p></div></div>
+          <div class="step"><div><h4>절대기준 위험</h4><p>일부 위험요인은 점수 무관하게 항상 '매우높음'(16점)으로 판정됩니다</p></div></div>
+          <div class="step"><div><h4>용어 사용</h4><p>상담: '노동자', 위험성평가/근골조사: '작업자'로 구분하여 사용합니다</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17: END -->
+  <section class="slide slide--title" style="background-image:radial-gradient(ellipse at 50% 50%, var(--accent-dim) 0%, transparent 45%);">
+    <div class="reveal">
+      <p class="s-label" style="color:var(--accent);">CNW CENTER</p>
+    </div>
+    <h2 class="s-h1 reveal">새움터와 함께<br>안전한 일터를 만들어 갑니다</h2>
+    <div class="reveal" style="margin-top:clamp(20px,3vh,40px);">
+      <p class="s-body" style="max-width:400px; margin:0 auto;">
+        충남노동건강인권센터<br>
+        saewoomter.org
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true, theme: 'base', look: 'classic',
+    themeVariables: {
+      primaryColor: isDark ? '#1c2333' : '#eff6ff',
+      primaryBorderColor: isDark ? '#58a6ff' : '#0969da',
+      primaryTextColor: isDark ? '#e6edf3' : '#1f2328',
+      secondaryColor: isDark ? '#161b22' : '#f0fdf4',
+      secondaryBorderColor: isDark ? '#3fb950' : '#1a7f37',
+      secondaryTextColor: isDark ? '#e6edf3' : '#1f2328',
+      tertiaryColor: isDark ? '#1a1800' : '#fefce8',
+      tertiaryBorderColor: isDark ? '#d29922' : '#9a6700',
+      tertiaryTextColor: isDark ? '#e6edf3' : '#1f2328',
+      lineColor: isDark ? '#8b949e' : '#656d76',
+      fontSize: '18px',
+      fontFamily: "'Noto Sans KR', system-ui, sans-serif",
+    },
+    flowchart: {
+      curve: 'basis',
+      padding: 20,
+      nodeSpacing: 50,
+      rankSpacing: 50,
+    }
+  });
+  mermaid.run().then(function() {
+    document.querySelectorAll('.mermaid svg').forEach(function(svg) {
+      svg.removeAttribute('height'); svg.style.width='100%'; svg.style.maxWidth='100%'; svg.style.height='auto';
+    });
+    new SlideEngine();
+  });
+</script>
+
+<script>
+  var INITIAL_ZOOM=1;
+  function zoomDiagram(b,f){var w=b.closest('.mermaid-wrap');var t=w.querySelector('.mermaid');var c=parseFloat(t.dataset.zoom||INITIAL_ZOOM);var n=Math.min(Math.max(c*f,0.5),5);t.dataset.zoom=n;t.style.zoom=n;}
+  function resetZoom(b){var w=b.closest('.mermaid-wrap');var t=w.querySelector('.mermaid');t.dataset.zoom=INITIAL_ZOOM;t.style.zoom=INITIAL_ZOOM;}
+
+  function SlideEngine(){
+    this.deck=document.querySelector('.deck');
+    this.slides=[].slice.call(document.querySelectorAll('.slide'));
+    this.current=0; this.total=this.slides.length;
+    this.buildChrome(); this.bindEvents(); this.observe(); this.update();
+  }
+  SlideEngine.prototype.buildChrome=function(){
+    var bar=document.createElement('div');bar.className='deck-progress';document.body.appendChild(bar);this.bar=bar;
+    var dots=document.createElement('div');dots.className='deck-dots';var self=this;
+    this.slides.forEach(function(_,i){var d=document.createElement('button');d.className='deck-dot';d.title='Slide '+(i+1);d.onclick=function(){self.goTo(i);};dots.appendChild(d);});
+    document.body.appendChild(dots);this.dots=[].slice.call(dots.children);
+    var ctr=document.createElement('div');ctr.className='deck-counter';document.body.appendChild(ctr);this.counter=ctr;
+    var hints=document.createElement('div');hints.className='deck-hints';hints.textContent='\u2190 \u2192 \ub610\ub294 \uc2a4\ud06c\ub864\ub85c \ud0d0\uc0c9';document.body.appendChild(hints);this.hints=hints;
+    this.hintTimer=setTimeout(function(){hints.classList.add('faded');},4000);
+  };
+  SlideEngine.prototype.bindEvents=function(){
+    var self=this;
+    document.addEventListener('keydown',function(e){
+      if(e.target.closest('.mermaid-wrap,input,textarea'))return;
+      if(['ArrowDown','ArrowRight',' ','PageDown'].indexOf(e.key)>-1){e.preventDefault();self.next();}
+      else if(['ArrowUp','ArrowLeft','PageUp'].indexOf(e.key)>-1){e.preventDefault();self.prev();}
+      else if(e.key==='Home'){e.preventDefault();self.goTo(0);}
+      else if(e.key==='End'){e.preventDefault();self.goTo(self.total-1);}
+      self.fadeHints();
+    });
+    var tY;
+    this.deck.addEventListener('touchstart',function(e){tY=e.touches[0].clientY;},{passive:true});
+    this.deck.addEventListener('touchend',function(e){var dy=tY-e.changedTouches[0].clientY;if(Math.abs(dy)>50){dy>0?self.next():self.prev();}});
+  };
+  SlideEngine.prototype.observe=function(){
+    var self=this;
+    var obs=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add('visible');self.current=self.slides.indexOf(entry.target);self.update();}});},{threshold:0.5});
+    this.slides.forEach(function(s){obs.observe(s);});
+  };
+  SlideEngine.prototype.goTo=function(i){this.slides[Math.max(0,Math.min(i,this.total-1))].scrollIntoView({behavior:'smooth'});};
+  SlideEngine.prototype.next=function(){if(this.current<this.total-1)this.goTo(this.current+1);};
+  SlideEngine.prototype.prev=function(){if(this.current>0)this.goTo(this.current-1);};
+  SlideEngine.prototype.update=function(){
+    this.bar.style.width=((this.current+1)/this.total*100)+'%';
+    var c=this.current;this.dots.forEach(function(d,i){d.classList.toggle('active',i===c);});
+    this.counter.textContent=(this.current+1)+' / '+this.total;
+  };
+  SlideEngine.prototype.fadeHints=function(){clearTimeout(this.hintTimer);this.hints.classList.add('faded');};
+</script>
+
+</body>
+</html>

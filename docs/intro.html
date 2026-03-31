@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새움터 - CNW Center | 노동안전보건 통합 플랫폼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Noto Sans KR', system-ui, sans-serif;
+    --font-display: 'Noto Serif KR', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #fafaf8;
+    --bg-alt: #f3f1ec;
+    --surface: #ffffff;
+    --border: rgba(0, 0, 0, 0.06);
+    --border-bright: rgba(0, 0, 0, 0.12);
+    --text: #1a1a1a;
+    --text-dim: #6b6b6b;
+    --text-muted: #999999;
+    --accent: #1a6b4e;
+    --accent-light: #e8f5ef;
+    --accent-dim: rgba(26, 107, 78, 0.08);
+    --warm: #c17817;
+    --warm-light: #fff8ed;
+    --warm-dim: rgba(193, 120, 23, 0.08);
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f110f;
+      --bg-alt: #161a16;
+      --surface: #1c201c;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-bright: rgba(255, 255, 255, 0.12);
+      --text: #e8e6e1;
+      --text-dim: #9a9890;
+      --text-muted: #6b6960;
+      --accent: #4ade80;
+      --accent-light: rgba(74, 222, 128, 0.08);
+      --accent-dim: rgba(74, 222, 128, 0.06);
+      --warm: #fbbf24;
+      --warm-light: rgba(251, 191, 36, 0.06);
+      --warm-dim: rgba(251, 191, 36, 0.06);
+      --blue: #60a5fa;
+      --blue-light: rgba(96, 165, 250, 0.06);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  h1, h2, h3, h4, h5, h6, p, li, span, a, div {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  body {
+    font-size: 18px;
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 80px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%; left: -20%;
+    width: 140%; height: 140%;
+    background: radial-gradient(ellipse at 50% 40%, var(--accent-dim) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero > * { position: relative; z-index: 1; }
+
+  .hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-light);
+    border: 1px solid var(--accent-dim);
+    padding: 6px 16px;
+    border-radius: 100px;
+    margin-bottom: 32px;
+    letter-spacing: 0.5px;
+  }
+
+  .hero__badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .hero__title {
+    font-family: var(--font-display);
+    font-size: clamp(42px, 7vw, 80px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+    text-wrap: balance;
+  }
+
+  .hero__title span {
+    color: var(--accent);
+  }
+
+  .hero__subtitle {
+    font-family: var(--font-display);
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+    text-wrap: balance;
+  }
+
+  .hero__desc {
+    max-width: 600px;
+    font-size: 17px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+
+  .hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 32px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .hero__cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(26, 107, 78, 0.2);
+  }
+
+  .hero__scroll {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* ===== SECTIONS ===== */
+  section {
+    padding: 100px 24px;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    text-wrap: balance;
+  }
+
+  .section-desc {
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 640px;
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+
+  /* ===== ABOUT ===== */
+  .about { background: var(--bg-alt); }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .about-visual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .about-visual::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--warm));
+  }
+
+  .about-visual__icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+
+  .about-visual__name {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .about-visual__org {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+  }
+
+  .about-visual__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .about-visual__stat {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  .about-visual__stat-val {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .about-visual__stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .about-text h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .about-text p {
+    font-size: 16px;
+    color: var(--text-dim);
+    line-height: 1.85;
+    margin-bottom: 16px;
+  }
+
+  /* ===== PURPOSE ===== */
+  .purpose-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .purpose-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 28px;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+
+  .purpose-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.06);
+  }
+
+  .purpose-card__icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .purpose-card__icon--green { background: var(--accent-light); }
+  .purpose-card__icon--warm { background: var(--warm-light); }
+  .purpose-card__icon--blue { background: var(--blue-light); }
+
+  .purpose-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .purpose-card p {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* ===== FEATURES ===== */
+  .features { background: var(--bg-alt); }
+
+  .feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .feature-item {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 20px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+
+  .feature-item:hover {
+    border-color: var(--accent);
+  }
+
+  .feature-item__num {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .feature-item h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .feature-item p {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .feature-item__tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .feature-item__tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: var(--bg);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  /* ===== VALUES ===== */
+  .values-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .value-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .value-card::before {
+    content: attr(data-num);
+    position: absolute;
+    top: -10px; right: 16px;
+    font-family: var(--font-display);
+    font-size: 120px;
+    font-weight: 700;
+    opacity: 0.03;
+    line-height: 1;
+    color: var(--text);
+    pointer-events: none;
+  }
+
+  .value-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .value-card p {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+
+  /* ===== TECH ===== */
+  .tech { background: var(--bg-alt); }
+
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .tech-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .tech-item:hover { border-color: var(--accent); }
+
+  .tech-item__name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .tech-item__desc {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    padding: 60px 24px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer__logo {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer__org {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+  }
+
+  .footer__copy {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ===== ANIMATIONS ===== */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in { opacity: 1; transform: none; transition: none; }
+    .hero__scroll { animation: none; }
+    .hero__badge::before { animation: none; }
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    section { padding: 64px 20px; }
+    .about-grid { grid-template-columns: 1fr; }
+    .purpose-cards { grid-template-columns: 1fr; }
+    .values-grid { grid-template-columns: 1fr; }
+    .feature-item { grid-template-columns: 48px 1fr; gap: 16px; padding: 20px; }
+    .feature-item__num { width: 48px; height: 48px; font-size: 18px; }
+    .tech-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="hero__badge">CNW Center v1.0</span>
+  <h1 class="hero__title"><span>새움터</span></h1>
+  <p class="hero__subtitle">노동안전보건 통합 업무관리 플랫폼</p>
+  <p class="hero__desc">
+    산업재해 예방부터 상담, 위험성평가, 근골격계유해요인조사까지 &mdash;
+    현장의 복잡한 업무를 하나의 시스템으로 통합합니다.
+  </p>
+  <a href="#about" class="hero__cta">
+    자세히 알아보기
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8l5 5 5-5"/></svg>
+  </a>
+  <div class="hero__scroll">
+    <span>SCROLL</span>
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="14" height="22" rx="7"/><line x1="8" y1="6" x2="8" y2="10"/></svg>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-visual fade-in">
+        <div class="about-visual__icon">&#127981;</div>
+        <div class="about-visual__name">새움터</div>
+        <div class="about-visual__org">충남노동건강인권센터</div>
+        <div class="about-visual__stats">
+          <div class="about-visual__stat">
+            <div class="about-visual__stat-val">7+</div>
+            <div class="about-visual__stat-label">핵심 모듈</div>
+          </div>
+          <div class="about-visual__stat">
+            <div class="about-visual__stat-val">AI</div>
+            <div class="about-visual__stat-label">브리핑 분석</div>
+          </div>
+          <div class="about-visual__stat">
+            <div class="about-visual__stat-val">24/7</div>
+            <div class="about-visual__stat-label">뉴스 수집</div>
+          </div>
+        </div>
+      </div>
+      <div class="about-text fade-in">
+        <p class="section-label">About</p>
+        <h2 class="section-title">충남노동건강인권센터가<br>만드는 안전한 일터</h2>
+        <h3>새움터란?</h3>
+        <p>
+          '새움터'는 <strong>새</strong>로운 노동의 <strong>움</strong>직임이 시작되는 <strong>터</strong>전이라는 뜻입니다.
+          충남노동건강인권센터가 현장 실무자의 업무 효율을 높이고,
+          체계적인 노동안전보건 관리를 지원하기 위해 개발한 통합 플랫폼입니다.
+        </p>
+        <p>
+          엑셀 중심의 반복 업무를 디지털화하고,
+          AI 기반 뉴스 분석으로 정책 변화에 신속히 대응할 수 있도록 돕습니다.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PURPOSE -->
+<section class="purpose" id="purpose">
+  <div class="container">
+    <p class="section-label fade-in">Purpose</p>
+    <h2 class="section-title fade-in">왜 CNW Center인가?</h2>
+    <p class="section-desc fade-in">
+      산업안전보건 현장에서 겪는 세 가지 핵심 문제를 해결합니다.
+    </p>
+    <div class="purpose-cards">
+      <div class="purpose-card fade-in">
+        <div class="purpose-card__icon purpose-card__icon--green">&#128196;</div>
+        <h3>흩어진 데이터 통합</h3>
+        <p>
+          위험성평가, 근골조사, 상담기록이 각각 다른 엑셀 파일에 산재해 있습니다.
+          CNW Center는 모든 업무 데이터를 하나의 시스템에서 관리합니다.
+        </p>
+      </div>
+      <div class="purpose-card fade-in">
+        <div class="purpose-card__icon purpose-card__icon--warm">&#9889;</div>
+        <h3>수작업 자동화</h3>
+        <p>
+          위험점수 계산, 화학물질 중대성 판정, 뉴스 수집을 자동으로 처리합니다.
+          반복 작업에 소비하던 시간을 현장 방문과 상담에 투자하세요.
+        </p>
+      </div>
+      <div class="purpose-card fade-in">
+        <div class="purpose-card__icon purpose-card__icon--blue">&#128202;</div>
+        <h3>체계적 업무 관리</h3>
+        <p>
+          사업장별 조직도 기반으로 평가를 관리하고, 개선 이력을 추적합니다.
+          일정, 공지, 설문까지 하나의 플랫폼에서 효율적으로 운영합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <p class="section-label fade-in">Features</p>
+    <h2 class="section-title fade-in">주요 기능</h2>
+    <p class="section-desc fade-in">
+      노동안전보건 실무에 필요한 모든 기능을 갖추고 있습니다.
+    </p>
+    <div class="feature-list">
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">01</div>
+        <div>
+          <h3>노동안전 뉴스 브리핑</h3>
+          <p>10개 이상의 뉴스 소스에서 산업안전 관련 기사를 자동 수집하고, Claude AI가 핵심 이슈를 분석합니다. 매일 아침 '오늘의 새움터'에서 중요 뉴스를 확인할 수 있습니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">자동 수집</span>
+            <span class="feature-item__tag">AI 분석</span>
+            <span class="feature-item__tag">우선순위 분류</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">02</div>
+        <div>
+          <h3>위험성평가</h3>
+          <p>사업장 조직도 기반으로 위험요인을 체계적으로 평가합니다. 사고, 근골격계, 화학물질, 소음 4개 카테고리별 맞춤 점수 체계를 적용하고, 개선 계획부터 완료까지 추적합니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">5x5 매트릭스</span>
+            <span class="feature-item__tag">4개 카테고리</span>
+            <span class="feature-item__tag">개선이력 관리</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">03</div>
+        <div>
+          <h3>근골격계유해요인조사</h3>
+          <p>고용노동부 양식 기반의 4-Sheet 구조로 관리카드, 부위별 증상조사, RULA/REBA 작업자세 평가, 종합평가를 체계적으로 수행합니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">6개 부위 평가</span>
+            <span class="feature-item__tag">RULA/REBA</span>
+            <span class="feature-item__tag">작업 영상 관리</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">04</div>
+        <div>
+          <h3>화학물질 중대성 평가</h3>
+          <p>MSDS(물질안전보건자료) 유해성 문구를 기반으로 심각성 점수를 자동 산출합니다. CAS 번호 기반 전역 데이터베이스로 사업장 간 화학물질 정보를 공유합니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">자동 점수 산출</span>
+            <span class="feature-item__tag">MSDS 연동</span>
+            <span class="feature-item__tag">CAS 마스터 DB</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">05</div>
+        <div>
+          <h3>상담 관리</h3>
+          <p>산업재해(사고/질병/출퇴근) 상담을 체계적으로 관리합니다. 접수부터 결과 통보까지 6단계 상태 추적, 상담 이력 기록, 관련 문서 관리를 지원합니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">6단계 상태 관리</span>
+            <span class="feature-item__tag">상담 이력</span>
+            <span class="feature-item__tag">문서 관리</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">06</div>
+        <div>
+          <h3>설문조사</h3>
+          <p>3종 기본 템플릿과 10가지 질문 유형을 지원합니다. 조건 분기 로직으로 응답에 따라 다음 질문을 동적으로 표시하고, 공개 URL로 외부 배포가 가능합니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">템플릿 기반</span>
+            <span class="feature-item__tag">조건 분기</span>
+            <span class="feature-item__tag">공개 URL</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-item__num">07</div>
+        <div>
+          <h3>사업장 &middot; 일정 &middot; 공지</h3>
+          <p>사업장 등록, 5단계 조직도 관리, 드래그앤드롭 순서 변경을 지원합니다. 캘린더 기반 일정 관리와 공지사항 시스템으로 팀 협업을 돕습니다.</p>
+          <div class="feature-item__tags">
+            <span class="feature-item__tag">조직도 트리</span>
+            <span class="feature-item__tag">캘린더</span>
+            <span class="feature-item__tag">공지사항</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VALUES -->
+<section class="values" id="values">
+  <div class="container">
+    <p class="section-label fade-in">Values</p>
+    <h2 class="section-title fade-in">지향하는 가치</h2>
+    <p class="section-desc fade-in">
+      기술을 통해 노동안전보건의 본질적 가치를 실현합니다.
+    </p>
+    <div class="values-grid">
+      <div class="value-card fade-in" data-num="01">
+        <h3>&#128737;&#65039; 노동자 중심</h3>
+        <p>
+          시스템의 모든 설계는 현장 노동자의 안전과 건강을 최우선으로 합니다.
+          노동자의 목소리를 듣고, 위험요인을 발굴하며, 개선을 추적하는 전 과정이
+          노동자 보호를 향합니다.
+        </p>
+      </div>
+      <div class="value-card fade-in" data-num="02">
+        <h3>&#128295; 실무 효율</h3>
+        <p>
+          현장 실무자가 반복 업무에 소비하는 시간을 줄여,
+          실질적인 안전 활동에 집중할 수 있도록 합니다.
+          자동화된 점수 계산, AI 분석, 통합 데이터 관리가 이를 실현합니다.
+        </p>
+      </div>
+      <div class="value-card fade-in" data-num="03">
+        <h3>&#128200; 데이터 기반 의사결정</h3>
+        <p>
+          감이 아닌 데이터로 판단합니다.
+          위험등급 추이, 개선율, 상담 현황을 실시간으로 파악하고,
+          AI가 분석한 뉴스 브리핑으로 정책 변화에 선제적으로 대응합니다.
+        </p>
+      </div>
+      <div class="value-card fade-in" data-num="04">
+        <h3>&#127760; 접근성과 개방성</h3>
+        <p>
+          웹 기반 시스템으로 장소와 기기에 구애받지 않습니다.
+          공개 설문 URL로 누구나 참여할 수 있고,
+          QR코드를 통해 현장에서도 쉽게 접근할 수 있습니다.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="tech">
+  <div class="container">
+    <p class="section-label fade-in">Technology</p>
+    <h2 class="section-title fade-in">기술 스택</h2>
+    <p class="section-desc fade-in">
+      안정성과 확장성을 갖춘 현대적 기술로 구축되었습니다.
+    </p>
+    <div class="tech-grid">
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">Next.js 14</div>
+        <div class="tech-item__desc">App Router, SSR</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">TypeScript</div>
+        <div class="tech-item__desc">타입 안전성</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">PostgreSQL</div>
+        <div class="tech-item__desc">관계형 데이터베이스</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">Prisma</div>
+        <div class="tech-item__desc">ORM</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">NextAuth.js</div>
+        <div class="tech-item__desc">인증 &middot; RBAC</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">Claude AI</div>
+        <div class="tech-item__desc">뉴스 분석</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">Tailwind CSS</div>
+        <div class="tech-item__desc">유틸리티 스타일링</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-item__name">shadcn/ui</div>
+        <div class="tech-item__desc">UI 컴포넌트</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer__logo">새움터</div>
+  <div class="footer__org">충남노동건강인권센터 | CNW Center</div>
+  <div class="footer__copy">&copy; 2026 충남노동건강인권센터. All rights reserved.</div>
+</footer>
+
+<script>
+  // Intersection Observer for fade-in animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    },
+    { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+  );
+
+  document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el));
+</script>
+
+</body>
+</html>

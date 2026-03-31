@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새움터 소개 | CNW Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Noto+Serif+KR:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Noto Sans KR', system-ui, sans-serif;
+    --font-display: 'Noto Serif KR', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --bg: #0a0f0a;
+    --surface: #141e14;
+    --surface2: #1a281a;
+    --surface-elevated: #1f321f;
+    --border: rgba(74, 222, 128, 0.08);
+    --border-bright: rgba(74, 222, 128, 0.16);
+    --text: #e6f0e6;
+    --text-dim: #8a9e8a;
+    --accent: #4ade80;
+    --accent-dim: rgba(74, 222, 128, 0.08);
+    --warm: #fbbf24;
+    --warm-dim: rgba(251, 191, 36, 0.08);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96, 165, 250, 0.08);
+    --red: #f87171;
+    --code-bg: #0a120a;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8faf8;
+      --surface: #ffffff;
+      --surface2: #f0f5f0;
+      --surface-elevated: #e8f0e8;
+      --border: rgba(26, 107, 78, 0.08);
+      --border-bright: rgba(26, 107, 78, 0.16);
+      --text: #1a2e1a;
+      --text-dim: #5a7a5a;
+      --accent: #1a6b4e;
+      --accent-dim: rgba(26, 107, 78, 0.06);
+      --warm: #b8860b;
+      --warm-dim: rgba(184, 134, 11, 0.06);
+      --blue: #2563eb;
+      --blue-dim: rgba(37, 99, 235, 0.06);
+      --red: #dc2626;
+      --code-bg: #1a2e1a;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    font-size: 18px;
+    color: var(--text);
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, p, li, span, a, div {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .deck {
+    height: 100dvh;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .slide {
+    height: 100dvh;
+    scroll-snap-align: start;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(40px, 6vh, 80px) clamp(40px, 8vw, 120px);
+    isolation: isolate;
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .slide.visible { opacity: 1; transform: none; }
+
+  .slide .reveal {
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.1s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.2s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.3s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.4s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.5s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.6s; }
+  .slide.visible .reveal:nth-child(7) { transition-delay: 0.7s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
+
+  /* NAV */
+  .deck-progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 100; transition: width 0.3s ease; pointer-events: none; }
+  .deck-dots { position: fixed; right: clamp(12px,2vw,24px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 100; padding: 8px; background: color-mix(in srgb, var(--bg) 60%, transparent 40%); border-radius: 20px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .deck-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); opacity: 0.3; border: none; padding: 0; cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
+  .deck-dot:hover { opacity: 0.6; }
+  .deck-dot.active { opacity: 1; transform: scale(1.5); background: var(--accent); }
+  .deck-counter { position: fixed; bottom: clamp(12px,2vh,24px); right: clamp(12px,2vw,24px); font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); z-index: 100; font-variant-numeric: tabular-nums; }
+  .deck-hints { position: fixed; bottom: clamp(12px,2vh,24px); left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); opacity: 0.6; z-index: 100; transition: opacity 0.5s; white-space: nowrap; }
+  .deck-hints.faded { opacity: 0; pointer-events: none; }
+
+  /* SHARED */
+  .slide__display { font-family: var(--font-display); font-size: clamp(48px, 10vw, 100px); font-weight: 700; letter-spacing: -2px; line-height: 0.95; text-wrap: balance; }
+  .slide__heading { font-family: var(--font-display); font-size: clamp(28px, 5vw, 48px); font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; text-wrap: balance; }
+  .slide__body { font-size: clamp(16px, 2.2vw, 22px); line-height: 1.65; color: var(--text-dim); text-wrap: pretty; }
+  .slide__subtitle { font-family: var(--font-mono); font-size: clamp(12px, 1.5vw, 16px); color: var(--text-dim); letter-spacing: 1px; }
+  .slide__label { font-family: var(--font-mono); font-size: clamp(10px, 1.2vw, 13px); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 12px; }
+  .slide__decor { position: absolute; pointer-events: none; z-index: 0; }
+
+  /* TITLE */
+  .slide--title { justify-content: center; align-items: center; text-align: center; background-image: radial-gradient(ellipse at 50% 30%, var(--accent-dim) 0%, transparent 50%); }
+  .slide--title .slide__display { color: var(--accent); }
+
+  /* DIVIDER */
+  .slide--divider { justify-content: center; }
+  .slide--divider .slide__number { font-size: clamp(100px, 22vw, 260px); font-weight: 200; line-height: 0.85; opacity: 0.04; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%); pointer-events: none; color: var(--accent); }
+
+  /* CONTENT */
+  .slide--content .slide__inner { display: grid; grid-template-columns: 3fr 2fr; gap: clamp(24px, 4vw, 60px); align-items: center; width: 100%; }
+  .slide__bullets { list-style: none; padding: 0; }
+  .slide__bullets li { padding: 10px 0 10px 24px; position: relative; font-size: clamp(16px, 2vw, 22px); line-height: 1.5; color: var(--text-dim); }
+  .slide__bullets li::before { content: ''; position: absolute; left: 0; top: 20px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  /* DASHBOARD */
+  .slide--dashboard .slide__kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 20vw, 220px), 1fr)); gap: clamp(12px, 2vw, 24px); }
+  .slide__kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: clamp(16px, 3vh, 32px) clamp(16px, 2vw, 24px); }
+  .slide__kpi-val { font-size: clamp(36px, 6vw, 56px); font-weight: 700; letter-spacing: -1.5px; line-height: 1.1; }
+  .slide__kpi-label { font-family: var(--font-mono); font-size: clamp(9px, 1.2vw, 12px); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-dim); margin-top: 8px; }
+
+  /* DIAGRAM */
+  .slide--diagram { padding: clamp(24px, 4vh, 48px) clamp(24px, 4vw, 60px); }
+  .slide--diagram .slide__heading { margin-bottom: clamp(8px, 1.5vh, 20px); }
+  .mermaid-wrap { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; overflow: auto; flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; }
+  .mermaid .nodeLabel { color: var(--text) !important; }
+  .mermaid .edgeLabel { color: var(--text-dim) !important; background-color: var(--bg) !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .slide--diagram .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+  .zoom-controls { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .zoom-controls button { width: 28px; height: 28px; border: none; background: transparent; color: var(--text-dim); font-family: var(--font-mono); font-size: 14px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+
+  /* SPLIT */
+  .slide--split { padding: 0; }
+  .slide--split .slide__panels { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
+  .slide--split .slide__panel { padding: clamp(40px, 6vh, 80px) clamp(32px, 4vw, 60px); display: flex; flex-direction: column; justify-content: center; }
+  .slide--split .slide__panel--primary { background: var(--surface); }
+  .slide--split .slide__panel--secondary { background: var(--surface2); }
+
+  /* BLEED */
+  .slide--bleed { padding: 0; justify-content: flex-end; }
+  .slide__bg { position: absolute; inset: 0; z-index: 0; }
+  .slide__bg--gradient { background: linear-gradient(135deg, #0a1a0a 0%, #0a0f0a 40%, #141e14 100%); }
+  .slide__scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 40%, transparent 100%); z-index: 1; }
+  .slide--bleed .slide__content { position: relative; z-index: 2; padding: clamp(40px, 6vh, 80px) clamp(40px, 8vw, 120px); color: #fff; }
+  .slide--bleed .slide__heading { color: #fff; }
+  .slide--bleed .slide__subtitle { color: rgba(255,255,255,0.7); }
+
+  /* FEATURE CARDS */
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
+  .feature-card__icon { font-size: 32px; margin-bottom: 12px; }
+  .feature-card h4 { font-size: clamp(14px, 1.6vw, 18px); font-weight: 600; margin-bottom: 6px; }
+  .feature-card p { font-size: clamp(12px, 1.3vw, 14px); color: var(--text-dim); line-height: 1.55; }
+
+  /* RESPONSIVE */
+  @media (max-height: 700px) {
+    .slide { padding: clamp(24px, 4vh, 40px) clamp(32px, 6vw, 80px); }
+    .slide__display { font-size: clamp(36px, 8vw, 72px); }
+  }
+  @media (max-width: 768px) {
+    .slide--content .slide__inner { grid-template-columns: 1fr; }
+    .slide--split .slide__panels { grid-template-columns: 1fr; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .slide--dashboard .slide__kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .slide--bleed .slide__content { color: #1a2e1a; }
+    .slide--bleed .slide__heading { color: #1a2e1a; }
+    .slide--bleed .slide__subtitle { color: rgba(26, 46, 26, 0.7); }
+    .slide__bg--gradient { background: linear-gradient(135deg, #e8f0e8 0%, #f8faf8 40%, #f0f5f0 100%); }
+    .slide__scrim { background: linear-gradient(to top, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 40%, transparent 100%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- SLIDE 1: TITLE -->
+  <section class="slide slide--title">
+    <svg class="slide__decor" style="top:0;right:0;" width="120" height="120" viewBox="0 0 120 120"><line x1="120" y1="0" x2="120" y2="40" stroke="var(--accent)" stroke-width="2" opacity="0.15"/><line x1="80" y1="0" x2="120" y2="0" stroke="var(--accent)" stroke-width="2" opacity="0.15"/></svg>
+    <svg class="slide__decor" style="bottom:0;left:0;" width="120" height="120" viewBox="0 0 120 120"><line x1="0" y1="80" x2="0" y2="120" stroke="var(--accent)" stroke-width="2" opacity="0.15"/><line x1="0" y1="120" x2="40" y2="120" stroke="var(--accent)" stroke-width="2" opacity="0.15"/></svg>
+    <div class="reveal">
+      <p class="slide__subtitle" style="margin-bottom:clamp(16px,2vh,32px);">충남노동건강인권센터</p>
+    </div>
+    <h1 class="slide__display reveal">새움터</h1>
+    <div class="reveal">
+      <p class="slide__subtitle" style="margin-top:clamp(16px,2vh,32px);">노동안전보건 통합 업무관리 플랫폼</p>
+    </div>
+    <div class="reveal" style="margin-top:clamp(24px,4vh,48px);">
+      <p class="slide__body" style="max-width:600px; margin: 0 auto; font-size:clamp(14px,1.6vw,18px);">
+        산업재해 예방 &middot; 상담 &middot; 위험성평가 &middot; 근골조사<br>
+        현장의 모든 업무를 하나로 통합합니다
+      </p>
+    </div>
+  </section>
+
+  <!-- SLIDE 2: PROBLEM -->
+  <section class="slide slide--split">
+    <div class="slide__panels">
+      <div class="slide__panel slide__panel--primary">
+        <p class="slide__label reveal" style="color:var(--red);">문제</p>
+        <h2 class="slide__heading reveal">현장의 어려움</h2>
+        <ul class="slide__bullets" style="margin-top:20px;">
+          <li class="reveal">위험성평가, 근골조사, 상담기록이 각각 다른 엑셀 파일에 산재</li>
+          <li class="reveal">위험점수, 화학물질 심각성을 수작업으로 계산</li>
+          <li class="reveal">노동안전 뉴스와 정책 변화를 개별적으로 추적</li>
+          <li class="reveal">사업장별 조직 현황 파악과 이력 추적이 어려움</li>
+        </ul>
+      </div>
+      <div class="slide__panel slide__panel--secondary" style="align-items:center;">
+        <div class="reveal" style="text-align:center;">
+          <svg viewBox="0 0 200 200" width="160" height="160" style="opacity:0.7;">
+            <rect x="20" y="20" width="60" height="40" rx="6" fill="none" stroke="var(--red)" stroke-width="1.5" opacity="0.6" transform="rotate(-5 50 40)"/>
+            <rect x="70" y="50" width="60" height="40" rx="6" fill="none" stroke="var(--warm)" stroke-width="1.5" opacity="0.6" transform="rotate(3 100 70)"/>
+            <rect x="40" y="90" width="60" height="40" rx="6" fill="none" stroke="var(--blue)" stroke-width="1.5" opacity="0.6" transform="rotate(-8 70 110)"/>
+            <rect x="90" y="120" width="60" height="40" rx="6" fill="none" stroke="var(--text-dim)" stroke-width="1.5" opacity="0.4" transform="rotate(5 120 140)"/>
+            <text x="100" y="185" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-dim)">흩어진 엑셀 파일들</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3: SOLUTION -->
+  <section class="slide slide--content" style="background-image:radial-gradient(ellipse at 20% 80%, var(--accent-dim) 0%, transparent 45%);">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">솔루션</p>
+        <h2 class="slide__heading reveal">새움터가 제공하는 가치</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>통합 데이터 관리</strong> &mdash; 모든 업무 데이터를 하나의 시스템에서</li>
+          <li class="reveal"><strong>자동화</strong> &mdash; 위험점수, 화학물질 심각성, 뉴스 수집을 자동 처리</li>
+          <li class="reveal"><strong>AI 기반 분석</strong> &mdash; Claude AI가 매일 핵심 이슈를 분석</li>
+          <li class="reveal"><strong>체계적 추적</strong> &mdash; 평가부터 개선까지 전 과정 이력 관리</li>
+        </ul>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;" class="reveal">
+        <svg viewBox="0 0 200 200" width="160" height="160">
+          <circle cx="100" cy="100" r="70" fill="none" stroke="var(--accent)" stroke-width="2" opacity="0.2" stroke-dasharray="4 4"/>
+          <circle cx="100" cy="100" r="12" fill="var(--accent)" opacity="0.15"/>
+          <circle cx="100" cy="100" r="4" fill="var(--accent)" opacity="0.5"/>
+          <circle cx="60" cy="60" r="16" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="60" y="64" text-anchor="middle" font-size="14">&#9888;</text>
+          <circle cx="140" cy="60" r="16" fill="var(--surface)" stroke="var(--warm)" stroke-width="1.5"/>
+          <text x="140" y="64" text-anchor="middle" font-size="14">&#128172;</text>
+          <circle cx="60" cy="140" r="16" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+          <text x="60" y="144" text-anchor="middle" font-size="14">&#129506;</text>
+          <circle cx="140" cy="140" r="16" fill="var(--surface)" stroke="var(--text-dim)" stroke-width="1.5"/>
+          <text x="140" y="144" text-anchor="middle" font-size="14">&#128240;</text>
+          <line x1="74" y1="74" x2="92" y2="92" stroke="var(--accent)" stroke-width="1" opacity="0.3"/>
+          <line x1="126" y1="74" x2="108" y2="92" stroke="var(--warm)" stroke-width="1" opacity="0.3"/>
+          <line x1="74" y1="126" x2="92" y2="108" stroke="var(--blue)" stroke-width="1" opacity="0.3"/>
+          <line x1="126" y1="126" x2="108" y2="108" stroke="var(--text-dim)" stroke-width="1" opacity="0.3"/>
+          <text x="100" y="190" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-dim)">통합 플랫폼</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4: FEATURES -->
+  <section class="slide" style="background-image:radial-gradient(ellipse at 70% 30%, var(--accent-dim) 0%, transparent 40%);">
+    <p class="slide__label reveal">주요 기능</p>
+    <h2 class="slide__heading reveal">7가지 핵심 모듈</h2>
+    <div class="feature-grid">
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#128240;</div>
+        <h4>뉴스 브리핑</h4>
+        <p>10개 소스 자동 수집, AI가 매일 핵심 이슈 3가지를 분석</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#9888;&#65039;</div>
+        <h4>위험성평가</h4>
+        <p>4개 카테고리, 5x5 매트릭스 기반 점수 자동 계산</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#129506;</div>
+        <h4>근골조사</h4>
+        <p>4-Sheet 구조, 6개 부위 평가, RULA/REBA 자동 산출</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#129514;</div>
+        <h4>화학물질 평가</h4>
+        <p>MSDS 기반 심각성 자동 판정, CAS 마스터 DB</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#128172;</div>
+        <h4>상담 관리</h4>
+        <p>6단계 워크플로우, 상담 기록, 문서 관리</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-card__icon">&#128203;</div>
+        <h4>설문조사</h4>
+        <p>10가지 질문유형, 조건분기, 공개 URL 배포</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5: ARCHITECTURE DIAGRAM -->
+  <section class="slide slide--diagram">
+    <h2 class="slide__heading reveal">시스템 구조</h2>
+    <div class="mermaid-wrap reveal">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.2)" title="확대">+</button>
+        <button onclick="zoomDiagram(this,0.8)" title="축소">&minus;</button>
+        <button onclick="resetZoom(this)" title="초기화">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+graph TD
+  USER["사용자"] --> APP["새움터 웹앱<br/>Next.js 14"]
+  APP --> AUTH["인증/RBAC<br/>NextAuth.js"]
+  APP --> DB[("PostgreSQL<br/>+ Prisma")]
+  APP --> AI["Claude AI<br/>뉴스 분석"]
+  APP --> SCRAPER["뉴스 수집<br/>10개 소스"]
+
+  classDef primary fill:#4ade8022,stroke:#4ade80,stroke-width:2px
+  classDef secondary fill:#60a5fa22,stroke:#60a5fa,stroke-width:2px
+  classDef storage fill:#fbbf2422,stroke:#fbbf24,stroke-width:2px
+
+  class USER,APP primary
+  class AUTH,AI,SCRAPER secondary
+  class DB storage
+      </pre>
+    </div>
+  </section>
+
+  <!-- SLIDE 6: KPI -->
+  <section class="slide slide--dashboard" style="background-image:radial-gradient(ellipse at 50% 50%, var(--accent-dim) 0%, transparent 40%);">
+    <p class="slide__label reveal">플랫폼 현황</p>
+    <h2 class="slide__heading reveal">새움터 한눈에 보기</h2>
+    <div class="slide__kpis" style="margin-top:24px;">
+      <div class="slide__kpi reveal">
+        <div class="slide__kpi-val" style="color:var(--accent);">7+</div>
+        <div class="slide__kpi-label">핵심 모듈</div>
+      </div>
+      <div class="slide__kpi reveal">
+        <div class="slide__kpi-val" style="color:var(--warm);">96+</div>
+        <div class="slide__kpi-label">API 엔드포인트</div>
+      </div>
+      <div class="slide__kpi reveal">
+        <div class="slide__kpi-val" style="color:var(--blue);">4</div>
+        <div class="slide__kpi-label">위험 카테고리</div>
+      </div>
+      <div class="slide__kpi reveal">
+        <div class="slide__kpi-val" style="color:var(--accent);">10+</div>
+        <div class="slide__kpi-label">뉴스 소스</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7: CTA -->
+  <section class="slide slide--bleed">
+    <div class="slide__bg slide__bg--gradient"></div>
+    <div class="slide__scrim"></div>
+    <div class="slide__content">
+      <p class="slide__label reveal" style="opacity:0.6;">시작하기</p>
+      <h2 class="slide__heading reveal" style="font-size:clamp(32px,6vw,56px);">
+        새로운 노동의 움직임이<br>시작되는 터전
+      </h2>
+      <p class="slide__subtitle reveal" style="margin-top:16px;">
+        새움터와 함께 안전한 일터를 만들어 갑니다
+      </p>
+      <p class="slide__body reveal" style="margin-top:32px; max-width:500px; font-size:clamp(14px,1.6vw,17px);">
+        충남노동건강인권센터<br>
+        CNW Center &mdash; saewoomter.org
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      primaryColor: isDark ? '#1a281a' : '#e8f5ef',
+      primaryBorderColor: isDark ? '#4ade80' : '#1a6b4e',
+      primaryTextColor: isDark ? '#e6f0e6' : '#1a2e1a',
+      secondaryColor: isDark ? '#141e14' : '#eff6ff',
+      secondaryBorderColor: isDark ? '#60a5fa' : '#2563eb',
+      secondaryTextColor: isDark ? '#e6f0e6' : '#1a2e1a',
+      tertiaryColor: isDark ? '#1a1800' : '#fefce8',
+      tertiaryBorderColor: isDark ? '#fbbf24' : '#b8860b',
+      tertiaryTextColor: isDark ? '#e6f0e6' : '#1a2e1a',
+      lineColor: isDark ? '#8a9e8a' : '#5a7a5a',
+      fontSize: '18px',
+      fontFamily: "'Noto Sans KR', system-ui, sans-serif",
+    },
+    flowchart: {
+      curve: 'basis',
+      padding: 20,
+      nodeSpacing: 50,
+      rankSpacing: 50,
+    }
+  });
+
+  mermaid.run().then(function() {
+    document.querySelectorAll('.mermaid svg').forEach(function(svg) {
+      svg.removeAttribute('height');
+      svg.style.width = '100%';
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+    });
+    new SlideEngine();
+  });
+</script>
+
+<script>
+  var INITIAL_ZOOM=1;
+  function zoomDiagram(b,f){var w=b.closest('.mermaid-wrap');var t=w.querySelector('.mermaid');var c=parseFloat(t.dataset.zoom||INITIAL_ZOOM);var n=Math.min(Math.max(c*f,0.5),5);t.dataset.zoom=n;t.style.zoom=n;}
+  function resetZoom(b){var w=b.closest('.mermaid-wrap');var t=w.querySelector('.mermaid');t.dataset.zoom=INITIAL_ZOOM;t.style.zoom=INITIAL_ZOOM;}
+
+  function SlideEngine(){
+    this.deck=document.querySelector('.deck');
+    this.slides=[].slice.call(document.querySelectorAll('.slide'));
+    this.current=0;
+    this.total=this.slides.length;
+    this.buildChrome();
+    this.bindEvents();
+    this.observe();
+    this.update();
+  }
+  SlideEngine.prototype.buildChrome=function(){
+    var bar=document.createElement('div');bar.className='deck-progress';document.body.appendChild(bar);this.bar=bar;
+    var dots=document.createElement('div');dots.className='deck-dots';var self=this;
+    this.slides.forEach(function(_,i){var d=document.createElement('button');d.className='deck-dot';d.title='Slide '+(i+1);d.onclick=function(){self.goTo(i);};dots.appendChild(d);});
+    document.body.appendChild(dots);this.dots=[].slice.call(dots.children);
+    var ctr=document.createElement('div');ctr.className='deck-counter';document.body.appendChild(ctr);this.counter=ctr;
+    var hints=document.createElement('div');hints.className='deck-hints';hints.textContent='\u2190 \u2192 \ub610\ub294 \uc2a4\ud06c\ub864\ub85c \ud0d0\uc0c9';document.body.appendChild(hints);this.hints=hints;
+    this.hintTimer=setTimeout(function(){hints.classList.add('faded');},4000);
+  };
+  SlideEngine.prototype.bindEvents=function(){
+    var self=this;
+    document.addEventListener('keydown',function(e){
+      if(e.target.closest('.mermaid-wrap,input,textarea'))return;
+      if(['ArrowDown','ArrowRight',' ','PageDown'].indexOf(e.key)>-1){e.preventDefault();self.next();}
+      else if(['ArrowUp','ArrowLeft','PageUp'].indexOf(e.key)>-1){e.preventDefault();self.prev();}
+      else if(e.key==='Home'){e.preventDefault();self.goTo(0);}
+      else if(e.key==='End'){e.preventDefault();self.goTo(self.total-1);}
+      self.fadeHints();
+    });
+    var tY;
+    this.deck.addEventListener('touchstart',function(e){tY=e.touches[0].clientY;},{passive:true});
+    this.deck.addEventListener('touchend',function(e){var dy=tY-e.changedTouches[0].clientY;if(Math.abs(dy)>50){dy>0?self.next():self.prev();}});
+  };
+  SlideEngine.prototype.observe=function(){
+    var self=this;
+    var obs=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add('visible');self.current=self.slides.indexOf(entry.target);self.update();}});},{threshold:0.5});
+    this.slides.forEach(function(s){obs.observe(s);});
+  };
+  SlideEngine.prototype.goTo=function(i){this.slides[Math.max(0,Math.min(i,this.total-1))].scrollIntoView({behavior:'smooth'});};
+  SlideEngine.prototype.next=function(){if(this.current<this.total-1)this.goTo(this.current+1);};
+  SlideEngine.prototype.prev=function(){if(this.current>0)this.goTo(this.current-1);};
+  SlideEngine.prototype.update=function(){
+    this.bar.style.width=((this.current+1)/this.total*100)+'%';
+    var c=this.current;this.dots.forEach(function(d,i){d.classList.toggle('active',i===c);});
+    this.counter.textContent=(this.current+1)+' / '+this.total;
+  };
+  SlideEngine.prototype.fadeHints=function(){clearTimeout(this.hintTimer);this.hints.classList.add('faded');};
+</script>
+
+</body>
+</html>
