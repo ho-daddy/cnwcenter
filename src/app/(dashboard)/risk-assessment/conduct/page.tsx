@@ -495,8 +495,20 @@ function OrgTreeView({
       list.forEach(u => { if (u.children.length > 0) { ids.push(u.id); traverse(u.children) } })
     }
     traverse(units)
-    setExpanded(new Set(ids))
+    setExpanded(new Set())
   }, [units])
+
+  const getAllExpandableIds = (list: OrganizationUnit[]): string[] => {
+    const ids: string[] = []
+    const walk = (items: OrganizationUnit[]) => {
+      items.forEach(u => { if (u.children.length > 0) { ids.push(u.id); walk(u.children) } })
+    }
+    walk(list)
+    return ids
+  }
+  const expandAll = () => setExpanded(new Set(getAllExpandableIds(units)))
+  const collapseAll = () => setExpanded(new Set())
+  const hasExpandableUnits = units.some(u => u.children.length > 0)
 
   const toggle = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -537,7 +549,17 @@ function OrgTreeView({
       </div>
     )
   }
-  return <div className="space-y-0.5">{units.map(u => renderUnit(u))}</div>
+  return (
+    <div>
+      {hasExpandableUnits && (
+        <div className="flex justify-end gap-1 mb-1">
+          <button onClick={expandAll} className="text-xs text-gray-500 hover:text-blue-600 px-1.5 py-0.5">전체 펼치기</button>
+          <button onClick={collapseAll} className="text-xs text-gray-500 hover:text-blue-600 px-1.5 py-0.5">전체 접기</button>
+        </div>
+      )}
+      <div className="space-y-0.5">{units.map(u => renderUnit(u))}</div>
+    </div>
+  )
 }
 
 // ───────── CardPanel (3rd column) ─────────

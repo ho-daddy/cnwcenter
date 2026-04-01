@@ -47,6 +47,7 @@ import {
 import { Sheet2Modal } from '@/components/musculoskeletal/sheet2-modal'
 import { Sheet3Modal } from '@/components/musculoskeletal/sheet3-modal'
 import { VideoRecordModal } from '@/components/musculoskeletal/video-record-modal'
+import MSurveyImprovementPanel, { type MSurveyImprovementItem } from '@/components/musculoskeletal/MSurveyImprovementPanel'
 
 interface Workplace {
   id: string
@@ -792,8 +793,7 @@ function IntegratedTreeView({
 
   // Initialize expanded state when units change
   useEffect(() => {
-    const allIds = getAllExpandableIds(units)
-    setExpanded(new Set(allIds))
+    setExpanded(new Set())
   }, [units, getAllExpandableIds])
 
   const toggle = (id: string, e: React.MouseEvent) => {
@@ -2025,6 +2025,7 @@ function Sheet4Content({
   const [improvements, setImprovements] = useState<Improvement[]>(assessment.improvements || [])
   const [isSaving, setIsSaving] = useState(false)
   const [isAddingImprovement, setIsAddingImprovement] = useState(false)
+  const [selectedImprovement, setSelectedImprovement] = useState<MSurveyImprovementItem | null>(null)
   const [newImprovement, setNewImprovement] = useState({
     elementWorkId: '',
     problem: '',
@@ -2288,7 +2289,8 @@ function Sheet4Content({
               const linkedWork = assessment.elementWorks.find((w) => w.id === imp.elementWorkId)
               const isDone = imp.status === 'COMPLETED'
               return (
-                <div key={imp.id} className={`border rounded-lg p-3 text-sm space-y-1.5 ${isDone ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
+                <div key={imp.id} className={`border rounded-lg p-3 text-sm space-y-1.5 cursor-pointer hover:shadow-md transition-shadow ${isDone ? 'bg-green-50 border-green-200' : 'bg-white'}`}
+                  onClick={() => setSelectedImprovement({ ...imp, assessmentId: assessment.id })}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900">#{idx + 1}</span>
@@ -2306,14 +2308,14 @@ function Sheet4Content({
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => handleToggleImprovementStatus(imp)}
+                        onClick={(e) => { e.stopPropagation(); handleToggleImprovementStatus(imp) }}
                         className={`px-2 py-1 text-xs rounded flex items-center gap-0.5 ${isDone ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-green-600 text-white hover:bg-green-700'}`}
                       >
                         <CheckCircle className="w-3 h-3" />
                         {isDone ? '미완료' : '완료'}
                       </button>
                       <button
-                        onClick={() => handleDeleteImprovement(imp.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteImprovement(imp.id) }}
                         className="p-1 text-gray-300 hover:text-red-500"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -2483,6 +2485,29 @@ function Sheet4Content({
           종합평가 저장
         </Button>
       </div>
+
+      {/* 개선방안 이력 관리 패널 */}
+      {selectedImprovement && (
+        <MSurveyImprovementPanel
+          item={selectedImprovement}
+          workplaceId={workplaceId}
+          workplaceName={assessment.workplace?.name}
+          onClose={() => setSelectedImprovement(null)}
+          onUpdate={(updated) => {
+            setImprovements(prev => prev.map(i => i.id === updated.id ? { ...i, ...updated } : i))
+            setSelectedImprovement(null)
+          }}
+          onDataChanged={() => {
+            // 이력 변경 시 개선사항 목록 새로고침
+            fetch(`/api/musculoskeletal/${assessment.id}`)
+              .then(r => r.json())
+              .then(data => {
+                if (data.improvements) setImprovements(data.improvements)
+              })
+              .catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }

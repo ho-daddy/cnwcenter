@@ -1000,9 +1000,50 @@ model MSurveyImprovement {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  records           MSurveyImprovementRecord[]
+
   @@index([assessmentId])
   @@index([elementWorkId])
   @@index([status])
+}
+
+// 근골조사 개선이력 (RiskImprovementRecord 참고)
+model MSurveyImprovementRecord {
+  id                 String              @id @default(cuid())
+  improvementId      String
+  improvement        MSurveyImprovement  @relation(fields: [improvementId], references: [id], onDelete: Cascade)
+
+  status             ImprovementStatus
+  updateDate         DateTime            @db.Date
+  improvementContent String              @db.Text
+  responsiblePerson  String
+
+  remarks            String?             @db.Text
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  photos             MSurveyImprovementPhoto[]
+
+  @@index([improvementId])
+  @@index([status])
+  @@index([updateDate])
+}
+
+// 근골조사 개선이력 사진
+model MSurveyImprovementPhoto {
+  id            String                    @id @default(cuid())
+  recordId      String
+  record        MSurveyImprovementRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  photoPath     String
+  thumbnailPath String?
+  width         Int?
+  height        Int?
+
+  createdAt     DateTime                  @default(now())
+
+  @@index([recordId])
 }
 
 // 첨부파일 모델 (사진/영상)

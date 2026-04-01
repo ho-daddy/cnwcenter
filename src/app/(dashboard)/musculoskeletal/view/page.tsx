@@ -8,13 +8,14 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import MSurveyImprovementPanel, { type MSurveyImprovementItem } from '@/components/musculoskeletal/MSurveyImprovementPanel'
 
 // ─── Types ───
 interface Workplace { id: string; name: string }
 
 interface ImprovementItem {
   id: string; status: string | null; problem: string; improvement: string
-  responsiblePerson: string | null; updateDate: string | null
+  responsiblePerson: string | null; updateDate: string | null; remarks: string | null
 }
 
 interface Assessment {
@@ -85,6 +86,11 @@ export default function ViewPage() {
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
   const [allAssessments, setAllAssessments] = useState<Assessment[]>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  // Improvement panel
+  const [selectedImprovement, setSelectedImprovement] = useState<{
+    item: MSurveyImprovementItem; workplaceId: string; workplaceName: string; unitName: string
+  } | null>(null)
 
   // Filters
   const [searchText, setSearchText] = useState('')
@@ -365,17 +371,34 @@ export default function ViewPage() {
                           )
                         })}
                         <td className="px-3 py-2.5 text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            {completedImpr.length > 0 && (
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">완료 {completedImpr.length}</span>
-                            )}
-                            {plannedImpr.length > 0 && (
-                              <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">예정 {plannedImpr.length}</span>
-                            )}
-                            {a.improvements.length === 0 && (
-                              <span className="text-xs text-gray-300">-</span>
-                            )}
-                          </div>
+                          {a.improvements.length > 0 ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              {a.improvements.map(imp => {
+                                const isDone = imp.status === 'COMPLETED'
+                                const isPlanned = imp.status === 'PLANNED'
+                                return (
+                                  <button
+                                    key={imp.id}
+                                    onClick={() => setSelectedImprovement({
+                                      item: { ...imp, assessmentId: a.id, documentNo: null, source: null, createdAt: a.updatedAt },
+                                      workplaceId: a.workplace.id,
+                                      workplaceName: a.workplace.name,
+                                      unitName: a.organizationUnit.name,
+                                    })}
+                                    className={`text-xs px-1.5 py-0.5 rounded-full cursor-pointer hover:ring-2 hover:ring-offset-1 transition-all ${
+                                      isDone ? 'bg-green-100 text-green-700 hover:ring-green-400' :
+                                      isPlanned ? 'bg-yellow-100 text-yellow-700 hover:ring-yellow-400' :
+                                      'bg-gray-100 text-gray-600 hover:ring-gray-400'
+                                    }`}
+                                  >
+                                    {isDone ? '완료' : isPlanned ? '예정' : '미지정'}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-300">-</span>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-center">
                           <Link href={`/musculoskeletal/survey?assessmentId=${a.id}`}
@@ -393,6 +416,36 @@ export default function ViewPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Improvement Panel */}
+      {selectedImprovement && (
+        <MSurveyImprovementPanel
+          item={selectedImprovement.item}
+          workplaceId={selectedImprovement.workplaceId}
+          workplaceName={selectedImprovement.workplaceName}
+          unitName={selectedImprovement.unitName}
+          onClose={() => setSelectedImprovement(null)}
+          onUpdate={(updated) => {
+            // 로컬 상태 업데이트
+            setAllAssessments(prev => prev.map(a => ({
+              ...a,
+              improvements: a.improvements.map(imp =>
+                imp.id === updated.id
+                  ? { ...imp, status: updated.status, responsiblePerson: updated.responsiblePerson, updateDate: updated.updateDate }
+                  : imp
+              ),
+            })))
+            setSelectedImprovement(prev => prev ? { ...prev, item: updated } : null)
+          }}
+          onDataChanged={() => {
+            const params = new URLSearchParams({ year: String(year) })
+            if (workplaceId) params.set('workplaceId', workplaceId)
+            fetch(`/api/musculoskeletal?${params}`)
+              .then(r => r.json())
+              .then(d => setAllAssessments(d.assessments || []))
+          }}
+        />
+      )}
     </div>
   )
 }

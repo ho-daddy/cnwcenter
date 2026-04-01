@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
               select: { name: true },
             },
             workplace: {
-              select: { name: true },
+              select: { id: true, name: true },
             },
           },
         },

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import {
-  X, Plus, CheckCircle, Trash2, Building2, Camera, ChevronDown, ChevronRight,
+  X, Plus, CheckCircle, Trash2, Building2, Camera, ChevronDown, ChevronRight, Pencil,
 } from 'lucide-react'
 import { PhotoUploader } from '@/components/ui/photo-uploader'
 import {
@@ -248,6 +248,18 @@ export default function ImprovementPanel({
   const [improvements, setImprovements] = useState<ImprovementRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [expandedPhotoId, setExpandedPhotoId] = useState<string | null>(null)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    status: 'PLANNED' as 'PLANNED' | 'COMPLETED',
+    updateDate: '',
+    improvementContent: '',
+    responsiblePerson: '',
+    severityScore: 0,
+    likelihoodScore: 0,
+    additionalPoints: 0,
+    remarks: '',
+  })
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -306,6 +318,42 @@ export default function ImprovementPanel({
       setImprovements(prev => prev.map(r =>
         r.id === recordId ? { ...r, photos: r.photos.filter(p => p.id !== photoId) } : r
       ))
+    }
+  }
+
+  const startEditing = (rec: ImprovementRecord) => {
+    setEditingRecordId(rec.id)
+    setEditForm({
+      status: rec.status,
+      updateDate: format(new Date(rec.updateDate), 'yyyy-MM-dd'),
+      improvementContent: rec.improvementContent,
+      responsiblePerson: rec.responsiblePerson,
+      severityScore: rec.severityScore,
+      likelihoodScore: rec.likelihoodScore,
+      additionalPoints: rec.additionalPoints,
+      remarks: rec.remarks || '',
+    })
+  }
+
+  const handleEditSave = async (recordId: string) => {
+    if (!editForm.improvementContent.trim() || !editForm.responsiblePerson.trim()) return
+    setEditSaving(true)
+    try {
+      const riskScore = calcRiskScore(hazard.hazardCategory, editForm.severityScore, editForm.likelihoodScore, editForm.additionalPoints)
+      const res = await fetch(`/api/risk-assessment/improvements/${recordId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editForm, riskScore }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        sync(improvements.map(r => r.id === recordId ? { ...r, ...updated, photos: r.photos } : r))
+        setEditingRecordId(null)
+      }
+    } catch (error) {
+      console.error('개선이력 수정 오류:', error)
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -407,6 +455,107 @@ export default function ImprovementPanel({
                 const rl = getRiskLevel(rec.riskScore)
                 const isDone = rec.status === 'COMPLETED'
                 const isPhotoExpanded = expandedPhotoId === rec.id
+                const isEditingThis = editingRecordId === rec.id
+
+                if (isEditingThis) {
+                  const isAbsolute = hazard.hazardCategory === 'ABSOLUTE'
+                  const editRiskScore = calcRiskScore(hazard.hazardCategory, editForm.severityScore, editForm.likelihoodScore, editForm.additionalPoints)
+                  const editRl = getRiskLevel(editRiskScore)
+                  const additionalConfig = ADDITIONAL_SCORE_CONFIG[hazard.hazardCategory]
+                  return (
+                    <div key={rec.id} className="rounded-lg border border-amber-300 p-4 bg-amber-50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-amber-800">이력 수정</h4>
+                        <button onClick={() => setEditingRecordId(null)} className="text-gray-400 hover:text-gray-600">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-600 mb-1 block">상태</label>
+                          <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as 'PLANNED' | 'COMPLETED' }))}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-white">
+                            <option value="PLANNED">예정</option>
+                            <option value="COMPLETED">완료</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 mb-1 block">{editForm.status === 'PLANNED' ? '예정일' : '완료일'}</label>
+                          <input type="date" value={editForm.updateDate} onChange={e => setEditForm(f => ({ ...f, updateDate: e.target.value }))}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-white" required />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">개선 내용 *</label>
+                        <textarea value={editForm.improvementContent} onChange={e => setEditForm(f => ({ ...f, improvementContent: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-white resize-none" rows={2} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">담당자 *</label>
+                        <input type="text" value={editForm.responsiblePerson} onChange={e => setEditForm(f => ({ ...f, responsiblePerson: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">
+                          {editForm.status === 'PLANNED' ? '예상 위험성 점수 (개선 후)' : '실제 위험성 점수 (개선 후)'}
+                        </label>
+                        {isAbsolute ? (
+                          <span className="text-xs text-gray-500">절대기준 — 16점 고정</span>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-12 shrink-0">중대성</span>
+                              <select value={editForm.severityScore} onChange={e => setEditForm(f => ({ ...f, severityScore: parseInt(e.target.value) }))}
+                                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                                {SEVERITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
+                              </select>
+                              <span className="text-xs text-gray-400 truncate">{getSeverityDesc(hazard.hazardCategory, editForm.severityScore)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-12 shrink-0">가능성</span>
+                              <select value={editForm.likelihoodScore} onChange={e => setEditForm(f => ({ ...f, likelihoodScore: parseInt(e.target.value) }))}
+                                className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                                {LIKELIHOOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.value}점</option>)}
+                              </select>
+                              <span className="text-xs text-gray-400 truncate">{getLikelihoodDesc(hazard.hazardCategory, hazard.evaluationType, editForm.likelihoodScore)}</span>
+                            </div>
+                            {additionalConfig && additionalConfig.max > 0 && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 w-12 shrink-0">추가</span>
+                                <select value={editForm.additionalPoints} onChange={e => setEditForm(f => ({ ...f, additionalPoints: parseInt(e.target.value) }))}
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white w-16">
+                                  {Array.from({ length: additionalConfig.max + 1 }, (_, i) => (
+                                    <option key={i} value={i}>{i}점</option>
+                                  ))}
+                                </select>
+                                <span className="text-xs text-gray-400 truncate">{additionalConfig.label}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 pt-1 border-t border-gray-200">
+                              <span className="text-xs text-gray-500">결과:</span>
+                              <span className="text-xs font-mono text-gray-600">{editForm.severityScore}×{editForm.likelihoodScore}+{editForm.additionalPoints}</span>
+                              <span className="text-xs text-gray-400">=</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${editRl.bg} ${editRl.color}`}>{editRiskScore}점 ({editRl.label})</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">비고</label>
+                        <input type="text" value={editForm.remarks} onChange={e => setEditForm(f => ({ ...f, remarks: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-white" placeholder="선택 입력" />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button onClick={() => setEditingRecordId(null)} className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">취소</button>
+                        <button onClick={() => handleEditSave(rec.id)} disabled={editSaving}
+                          className="px-4 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50">
+                          {editSaving ? '저장 중...' : '수정 저장'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
                 return (
                   <div key={rec.id}
                     className={`rounded-lg border p-3 ${isDone ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
@@ -456,6 +605,10 @@ export default function ImprovementPanel({
                         </div>
                       </div>
                       <div className="flex flex-col gap-1 items-end shrink-0">
+                        <button onClick={() => startEditing(rec)}
+                          className="px-2 py-1 text-xs text-gray-500 hover:text-blue-600 flex items-center gap-0.5 whitespace-nowrap">
+                          <Pencil className="w-3 h-3" /> 수정
+                        </button>
                         {!isDone && (
                           <button onClick={() => handleComplete(rec.id)}
                             className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-0.5 whitespace-nowrap">
