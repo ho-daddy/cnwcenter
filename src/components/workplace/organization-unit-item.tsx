@@ -229,7 +229,12 @@ export function OrganizationUnitItem({
         )}
 
         <div className="flex-1 flex items-center gap-2">
-          <span className="font-medium text-sm">{unit.name}</span>
+          <span
+            className={`font-medium text-sm ${hasChildren ? 'cursor-pointer hover:text-blue-600' : ''}`}
+            onClick={() => hasChildren && onToggle?.()}
+          >
+            {unit.name}
+          </span>
           <span className="text-xs text-gray-500">{unit.level}단계</span>
           {unit.isLeaf && (
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">

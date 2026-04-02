@@ -18,6 +18,7 @@ import { PhotoUploader } from '@/components/ui/photo-uploader'
 import ImprovementPanel from '@/components/risk-assessment/ImprovementPanel'
 import type { ImprovementPanelHazard } from '@/components/risk-assessment/ImprovementPanel'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import ChemicalProductModal from '@/components/risk-assessment/ChemicalProductModal'
 
 // ───────── Types ─────────
 interface Workplace { id: string; name: string }
@@ -112,6 +113,7 @@ function ConductPageInner() {
     open: boolean; category: string; editing: RiskHazard | null
   }>({ open: false, category: '', editing: null })
   const [improvementHazard, setImprovementHazard] = useState<RiskHazard | null>(null)
+  const [chemicalModalId, setChemicalModalId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => {
@@ -431,6 +433,7 @@ function ConductPageInner() {
                   onDelete={handleDeleteHazard}
                   onHazardsChange={setHazards}
                   onImproveClick={setImprovementHazard}
+                  onChemicalClick={setChemicalModalId}
                 />
               )}
             </CardContent>
@@ -474,6 +477,11 @@ function ConductPageInner() {
           onUpdate={(hazardId, improvements) => handleImprovementUpdate(hazardId, improvements.map(i => ({ id: i.id, status: i.status })))}
         />
       )}
+
+      {/* 화학제품 정보 모달 */}
+      {chemicalModalId && (
+        <ChemicalProductModal productId={chemicalModalId} onClose={() => setChemicalModalId(null)} />
+      )}
     </div>
   )
 }
@@ -510,8 +518,8 @@ function OrgTreeView({
   const collapseAll = () => setExpanded(new Set())
   const hasExpandableUnits = units.some(u => u.children.length > 0)
 
-  const toggle = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const toggle = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
   const matchSearch = (u: OrganizationUnit): boolean => {
@@ -531,7 +539,7 @@ function OrgTreeView({
         <div
           className={`flex items-center gap-1 py-1.5 rounded cursor-pointer text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700' : unit.isLeaf ? 'hover:bg-green-50' : 'hover:bg-gray-50'}`}
           style={{ paddingLeft: `${depth * 16 + 8}px`, paddingRight: '8px' }}
-          onClick={() => onSelectUnit(unit)}
+          onClick={() => { if (hasChildren) toggle(unit.id); onSelectUnit(unit) }}
         >
           {hasChildren ? (
             <button onClick={e => toggle(unit.id, e)} className="p-0.5 hover:bg-gray-200 rounded">
@@ -818,7 +826,7 @@ const CATEGORY_BADGE: Record<string, string> = {
 }
 
 function HazardListTab({
-  hazards, isLoading, onAdd, onEdit, onDelete, cardId, onHazardsChange, onImproveClick,
+  hazards, isLoading, onAdd, onEdit, onDelete, cardId, onHazardsChange, onImproveClick, onChemicalClick,
 }: {
   hazards: RiskHazard[]; isLoading: boolean; cardId: string
   onAdd: () => void
@@ -826,6 +834,7 @@ function HazardListTab({
   onDelete: (id: string) => void
   onHazardsChange: (updater: (prev: RiskHazard[]) => RiskHazard[]) => void
   onImproveClick: (h: RiskHazard) => void
+  onChemicalClick: (id: string) => void
 }) {
   const [expandedPhotoId, setExpandedPhotoId] = useState<string | null>(null)
 
@@ -893,7 +902,12 @@ function HazardListTab({
                     <td className="py-2 px-3">
                       <p className="text-sm text-gray-900">{h.hazardFactor}</p>
                       {h.chemicalProduct && (
-                        <p className="text-xs text-purple-600 mt-0.5">{h.chemicalProduct.name}</p>
+                        <button
+                          onClick={() => onChemicalClick(h.chemicalProduct!.id)}
+                          className="text-xs text-purple-600 mt-0.5 hover:underline cursor-pointer"
+                        >
+                          {h.chemicalProduct.name}
+                        </button>
                       )}
                     </td>
                     {/* 사진 열 */}
@@ -1733,22 +1747,38 @@ function NoiseWizard({ initialData, isSaving, organizationUnitId, onBack, onComp
   const [severityAutoSet, setSeverityAutoSet] = useState(false)
   const TOTAL = 6
 
-  // 소음 측정값 조회
+  // 소음 측정값 조회 — 평가 시점 기준 최근 2개
   useEffect(() => {
     fetch(`/api/risk-assessment/noise?unitId=${organizationUnitId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.measurements?.length) return
-        // 최근 2개 측정값 (year desc 정렬되어 있음)
-        const recent: NoiseMeasurementInfo[] = data.measurements
-          .slice(0, 2)
-          .map((m: { year: number; period: string; measurementValue: string }) => ({
+        const now = new Date()
+        const currentYear = now.getFullYear()
+        const currentHalf = now.getMonth() < 6 ? 1 : 2 // 1=상반기, 2=하반기
+
+        // 시간 순서 정렬: year desc, period desc (second_half > first_half)
+        const sorted = (data.measurements as { year: number; period: string; measurementValue: string }[])
+          .map(m => ({
             year: m.year,
             period: m.period,
             measurementValue: parseFloat(m.measurementValue),
+            // 정렬용 순서값: year*10 + half (second_half=2, first_half=1)
+            order: m.year * 10 + (m.period === 'second_half' ? 2 : 1),
           }))
+          .filter(m => {
+            // 평가 시점 이전 데이터만 (현재 반기 포함)
+            const currentOrder = currentYear * 10 + currentHalf
+            return m.order <= currentOrder
+          })
+          .sort((a, b) => b.order - a.order)
+
+        const recent: NoiseMeasurementInfo[] = sorted.slice(0, 2).map(m => ({
+          year: m.year,
+          period: m.period,
+          measurementValue: m.measurementValue,
+        }))
         setNoiseMeasurements(recent)
-        // 편집이 아닌 신규 입력 시에만 자동 설정
         if (!initialData?.severityScore && recent.length > 0) {
           const maxDb = Math.max(...recent.map(m => m.measurementValue))
           setSeverity(dbToSeverity(maxDb))
@@ -1760,7 +1790,7 @@ function NoiseWizard({ initialData, isSaving, organizationUnitId, onBack, onComp
 
   const additional = (noiseStress > 0 ? 1 : 0) + (hearingLoss > 0 ? 2 : 0)
 
-  const periodLabel = (p: string) => p === 'recent' ? '최근' : '전회'
+  const periodLabel = (p: string) => p === 'first_half' ? '상반기' : p === 'second_half' ? '하반기' : p
 
   const steps = [
     // Step 0: 소음원

@@ -796,8 +796,8 @@ function IntegratedTreeView({
     setExpanded(new Set())
   }, [units, getAllExpandableIds])
 
-  const toggle = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const toggle = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -848,7 +848,7 @@ function IntegratedTreeView({
                 : 'hover:bg-gray-50'
           }`}
           style={{ paddingLeft: `${depth * 16 + 8}px`, paddingRight: '8px' }}
-          onClick={() => onSelectUnit(unit)}
+          onClick={() => { if (hasChildren) toggle(unit.id); onSelectUnit(unit) }}
         >
           {/* Expand/Collapse Toggle */}
           {hasChildren ? (
