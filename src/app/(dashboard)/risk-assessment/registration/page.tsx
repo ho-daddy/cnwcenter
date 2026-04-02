@@ -20,6 +20,11 @@ interface NoiseMeasurement {
   organizationUnit: { id: string; name: string }
 }
 
+const PERIOD_LABEL: Record<string, string> = {
+  first_half: '상반기',
+  second_half: '하반기',
+}
+
 function buildTree(flat: OrganizationUnit[]): OrganizationUnit[] {
   const map = new Map<string, OrganizationUnit>()
   const roots: OrganizationUnit[] = []
@@ -41,7 +46,10 @@ export default function RegistrationPage() {
   const [measurements, setMeasurements] = useState<NoiseMeasurement[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ year: currentYear, period: 'recent', measurementValue: '', notes: '' })
+  const [formYear, setFormYear] = useState(currentYear)
+  const [firstHalf, setFirstHalf] = useState({ measurementValue: '', notes: '' })
+  const [secondHalf, setSecondHalf] = useState({ measurementValue: '', notes: '' })
+  const [isSaving, setIsSaving] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -67,20 +75,45 @@ export default function RegistrationPage() {
   }, [selectedWorkplace])
 
   const handleAdd = async () => {
-    if (!selectedUnit || !form.measurementValue) return
-    const res = await fetch('/api/risk-assessment/noise', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, organizationUnitId: selectedUnit.id }),
-    })
-    if (res.ok) {
-      const m = await res.json()
-      setMeasurements(prev => {
-        const filtered = prev.filter(x => !(x.organizationUnit.id === selectedUnit.id && x.year === form.year && x.period === form.period))
-        return [...filtered, m]
+    if (!selectedUnit) return
+    if (!firstHalf.measurementValue && !secondHalf.measurementValue) {
+      alert('상반기 또는 하반기 중 하나 이상의 측정값을 입력해주세요.')
+      return
+    }
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/risk-assessment/noise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationUnitId: selectedUnit.id,
+          year: formYear,
+          firstHalf: firstHalf.measurementValue ? firstHalf : null,
+          secondHalf: secondHalf.measurementValue ? secondHalf : null,
+        }),
       })
-      setShowForm(false)
-      setForm({ year: currentYear, period: 'recent', measurementValue: '', notes: '' })
+      if (res.ok) {
+        const data = await res.json()
+        const newMeasurements: NoiseMeasurement[] = data.measurements || []
+        setMeasurements(prev => {
+          let updated = [...prev]
+          for (const nm of newMeasurements) {
+            updated = updated.filter(x =>
+              !(x.organizationUnit.id === selectedUnit.id && x.year === formYear && x.period === nm.period)
+            )
+            updated.push(nm)
+          }
+          return updated
+        })
+        setShowForm(false)
+        setFirstHalf({ measurementValue: '', notes: '' })
+        setSecondHalf({ measurementValue: '', notes: '' })
+      } else {
+        const err = await res.json().catch(() => null)
+        alert(err?.error || '저장에 실패했습니다.')
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -100,7 +133,7 @@ export default function RegistrationPage() {
         <div
           className={`flex items-center gap-1 py-1.5 rounded cursor-pointer text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}
           style={{ paddingLeft: `${depth * 16 + 8}px`, paddingRight: '8px' }}
-          onClick={() => { setSelectedUnit(unit); setShowForm(false) }}
+          onClick={() => { if (hasChildren) toggle(unit.id); setSelectedUnit(unit); setShowForm(false) }}
         >
           {hasChildren ? (
             <button onClick={e => { e.stopPropagation(); toggle(unit.id) }} className="p-0.5">
@@ -119,6 +152,14 @@ export default function RegistrationPage() {
 
   const unitMeasurements = selectedUnit ? measurements.filter(m => m.organizationUnit.id === selectedUnit.id) : []
 
+  // 연도별 그룹화하여 표시
+  const groupedByYear = unitMeasurements.reduce<Record<number, NoiseMeasurement[]>>((acc, m) => {
+    if (!acc[m.year]) acc[m.year] = []
+    acc[m.year].push(m)
+    return acc
+  }, {})
+  const sortedYears = Object.keys(groupedByYear).map(Number).sort((a, b) => b - a)
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -126,7 +167,7 @@ export default function RegistrationPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">소음 등록 <HelpTooltip content="작업환경측정 결과의 소음 측정값(dB)을 평가단위별로 등록합니다. 위험성평가 소음 카테고리에 반영됩니다." /></h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-1.5">소음 등록 <HelpTooltip content="작업환경측정 결과의 소음 측정값(dB)을 평가단위별로 등록합니다. 연도별 상반기/하반기로 구분하여 관리됩니다." /></h1>
           <p className="text-sm text-gray-500 mt-0.5">평가단위별 소음 측정값 등록 관리</p>
         </div>
         <Volume2 className="w-6 h-6 text-teal-600 ml-auto" />
@@ -183,66 +224,102 @@ export default function RegistrationPage() {
               <div className="text-center py-8 text-sm text-gray-500">조직도에서 단위를 선택하세요.</div>
             ) : (
               <div className="space-y-3">
+                {/* 입력 폼: 연도 + 상반기/하반기 동시 입력 */}
                 {showForm && (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-gray-600 mb-1 block">연도</label>
-                        <select value={form.year} onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) }))}
-                          className="w-full text-xs px-2 py-1.5 border rounded bg-white">
-                          {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}년</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600 mb-1 block">구분</label>
-                        <select value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
-                          className="w-full text-xs px-2 py-1.5 border rounded bg-white">
-                          <option value="recent">최근</option>
-                          <option value="previous">전회</option>
-                        </select>
-                      </div>
-                    </div>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                     <div>
-                      <label className="text-xs text-gray-600 mb-1 block">측정값 (dB)</label>
-                      <input type="number" step="0.1" value={form.measurementValue}
-                        onChange={e => setForm(f => ({ ...f, measurementValue: e.target.value }))}
-                        className="w-full text-xs px-2 py-1.5 border rounded bg-white" placeholder="예: 85.5" />
+                      <label className="text-xs font-medium text-gray-700 mb-1 block">연도</label>
+                      <select value={formYear} onChange={e => setFormYear(parseInt(e.target.value))}
+                        className="w-full text-sm px-2 py-1.5 border rounded bg-white">
+                        {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}년</option>)}
+                      </select>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block">비고</label>
-                      <input type="text" value={form.notes}
-                        onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                        className="w-full text-xs px-2 py-1.5 border rounded bg-white" placeholder="비고 (선택)" />
+
+                    {/* 상반기 */}
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">상반기</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-0.5 block">측정값 (dB)</label>
+                          <input type="number" step="0.1" value={firstHalf.measurementValue}
+                            onChange={e => setFirstHalf(f => ({ ...f, measurementValue: e.target.value }))}
+                            className="w-full text-sm px-2 py-1.5 border rounded bg-white" placeholder="예: 85.5" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-0.5 block">비고</label>
+                          <input type="text" value={firstHalf.notes}
+                            onChange={e => setFirstHalf(f => ({ ...f, notes: e.target.value }))}
+                            className="w-full text-sm px-2 py-1.5 border rounded bg-white" placeholder="선택" />
+                        </div>
+                      </div>
                     </div>
+
+                    {/* 하반기 */}
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">하반기</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-0.5 block">측정값 (dB)</label>
+                          <input type="number" step="0.1" value={secondHalf.measurementValue}
+                            onChange={e => setSecondHalf(f => ({ ...f, measurementValue: e.target.value }))}
+                            className="w-full text-sm px-2 py-1.5 border rounded bg-white" placeholder="예: 85.5" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-0.5 block">비고</label>
+                          <input type="text" value={secondHalf.notes}
+                            onChange={e => setSecondHalf(f => ({ ...f, notes: e.target.value }))}
+                            className="w-full text-sm px-2 py-1.5 border rounded bg-white" placeholder="선택" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-500">* 상반기, 하반기 중 값이 있는 항목만 저장됩니다.</p>
                     <div className="flex gap-1">
-                      <button onClick={handleAdd} className="flex-1 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">저장</button>
-                      <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs border rounded hover:bg-gray-50">취소</button>
+                      <button onClick={handleAdd} disabled={isSaving}
+                        className="flex-1 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                        {isSaving ? '저장 중...' : '저장'}
+                      </button>
+                      <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">취소</button>
                     </div>
                   </div>
                 )}
-                {unitMeasurements.length === 0 && !showForm ? (
+
+                {/* 기존 데이터 연도별 표시 */}
+                {sortedYears.length === 0 && !showForm ? (
                   <div className="text-center py-6 text-sm text-gray-500">등록된 소음 측정값이 없습니다.</div>
                 ) : (
-                  unitMeasurements.sort((a, b) => b.year - a.year || a.period.localeCompare(b.period)).map(m => (
-                    <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border bg-white">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{m.year}년</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${m.period === 'recent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                            {m.period === 'recent' ? '최근' : '전회'}
-                          </span>
-                          <span className="text-sm font-bold text-gray-900">{Number(m.measurementValue).toFixed(1)} dB</span>
-                          {Number(m.measurementValue) >= 85 && (
-                            <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">기준초과</span>
-                          )}
+                  sortedYears.map(year => {
+                    const yearItems = groupedByYear[year].sort((a, b) => {
+                      const order = { second_half: 0, first_half: 1 }
+                      return (order[a.period as keyof typeof order] ?? 2) - (order[b.period as keyof typeof order] ?? 2)
+                    })
+                    return (
+                      <div key={year} className="border rounded-lg overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 border-b">{year}년</div>
+                        <div className="divide-y divide-gray-100">
+                          {yearItems.map(m => (
+                            <div key={m.id} className="flex items-center justify-between px-3 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                  m.period === 'second_half' ? 'bg-teal-100 text-teal-700' : 'bg-indigo-100 text-indigo-700'
+                                }`}>
+                                  {PERIOD_LABEL[m.period] || m.period}
+                                </span>
+                                <span className="text-sm font-bold text-gray-900">{Number(m.measurementValue).toFixed(1)} dB</span>
+                                {Number(m.measurementValue) >= 85 && (
+                                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">기준초과</span>
+                                )}
+                                {m.notes && <span className="text-xs text-gray-400">({m.notes})</span>}
+                              </div>
+                              <button onClick={() => handleDelete(m.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        {m.notes && <p className="text-xs text-gray-500 mt-0.5">{m.notes}</p>}
                       </div>
-                      <button onClick={() => handleDelete(m.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             )}
