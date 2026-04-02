@@ -24,6 +24,7 @@ export interface ProductData {
   name: string
   manufacturer: string
   description: string
+  managementMethod: string
   components: ComponentData[]
 }
 
@@ -216,6 +217,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
   const [name, setName] = useState(initial?.name || '')
   const [manufacturer, setManufacturer] = useState(initial?.manufacturer || '')
   const [description, setDescription] = useState(initial?.description || '')
+  const [managementMethod, setManagementMethod] = useState(initial?.managementMethod || '')
   const [components, setComponents] = useState<ComponentData[]>(
     initial?.components?.length ? initial.components : [emptyComponent()]
   )
@@ -248,6 +250,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     setName(result.productName || '')
     setManufacturer(result.manufacturer || '')
     setDescription(result.description || '')
+    setManagementMethod(result.managementMethod || '')
 
     // 2. 성분 데이터 생성
     const newComponents: ComponentData[] = result.components.map(c => {
@@ -339,6 +342,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
       name: name.trim(),
       manufacturer: manufacturer.trim() || null,
       description: description.trim() || null,
+      managementMethod: managementMethod.trim() || null,
       components: components.map(c => ({
         casNumber: c.casNumber.trim(),
         name: c.name.trim(),
@@ -416,6 +420,14 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
           <label className="text-sm text-gray-600 mb-1 block">설명</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none" rows={2} placeholder="제품에 대한 설명 (선택)" />
+        </div>
+
+        <div>
+          <label className="text-sm text-gray-600 mb-1 block">관리방법</label>
+          <textarea value={managementMethod} onChange={e => setManagementMethod(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" rows={6}
+            placeholder="MSDS 업로드 시 자동 생성됩니다. 직접 입력/수정도 가능합니다." />
+          <p className="text-xs text-gray-400 mt-1">MSDS 취급·저장방법 및 노출방지·개인보호구 내용 기반 AI 자동 생성</p>
         </div>
       </div>
 

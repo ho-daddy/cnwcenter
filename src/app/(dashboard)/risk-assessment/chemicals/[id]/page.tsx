@@ -32,6 +32,7 @@ interface Product {
   name: string
   manufacturer: string | null
   description: string | null
+  managementMethod: string | null
   severityScore: number | null
   workplace: { id: string; name: string }
   components: Component[]
@@ -109,6 +110,21 @@ export default function ChemicalProductViewPage() {
         </CardContent>
       </Card>
 
+      {/* 관리방법 */}
+      {product.managementMethod && (
+        <Card>
+          <div className="px-5 pt-4 pb-2">
+            <h2 className="text-sm font-semibold text-gray-700">관리방법</h2>
+            <p className="text-xs text-gray-400 mt-0.5">MSDS 기반 AI 자동생성</p>
+          </div>
+          <CardContent className="pt-0">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{product.managementMethod}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Components Table */}
       <Card>
         <div className="px-5 pt-4 pb-2">
@@ -117,36 +133,34 @@ export default function ChemicalProductViewPage() {
         {product.components.length === 0 ? (
           <div className="text-center py-6 text-gray-400 text-sm">등록된 구성성분이 없습니다.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-y border-gray-200">
-                <tr>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">CAS 번호</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">성분명</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">함유량</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">유해성</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">규제사항</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">중대성</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {product.components.map(pc => (
-                  <tr key={pc.id}>
-                    <td className="px-4 py-2.5 font-mono text-gray-600">{pc.component.casNumber}</td>
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{pc.component.name}</td>
-                    <td className="px-4 py-2.5 text-center">{concentrationDisplay(pc.concentration)}</td>
-                    <td className="px-4 py-2.5 text-gray-600 max-w-xs">
-                      <p className="whitespace-pre-wrap text-xs leading-relaxed line-clamp-3">{pc.component.hazards || '—'}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-600 max-w-xs">
-                      <p className="whitespace-pre-wrap text-xs leading-relaxed line-clamp-3">{pc.component.regulations || '—'}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">{severityBadge(pc.severityScore)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CardContent className="pt-0 space-y-3">
+            {product.components.map(pc => (
+              <div key={pc.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-sm text-gray-900">{pc.component.name}</span>
+                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{pc.component.casNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm">{concentrationDisplay(pc.concentration)}</span>
+                    {severityBadge(pc.severityScore)}
+                  </div>
+                </div>
+                {pc.component.hazards && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">유해성</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-red-50 border border-red-100 rounded-lg px-3 py-2">{pc.component.hazards}</p>
+                  </div>
+                )}
+                {pc.component.regulations && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">규제사항</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">{pc.component.regulations}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
         )}
       </Card>
 

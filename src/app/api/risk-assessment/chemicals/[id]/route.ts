@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   try {
     const body = await parseJsonBody(req)
-    const { name, manufacturer, description, components } = body
+    const { name, manufacturer, description, managementMethod, components } = body
     if (!name) return NextResponse.json({ error: '제품명은 필수입니다.' }, { status: 400 })
 
     const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
       return tx.chemicalProduct.update({
         where: { id: params.id },
-        data: { name, manufacturer: manufacturer || null, description: description || null, severityScore },
+        data: { name, manufacturer: manufacturer || null, description: description || null, managementMethod: managementMethod !== undefined ? (managementMethod || null) : undefined, severityScore },
         include: {
           workplace: { select: { id: true, name: true } },
           components: { include: { component: true } },

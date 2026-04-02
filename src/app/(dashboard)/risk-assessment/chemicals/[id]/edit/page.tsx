@@ -11,6 +11,7 @@ interface ApiProduct {
   name: string
   manufacturer: string | null
   description: string | null
+  managementMethod: string | null
   severityScore: number | null
   workplaceId: string
   workplace: { id: string; name: string }
@@ -45,6 +46,7 @@ export default function EditChemicalProductPage() {
     name: product.name,
     manufacturer: product.manufacturer || '',
     description: product.description || '',
+    managementMethod: product.managementMethod || '',
     components: product.components.map<ComponentData>(pc => ({
       key: crypto.randomUUID(),
       casNumber: pc.component.casNumber,

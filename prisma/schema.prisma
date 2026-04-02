@@ -49,6 +49,8 @@ model User {
   archivedDeletions ArchivedAssessment[]                 // 삭제한 아카이브
   uploadedVideos    WorkVideo[]                          // 업로드한 작업 영상
   popups            Popup[]                              // 생성한 팝업
+  boardPosts        BoardPost[]                          // 게시판 글
+  boardComments     BoardComment[]                       // 게시판 댓글
 }
 
 enum UserRole {
@@ -600,6 +602,7 @@ model ChemicalProduct {
   name          String
   manufacturer  String?
   description   String?             @db.Text
+  managementMethod String?          @db.Text  // MSDS 기반 관리방법 (AI 자동생성)
   severityScore Int?                // 구성성분 중 최대 중대성점수 (자동산정)
 
   createdAt     DateTime            @default(now())
@@ -659,8 +662,8 @@ model ChemicalProductUnit {
 // ==========================================
 
 enum NoisePeriod {
-  recent    // 최근 측정값
-  previous  // 전회 측정값
+  first_half   // 상반기
+  second_half  // 하반기
 }
 
 // 소음 측정값 (공정별·연도별, 기존 noise_measurements)
@@ -735,6 +738,57 @@ model NoticeImage {
   createdAt DateTime @default(now())
 
   @@index([noticeId])
+}
+
+// ==========================================
+// 사용자 게시판
+// ==========================================
+
+model BoardPost {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?  @db.Text
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  viewCount Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments    BoardComment[]
+  attachments BoardAttachment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model BoardComment {
+  id       String    @id @default(cuid())
+  postId   String
+  post     BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User      @relation(fields: [authorId], references: [id])
+  content  String    @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model BoardAttachment {
+  id       String    @id @default(cuid())
+  postId   String
+  post     BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  fileName String
+  filePath String
+  fileType String
+  fileSize Int
+
+  createdAt DateTime @default(now())
+
+  @@index([postId])
 }
 
 // ==========================================

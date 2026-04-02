@@ -12,6 +12,7 @@ export interface MsdsParseResult {
   description: string
   components: { casNumber: string; name: string; concentration: string }[]
   warnings: string[]
+  managementMethod: string
 }
 
 interface Props {

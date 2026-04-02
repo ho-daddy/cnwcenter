@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { PhotoLightbox } from '@/components/ui/photo-lightbox'
 import ImprovementPanel from '@/components/risk-assessment/ImprovementPanel'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import ChemicalProductModal from '@/components/risk-assessment/ChemicalProductModal'
 import {
   getRiskLevel, HAZARD_CATEGORY_LABELS, EVALUATION_TYPE_LABELS, formatAdditionalDetails,
 } from '@/lib/risk-assessment'
@@ -128,6 +129,7 @@ export default function ViewPage() {
 
   // Improvement panel state
   const [selectedHazard, setSelectedHazard] = useState<HazardItem | null>(null)
+  const [chemicalModalId, setChemicalModalId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/workplaces').then(r => r.json()).then(d => setWorkplaces(d.workplaces || []))
@@ -493,7 +495,12 @@ export default function ViewPage() {
                         <td className="px-3 py-2.5">
                           <p className="text-sm text-gray-900">{h.hazardFactor}</p>
                           {h.chemicalProduct && (
-                            <p className="text-xs text-purple-600 mt-0.5">{h.chemicalProduct.name}</p>
+                            <button
+                              onClick={() => setChemicalModalId(h.chemicalProduct!.id)}
+                              className="text-xs text-purple-600 mt-0.5 hover:underline cursor-pointer"
+                            >
+                              {h.chemicalProduct.name}
+                            </button>
                           )}
                         </td>
 
@@ -630,6 +637,11 @@ export default function ViewPage() {
           initialIndex={lightboxIndex}
           onClose={() => { setLightboxIndex(null); setLightboxPhotos([]) }}
         />
+      )}
+
+      {/* 화학제품 정보 모달 */}
+      {chemicalModalId && (
+        <ChemicalProductModal productId={chemicalModalId} onClose={() => setChemicalModalId(null)} />
       )}
     </div>
   )

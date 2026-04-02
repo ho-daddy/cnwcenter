@@ -12,6 +12,7 @@ interface Chemical {
   manufacturer: string | null
   description: string | null
   severityScore: number | null
+  createdAt: string
   workplace: { id: string; name: string }
   _count: { components: number; unitLinks: number }
 }
@@ -24,7 +25,7 @@ export default function ChemicalProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [filterWorkplace, setFilterWorkplace] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'severity'>('name')
+  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'severity'>('recent')
   const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
@@ -80,7 +81,9 @@ export default function ChemicalProductsPage() {
     }
     list = [...list].sort((a, b) => {
       if (sortBy === 'severity') return (b.severityScore ?? 0) - (a.severityScore ?? 0)
-      return a.name.localeCompare(b.name)
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      // recent (default)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
     return list
   }, [chemicals, searchText, sortBy])
@@ -167,8 +170,9 @@ export default function ChemicalProductsPage() {
           <input type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
             placeholder="제품명, 제조사 검색..." className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white w-56" />
         </div>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'severity')}
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as 'recent' | 'name' | 'severity')}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+          <option value="recent">최근 등록순</option>
           <option value="name">이름순</option>
           <option value="severity">중대성 높은순</option>
         </select>

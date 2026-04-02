@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const chemicals = await prisma.chemicalProduct.findMany({
     where,
-    orderBy: { name: 'asc' },
+    orderBy: { createdAt: 'desc' },
     include: {
       workplace: { select: { id: true, name: true } },
       _count: { select: { components: true, unitLinks: true } },
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await parseJsonBody(req)
-    const { workplaceId, name, manufacturer, description, components } = body
+    const { workplaceId, name, manufacturer, description, managementMethod, components } = body
 
     if (!workplaceId || !name) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     const chemical = await prisma.$transaction(async (tx) => {
       const product = await tx.chemicalProduct.create({
-        data: { workplaceId, name, manufacturer: manufacturer || null, description: description || null, severityScore },
+        data: { workplaceId, name, manufacturer: manufacturer || null, description: description || null, managementMethod: managementMethod || null, severityScore },
       })
 
       for (const comp of compArr) {
