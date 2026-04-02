@@ -45,6 +45,7 @@ const PROTECTED_PATHS = [
   '/settings',
   '/workplaces',
   '/survey',
+  '/board',
 ]
 
 export default withAuth(
