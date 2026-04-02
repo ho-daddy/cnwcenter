@@ -22,6 +22,7 @@ import {
   Bell,
   Trash2,
   BookOpen,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -42,7 +43,10 @@ const TUTORIAL_ATTR_MAP: Record<string, string> = {
 const getNavItems = (role?: UserRole): NavItem[] => {
   const items: NavItem[] = [
     { title: '오늘의 새움터', href: '/', icon: LayoutDashboard },
-    { title: '공지사항', href: '/notices', icon: Bell },
+    { title: '게시판', href: '/notices', icon: MessageCircle, subItems: [
+      { title: '공지사항', href: '/notices' },
+      { title: '사용자 게시판', href: '/board' },
+    ]},
   ]
 
   // 일정 관리: 모든 역할 (WORKPLACE_USER는 회의실 일정만 조회)
@@ -59,7 +63,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     href: '/risk-assessment',
     icon: AlertTriangle,
     subItems: [
-      { title: '대시보드',   href: '/risk-assessment' },
+      { title: '현황판',   href: '/risk-assessment' },
       { title: '평가 실시',  href: '/risk-assessment/conduct' },
       { title: '모아 보기',  href: '/risk-assessment/view' },
       { title: '보고서 생성', href: '/risk-assessment/report' },
@@ -75,7 +79,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     href: '/musculoskeletal',
     icon: ClipboardList,
     subItems: [
-      { title: '대시보드', href: '/musculoskeletal' },
+      { title: '현황판', href: '/musculoskeletal' },
       { title: '조사 실시', href: '/musculoskeletal/survey' },
       { title: '모아 보기', href: '/musculoskeletal/view' },
       { title: '보고서 생성', href: '/musculoskeletal/report' },

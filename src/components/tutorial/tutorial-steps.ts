@@ -37,7 +37,7 @@ export const tutorialSteps: Record<TutorialId, TutorialStep[]> = {
     {
       target: '[data-tutorial="ra-sidebar-menu"]',
       title: '위험성평가 메뉴',
-      content: '사이드바에서 "위험성평가"를 클릭하면 대시보드, 평가 실시, 모아 보기, 보고서 생성, 개선작업 등 하위 메뉴를 확인할 수 있습니다.',
+      content: '사이드바에서 "위험성평가"를 클릭하면 현황판, 평가 실시, 모아 보기, 보고서 생성, 개선작업 등 하위 메뉴를 확인할 수 있습니다.',
       placement: 'right',
     },
     {
@@ -88,7 +88,7 @@ export const tutorialSteps: Record<TutorialId, TutorialStep[]> = {
     {
       target: '[data-tutorial="ms-sidebar-menu"]',
       title: '근골조사 메뉴',
-      content: '사이드바에서 "근골조사"를 클릭하면 대시보드, 조사 실시, 모아 보기, 보고서 생성, 개선작업 등 하위 메뉴를 확인할 수 있습니다.',
+      content: '사이드바에서 "근골조사"를 클릭하면 현황판, 조사 실시, 모아 보기, 보고서 생성, 개선작업 등 하위 메뉴를 확인할 수 있습니다.',
       placement: 'right',
     },
     {
