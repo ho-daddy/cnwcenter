@@ -46,6 +46,7 @@ const PROTECTED_PATHS = [
   '/workplaces',
   '/survey',
   '/board',
+  '/law-search',
 ]
 
 export default withAuth(

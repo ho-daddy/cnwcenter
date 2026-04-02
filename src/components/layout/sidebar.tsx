@@ -23,6 +23,7 @@ import {
   Trash2,
   BookOpen,
   MessageCircle,
+  Scale,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -48,6 +49,9 @@ const getNavItems = (role?: UserRole): NavItem[] => {
       { title: '사용자 게시판', href: '/board' },
     ]},
   ]
+
+  // 법령 검색: 모든 역할
+  items.push({ title: '법령 검색', href: '/law-search', icon: Scale })
 
   // 일정 관리: 모든 역할 (WORKPLACE_USER는 회의실 일정만 조회)
   items.push({ title: '일정 관리', href: '/calendar', icon: Calendar })
