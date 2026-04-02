@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 const FROM_EMAIL = 'CNW Center <noreply@saeum.space>'
 
@@ -12,7 +14,7 @@ export async function sendNewUserNotification(user: {
   provider: 'email' | 'google'
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: 'whatfor44@gmail.com',
       subject: `[새움터] 새 회원가입 신청: ${user.name}`,
@@ -37,7 +39,7 @@ export async function sendPasswordResetEmail(email: string, name: string, resetT
   const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password/${resetToken}`
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: '[새움터] 비밀번호 재설정',
@@ -67,7 +69,7 @@ export async function sendAdminEmail(to: string, subject: string, message: strin
   const htmlMessage = message.replace(/\n/g, '<br />')
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to,
       subject: `[새움터] ${subject}`,
