@@ -14,7 +14,14 @@ export async function GET(req: NextRequest) {
       description: true,
       isDefault: true,
     },
-    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+  })
+
+  // 금속노조 템플릿을 맨 뒤로 배치
+  templates.sort((a, b) => {
+    const aIsMetalUnion = a.name.includes('금속노조') ? 1 : 0
+    const bIsMetalUnion = b.name.includes('금속노조') ? 1 : 0
+    return aIsMetalUnion - bIsMetalUnion
   })
 
   return NextResponse.json(templates)
