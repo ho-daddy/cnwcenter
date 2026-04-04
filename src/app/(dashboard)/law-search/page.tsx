@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Scale, Search, Sparkles, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 
 const API_BASE = 'https://hodaddy-b650m-gaming-wifi.tail2460a3.ts.net/law'
@@ -69,7 +70,7 @@ export default function LawSearchPage() {
       const res = await fetch(`${API_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim(), top_k: 5, type_filter: 'article' }),
+        body: JSON.stringify({ query: query.trim(), top_k: 5 }),
       })
       if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
       const data: SearchResponse = await res.json()
@@ -121,19 +122,63 @@ export default function LawSearchPage() {
 
       {/* Status Banner */}
       <div
-        className={`rounded-lg px-4 py-3 mb-6 text-sm font-medium ${
+        className={`rounded-xl mb-6 overflow-hidden border ${
           isOnline === null
-            ? 'bg-gray-100 text-gray-500'
+            ? 'bg-gray-50 border-gray-200'
             : isOnline
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-gray-100 text-gray-500 border border-gray-200'
+              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+              : 'bg-gradient-to-r from-gray-50 to-slate-100 border-gray-200'
         }`}
       >
-        {isOnline === null
-          ? '연결 확인 중...'
-          : isOnline
-            ? '🟢 캐서린 팀장 출근중! 🐱 무엇이든 물어보세요~'
-            : '🔴 캐서린 팀장이 퇴근했어요 😴 나중에 다시 찾아주세요~'}
+        {isOnline === null ? (
+          <div className="flex items-center justify-center py-6 text-sm text-gray-400">
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            연결 확인 중...
+          </div>
+        ) : (
+          <div className="flex items-center gap-5 p-5">
+            <div className="relative flex-shrink-0">
+              <Image
+                src={isOnline ? '/images/catherine-working.png' : '/images/catherine-away.png'}
+                alt={isOnline ? '캐서린팀장 출근중' : '캐서린팀장 자리비움'}
+                width={120}
+                height={120}
+                className="rounded-xl object-cover shadow-md"
+              />
+              <span
+                className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                  isOnline ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  isOnline
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-200 text-gray-500'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                  {isOnline ? '출근중' : '자리비움'}
+                </span>
+              </div>
+              <p className={`text-sm leading-relaxed ${isOnline ? 'text-gray-700' : 'text-gray-500'}`}>
+                {isOnline ? (
+                  <>
+                    <strong className="text-green-700">캐서린팀장</strong>이 출근중입니다.{' '}
+                    <span className="text-blue-600 font-medium">&apos;검색&apos;</span>은 문의하신 내용과 관련된 법령들의 목록만 출력해드립니다.{' '}
+                    <span className="text-violet-600 font-medium">&apos;AI에게 질문&apos;</span>은 법령 목록과 함께 문의한 사항에 대한 답변도 드립니다.
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-gray-600">캐서린팀장</strong>이 자리를 비운 상태입니다.{' '}
+                    아쉽게도 법령검색시스템은 캐서린팀장 출근중에만 작동합니다.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Area */}
