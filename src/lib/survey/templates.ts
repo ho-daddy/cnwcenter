@@ -1057,3 +1057,585 @@ export const MUSCULOSKELETAL_TEMPLATE: TemplateStructure = {
     { ...DEFAULT_SURVEY_TEMPLATE.sections[4], sortOrder: 2 },
   ],
 }
+
+/**
+ * 금속노조 위험성평가 예비조사 템플릿
+ * 포함 섹션: 개인정보 + 질환 및 증상 + 재해유형 및 아차사고 + 산재 및 공상 + 개선 요구사항
+ */
+export const METAL_UNION_RISK_PRELIMINARY_TEMPLATE: TemplateStructure = {
+  sections: [
+    // ────────────────────────────────────────────
+    // Section 0: 개인정보
+    // ────────────────────────────────────────────
+    {
+      title: '개인정보',
+      description: null,
+      sortOrder: 0,
+      questions: [
+        {
+          questionCode: 'MR-S0-name',
+          questionText: '이름',
+          questionType: 'TEXT',
+          required: true,
+          sortOrder: 0,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MR-S0-department',
+          questionText: '부서',
+          questionType: 'TEXT',
+          required: true,
+          sortOrder: 1,
+          options: null,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MR-S0-process',
+          questionText: '공정명',
+          questionType: 'TEXT',
+          required: true,
+          sortOrder: 2,
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 1: 질환 및 증상
+    // ────────────────────────────────────────────
+    {
+      title: '질환 및 증상',
+      description: null,
+      sortOrder: 1,
+      questions: [
+        {
+          questionCode: 'MR-S1-disease',
+          questionText:
+            '업무로 인하여 발생하였다고 생각하는 질환 또는 불편하거나 증상이 있는 신체 부위에 체크해 주세요.',
+          questionType: 'CHECKBOX',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '근골격계질환', label: '근골격계질환' },
+            { value: '호흡기 질환 (폐 포함)', label: '호흡기 질환 (폐 포함)' },
+            { value: '피부 질환 (두피 포함)', label: '피부 질환 (두피 포함)' },
+            { value: '소화기 질환', label: '소화기 질환' },
+            { value: '직업성 암', label: '직업성 암' },
+            { value: '뇌심혈관계 질환', label: '뇌심혈관계 질환' },
+            { value: '안과 질환', label: '안과 질환' },
+            { value: '귀-소음성 난청', label: '귀-소음성 난청' },
+            { value: '귀-염증', label: '귀-염증' },
+            { value: '기타', label: '기타' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MR-S1-disease-detail',
+          questionText:
+            '구체적으로 증상이 있는 경우 그 신체 부위 진단받은 질환이 있다면 작성해 주세요 [예. 근골-어깨충돌증후군, 호흡기-직업성 천식 등]',
+          questionType: 'TEXT',
+          required: false,
+          sortOrder: 1,
+          options: { multiline: true } as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 2: 재해유형 및 아차사고
+    // ────────────────────────────────────────────
+    {
+      title: '재해유형 및 아차사고',
+      description: null,
+      sortOrder: 2,
+      questions: [
+        {
+          questionCode: 'MR-S2-hazard',
+          questionText:
+            '현장에서 위험하다고 느낀 재해유형이나, 사고가 날 뻔했던 것(아차사고)에 체크해 주세요.',
+          questionType: 'CHECKBOX',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '근골격계질환', label: '근골격계질환' },
+            { value: '질식, 환기불량', label: '질식, 환기불량' },
+            { value: '중독', label: '중독' },
+            { value: '화재 / 폭발', label: '화재 / 폭발' },
+            { value: '화상', label: '화상' },
+            { value: '베임 / 절단', label: '베임 / 절단' },
+            { value: '넘어짐 / 미끄러짐', label: '넘어짐 / 미끄러짐' },
+            { value: '충돌 / 맞음 / 부딪힘', label: '충돌 / 맞음 / 부딪힘' },
+            { value: '협착 / 끼임 / 깔림', label: '협착 / 끼임 / 깔림' },
+            { value: '추락', label: '추락' },
+            { value: '감전', label: '감전' },
+            { value: '온열 / 한냉', label: '온열 / 한냉' },
+            { value: '심리적 압박', label: '심리적 압박' },
+            { value: '직무스트레스', label: '직무스트레스' },
+            { value: '기타', label: '기타' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MR-S2-hazard-detail',
+          questionText:
+            '아차사고를 경험했거나, 사례를 보거나 들은 적이 있는 경우 작성해 주세요[예. 지게차와 충돌 할 뻔했다.]',
+          questionType: 'TEXT',
+          required: false,
+          sortOrder: 1,
+          options: { multiline: true } as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 3: 산재 및 공상
+    // ────────────────────────────────────────────
+    {
+      title: '산재 및 공상',
+      description: null,
+      sortOrder: 3,
+      questions: [
+        {
+          questionCode: 'MR-S3-industrial-accident',
+          questionText:
+            '산업재해 또는 공상을 받은 내용이 있다면 작성해 주세요.',
+          questionType: 'TEXT',
+          required: false,
+          sortOrder: 0,
+          options: { multiline: true } as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 4: 개선 요구사항
+    // ────────────────────────────────────────────
+    {
+      title: '개선 요구사항',
+      description: null,
+      sortOrder: 4,
+      questions: [
+        {
+          questionCode: 'MR-S4-improvement',
+          questionText:
+            '기타 현장의 문제점이나 안전하고 건강한 현장을 만들기 위한 개선 요구사항이 있다면 작성해 주세요.',
+          questionType: 'TEXT',
+          required: false,
+          sortOrder: 0,
+          options: { multiline: true } as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+  ],
+}
+
+/**
+ * 금속노조 중대재해예방 관리체계 점검 템플릿
+ * 포함 섹션: 조직정보 + 안전보건교육 + MSDS관련 + 안전인증 및 안전검사 + 위험물 관리 + 비상 대응 + 밀폐공간작업 관리 + 고위험작업 관리
+ */
+export const METAL_UNION_SAFETY_INSPECTION_TEMPLATE: TemplateStructure = {
+  sections: [
+    // ────────────────────────────────────────────
+    // Section 0: 조직 정보
+    // ────────────────────────────────────────────
+    {
+      title: '조직 정보',
+      description: null,
+      sortOrder: 0,
+      questions: [
+        {
+          questionCode: 'MS-S0-factory',
+          questionText: '공장/부서',
+          questionType: 'TEXT',
+          required: false,
+          sortOrder: 0,
+          options: null,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 1: 1.1 안전보건교육
+    // ────────────────────────────────────────────
+    {
+      title: '1.1 안전보건교육',
+      description: null,
+      sortOrder: 1,
+      questions: [
+        {
+          questionCode: 'MS-S1-Q1',
+          questionText:
+            '로봇, 호이스트 등 고위험작업에 대한 특별안전교육을 대상과 내용에 맞추어 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S1-Q2',
+          questionText:
+            '전환배치 등 작업변경 시 안전보건교육을 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 2: 1.2 MSDS관련
+    // ────────────────────────────────────────────
+    {
+      title: '1.2 MSDS관련',
+      description: null,
+      sortOrder: 2,
+      questions: [
+        {
+          questionCode: 'MS-S2-Q1',
+          questionText:
+            '정기적으로 MSDS를 갱신하고 있는가? (참고: 금속노조 모범단협-2년, 정부권고안-3년 등)',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S2-Q2',
+          questionText:
+            '신규물질이 도입되거나 정보가 갱신된 경우 관련 교육을 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 3: 2. 안전인증 및 안전검사
+    // ────────────────────────────────────────────
+    {
+      title: '2. 안전인증 및 안전검사',
+      description: null,
+      sortOrder: 3,
+      questions: [
+        {
+          questionCode: 'MS-S3-Q1',
+          questionText:
+            '사업장 내 대상 기계기구의 안전인증 및 자율안전확인 여부는 확인되었는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '확인', label: '확인' },
+            { value: '미흡', label: '미흡' },
+            { value: '미확인', label: '미확인' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S3-Q2',
+          questionText:
+            '대상 기계기구에 대한 안전검사는 기한 내에 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S3-Q3',
+          questionText:
+            '사업장에서 임의 제작한 기계기구의 성능 및 안전검사는 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 2,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 4: 3.1 위험물 관리
+    // ────────────────────────────────────────────
+    {
+      title: '3.1 위험물 관리',
+      description: null,
+      sortOrder: 4,
+      questions: [
+        {
+          questionCode: 'MS-S4-Q1',
+          questionText:
+            '작업장 내에 위험물을 필요(1일 사용량) 이상으로 보관하지 않도록 관리하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S4-Q2',
+          questionText:
+            '위험물(폐기물 포함) 보관장소의 위치와 구조, 방폭설비는 적합한가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S4-Q3',
+          questionText:
+            '위험물(폐기물 포함) 보관장소는 출입제한 및 환기 등이 적절히 관리되고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 2,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 5: 3.2 비상 대응
+    // ────────────────────────────────────────────
+    {
+      title: '3.2 비상 대응',
+      description: null,
+      sortOrder: 5,
+      questions: [
+        {
+          questionCode: 'MS-S5-Q1',
+          questionText:
+            '비상상황에 대한 매뉴얼이 마련되어 있고, 경보장치 및 방재설비가 항상 작동하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S5-Q2',
+          questionText:
+            '비상상황에 대한 매뉴얼에 따른 소방 및 대피 훈련을 주기적으로 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S5-Q3',
+          questionText:
+            '사고 상황시 매뉴얼, 응급대응체계를 갖추고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 2,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 6: 4. 밀폐공간작업 관리
+    // ────────────────────────────────────────────
+    {
+      title: '4. 밀폐공간작업 관리',
+      description: null,
+      sortOrder: 6,
+      questions: [
+        {
+          questionCode: 'MS-S6-Q1',
+          questionText:
+            '사업장 내 모든 질식 위험공간이 밀폐공간으로 지정되어 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S6-Q2',
+          questionText:
+            '각 밀폐공간에 경고표지와 긴급구호용품이 준비되어 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S6-Q3',
+          questionText:
+            '가스측정, 출입관리, 감시인 배치 등 밀폐공간 프로그램을 운영하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 2,
+          options: [
+            { value: '적합', label: '적합' },
+            { value: '미흡', label: '미흡' },
+            { value: '부적합', label: '부적합' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+
+    // ────────────────────────────────────────────
+    // Section 7: 5. 고위험작업 관리, 공정안전보고서
+    // ────────────────────────────────────────────
+    {
+      title: '5. 고위험작업 관리, 공정안전보고서',
+      description: null,
+      sortOrder: 7,
+      questions: [
+        {
+          questionCode: 'MS-S7-Q1',
+          questionText:
+            '고소작업, 화기작업, 밀폐공간작업 등 고위험작업에 대한 작업허가절차를 운영하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 0,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S7-Q2',
+          questionText:
+            '고소, 화재, 밀폐 등의 고위험작업에 대해 외주업체의 사내작업(공사 등)에 대해 작업허가절차를 운영하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 1,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S7-Q3',
+          questionText:
+            '하역, 전기, 크레인/호이스트 중량물 작업 등에 대한 작업계획서 작성 및 작업지휘자 배치를 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 2,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+        {
+          questionCode: 'MS-S7-Q4',
+          questionText:
+            '동력, 전기, 가스 등의 차단을 동반하는 정비작업에 대해 동력차단시 잠금장치를 실시하고 있는가?',
+          questionType: 'RADIO',
+          required: false,
+          sortOrder: 3,
+          options: [
+            { value: '실시', label: '실시' },
+            { value: '미흡', label: '미흡' },
+            { value: '미실시', label: '미실시' },
+            { value: '해당없음', label: '해당없음' },
+          ] as unknown,
+          conditionalLogic: null,
+        },
+      ],
+    },
+  ],
+}

@@ -309,7 +309,7 @@ export default function SurveyResponsesPage() {
                 {expandedId === resp.id && (
                   <div className="px-5 pb-4 bg-gray-50 border-t border-gray-100">
                     <div className="space-y-4 pt-3">
-                      {resp.answers.length === 0 ? (
+                      {!resp.answers || resp.answers.length === 0 ? (
                         <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
                       ) : (
                         resp.answers.map((answer) => (

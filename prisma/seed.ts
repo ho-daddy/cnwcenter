@@ -45,6 +45,8 @@ async function main() {
     DEFAULT_SURVEY_TEMPLATE,
     RISK_ASSESSMENT_TEMPLATE,
     MUSCULOSKELETAL_TEMPLATE,
+    METAL_UNION_RISK_PRELIMINARY_TEMPLATE,
+    METAL_UNION_SAFETY_INSPECTION_TEMPLATE,
   } = await import('../src/lib/survey/templates')
 
   if (existingTemplate) {
@@ -79,6 +81,16 @@ async function main() {
       name: '근골격계 유해요인조사 설문지',
       description: '개인정보, 노동강도, 근골격계질환 (3개 섹션)',
       structure: MUSCULOSKELETAL_TEMPLATE as unknown as Prisma.InputJsonValue,
+    },
+    {
+      name: '금속노조 위험성평가 예비조사',
+      description: '개인정보, 질환 및 증상, 재해유형 및 아차사고, 산재 및 공상, 개선 요구사항 (5개 섹션)',
+      structure: METAL_UNION_RISK_PRELIMINARY_TEMPLATE as unknown as Prisma.InputJsonValue,
+    },
+    {
+      name: '금속노조 중대재해예방 관리체계 점검',
+      description: '조직정보, 안전보건교육, MSDS, 안전인증, 위험물, 비상대응, 밀폐공간, 고위험작업 (8개 섹션)',
+      structure: METAL_UNION_SAFETY_INSPECTION_TEMPLATE as unknown as Prisma.InputJsonValue,
     },
   ]
 
