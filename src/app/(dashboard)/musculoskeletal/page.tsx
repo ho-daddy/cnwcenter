@@ -48,10 +48,10 @@ async function getMusculoskeletalStats() {
     },
   })
 
-  // 관련 일정 (근골조사 타입)
+  // 관련 일정 (공개일정 중 다가오는 일정)
   const upcomingSchedules = await prisma.schedule.findMany({
     where: {
-      scheduleType: 'MUSCULOSKELETAL',
+      scheduleType: 'PUBLIC',
       startDate: { gte: new Date() },
     },
     take: 5,

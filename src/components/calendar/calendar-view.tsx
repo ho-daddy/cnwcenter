@@ -49,19 +49,13 @@ interface Schedule {
 }
 
 const SCHEDULE_TYPE_COLORS: Record<string, string> = {
-  GENERAL: 'bg-blue-500',
-  COUNSELING: 'bg-green-500',
-  RISK_ASSESSMENT: 'bg-orange-500',
-  MUSCULOSKELETAL: 'bg-purple-500',
-  MEETING_ROOM: 'bg-rose-500',
+  PUBLIC: 'bg-blue-500',
+  PRIVATE: 'bg-gray-500',
 }
 
 const SCHEDULE_TYPE_LABELS: Record<string, string> = {
-  GENERAL: '일반',
-  COUNSELING: '상담',
-  RISK_ASSESSMENT: '위험성평가',
-  MUSCULOSKELETAL: '근골조사',
-  MEETING_ROOM: '회의실',
+  PUBLIC: '공개',
+  PRIVATE: '비공개',
 }
 
 export function CalendarView() {

@@ -26,11 +26,8 @@ interface ScheduleFormProps {
 }
 
 const SCHEDULE_TYPES = [
-  { value: 'GENERAL', label: '일반 일정' },
-  { value: 'COUNSELING', label: '상담' },
-  { value: 'RISK_ASSESSMENT', label: '위험성평가' },
-  { value: 'MUSCULOSKELETAL', label: '근골조사' },
-  { value: 'MEETING_ROOM', label: '회의실 사용' },
+  { value: 'PUBLIC', label: '공개일정' },
+  { value: 'PRIVATE', label: '비공개일정' },
 ]
 
 export function ScheduleForm({ date, schedule, onClose, onSubmit }: ScheduleFormProps) {
@@ -60,7 +57,7 @@ export function ScheduleForm({ date, schedule, onClose, onSubmit }: ScheduleForm
     isAllDay: schedule?.isAllDay || false,
     location: schedule?.location || '',
     isOnline: schedule?.isOnline || false,
-    scheduleType: schedule?.scheduleType || 'GENERAL',
+    scheduleType: schedule?.scheduleType || 'PUBLIC',
   })
 
   // 시작시간 변경 핸들러 - 종료시간 자동 설정

@@ -4,7 +4,7 @@ import { requireAuth, requireStaffOrAbove } from '@/lib/auth-utils'
 import { ScheduleType } from '@prisma/client'
 import { validateEnum } from '@/lib/api-utils'
 
-// 일정 목록 조회 (WORKPLACE_USER는 MEETING_ROOM만)
+// 일정 목록 조회 (WORKPLACE_USER는 공개일정만)
 export async function GET(request: NextRequest) {
   const authCheck = await requireAuth()
   if (!authCheck.authorized) {
@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
 
-    // WORKPLACE_USER는 회의실 사용 일정만 조회 가능
+    // WORKPLACE_USER는 공개일정만 조회 가능
     if (authCheck.user!.role === 'WORKPLACE_USER') {
-      where.scheduleType = 'MEETING_ROOM'
+      where.scheduleType = 'PUBLIC'
     }
 
     // 날짜 범위 필터
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 일정 유형 필터 (WORKPLACE_USER가 아닌 경우에만 적용)
-    if (type && ['GENERAL', 'COUNSELING', 'RISK_ASSESSMENT', 'MUSCULOSKELETAL', 'MEETING_ROOM'].includes(type)) {
+    // 일정 유형 필터 (STAFF 이상만 비공개 필터 가능)
+    if (type && ['PUBLIC', 'PRIVATE'].includes(type)) {
       if (authCheck.user!.role !== 'WORKPLACE_USER') {
         where.scheduleType = type
       }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         isAllDay: isAllDay || false,
         location: location || null,
         isOnline: isOnline || false,
-        scheduleType: validateEnum(ScheduleType, scheduleType, '일정유형') ?? 'GENERAL',
+        scheduleType: validateEnum(ScheduleType, scheduleType, '일정유형') ?? 'PUBLIC',
         relatedId: relatedId || null,
         userId: authCheck.user!.id,
       },

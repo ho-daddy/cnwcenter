@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireStaffOrAbove } from '@/lib/auth-utils'
 
-// 일정 상세 조회 (WORKPLACE_USER는 MEETING_ROOM만)
+// 일정 상세 조회 (WORKPLACE_USER는 공개일정만)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -30,8 +30,8 @@ export async function GET(
       return NextResponse.json({ error: '일정을 찾을 수 없습니다.' }, { status: 404 })
     }
 
-    // WORKPLACE_USER는 MEETING_ROOM 일정만 조회 가능
-    if (authCheck.user!.role === 'WORKPLACE_USER' && schedule.scheduleType !== 'MEETING_ROOM') {
+    // WORKPLACE_USER는 공개일정만 조회 가능
+    if (authCheck.user!.role === 'WORKPLACE_USER' && schedule.scheduleType !== 'PUBLIC') {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 

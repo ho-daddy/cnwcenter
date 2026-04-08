@@ -215,8 +215,8 @@ model Schedule {
   isAllDay     Boolean      @default(false) // 종일 일정 여부
   location     String?      // 장소
   isOnline     Boolean      @default(false) // 온라인 여부
-  scheduleType ScheduleType @default(GENERAL)
-  relatedId    String?      // 상담/위험성평가/근골조사 ID (향후 연동용)
+  scheduleType ScheduleType @default(PUBLIC)
+  relatedId    String?      // 향후 연동용
   userId       String
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt    DateTime     @default(now())
@@ -228,11 +228,8 @@ model Schedule {
 }
 
 enum ScheduleType {
-  GENERAL           // 일반 일정
-  COUNSELING        // 상담
-  RISK_ASSESSMENT   // 위험성평가
-  MUSCULOSKELETAL   // 근골조사
-  MEETING_ROOM      // 회의실 사용
+  PUBLIC    // 공개일정 (모든 사용자)
+  PRIVATE   // 비공개일정 (STAFF 이상)
 }
 
 // 상담 케이스 관리

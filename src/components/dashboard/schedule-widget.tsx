@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, MapPin, Phone, Users, Flag, Clock, FileText, Video } from 'lucide-react'
+import { Calendar, MapPin, Clock, Video, Lock } from 'lucide-react'
 import { format, isToday, addDays, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -23,11 +23,8 @@ interface Schedule {
 }
 
 const typeConfig = {
-  GENERAL: { color: 'border-gray-500', bg: 'bg-gray-500', icon: Calendar, label: '일반' },
-  COUNSELING: { color: 'border-blue-500', bg: 'bg-blue-500', icon: Phone, label: '상담' },
-  RISK_ASSESSMENT: { color: 'border-green-500', bg: 'bg-green-500', icon: FileText, label: '위험성평가' },
-  MUSCULOSKELETAL: { color: 'border-amber-500', bg: 'bg-amber-500', icon: Users, label: '근골조사' },
-  MEETING_ROOM: { color: 'border-rose-500', bg: 'bg-rose-500', icon: Flag, label: '회의실' },
+  PUBLIC: { color: 'border-blue-500', bg: 'bg-blue-500', icon: Calendar, label: '공개' },
+  PRIVATE: { color: 'border-gray-500', bg: 'bg-gray-500', icon: Lock, label: '비공개' },
 }
 
 // 시간 포맷 헬퍼
@@ -105,7 +102,7 @@ export function ScheduleWidget() {
   }
 
   const getConfig = (scheduleType: string) => {
-    return typeConfig[scheduleType as keyof typeof typeConfig] || typeConfig.GENERAL
+    return typeConfig[scheduleType as keyof typeof typeConfig] || typeConfig.PUBLIC
   }
 
   if (isLoading) {
