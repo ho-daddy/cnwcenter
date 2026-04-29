@@ -548,7 +548,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '목' }],
@@ -580,6 +581,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 3,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
@@ -601,7 +603,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '어깨' }],
@@ -633,6 +636,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 6,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
@@ -654,7 +658,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '팔/팔꿈치' }],
@@ -686,6 +691,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 9,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
@@ -707,7 +713,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '손/손목/손가락' }],
@@ -739,6 +746,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 12,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
@@ -760,7 +768,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '허리' }],
@@ -792,6 +801,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 15,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
@@ -813,7 +823,8 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
             { value: '1일 미만', label: '1일 미만' },
             { value: '1일~1주일', label: '1일~1주일' },
             { value: '1주일~1달', label: '1주일~1달' },
-            { value: '1달 이상', label: '1달 이상' },
+            { value: '1달~6개월', label: '1달~6개월' },
+            { value: '6개월 이상', label: '6개월 이상' },
           ] as unknown,
           conditionalLogic: {
             conditions: [{ questionId: 'Q4-1', operator: 'contains', value: '다리/발' }],
@@ -845,6 +856,7 @@ export const DEFAULT_SURVEY_TEMPLATE: TemplateStructure = {
           sortOrder: 18,
           options: [
             { value: '6개월에 1번', label: '6개월에 1번' },
+            { value: '2~3개월에 1번', label: '2~3개월에 1번' },
             { value: '1개월에 1번', label: '1개월에 1번' },
             { value: '1주일에 1번', label: '1주일에 1번' },
             { value: '매일', label: '매일' },
