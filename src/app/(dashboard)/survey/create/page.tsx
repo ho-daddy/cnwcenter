@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, ArrowLeft, Sparkles, FileQuestion, Loader2 } from 'lucide-react'
+import { FileText, ArrowLeft, Sparkles, FileQuestion, Loader2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SurveyTemplateItem } from '@/types/survey'
 
@@ -166,6 +166,20 @@ export default function SurveyCreatePage() {
             </div>
           )}
         </div>
+
+        {/* 근골조사 템플릿 경고 */}
+        {templateId && templates.find((t) => t.id === templateId)?.name.includes('근골') && (
+          <div className="flex gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800">
+              <p className="font-semibold mb-0.5">증상조사 파트 수정 주의</p>
+              <p>
+                이 템플릿의 증상조사 파트(Q4-1)를 임의로 수정하면 <strong>관리대상자·통증호소자 자동 판정</strong>이
+                정상 작동하지 않을 수 있습니다. 질문·선택지를 변경해야 할 경우 담당자에게 문의하세요.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Form Fields */}
         <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
