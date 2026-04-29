@@ -294,10 +294,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     freq: string | null
   ): AssessmentLevel {
     if (!level) return '정상'
-    const longPeriod = period === '1주일~1달' || period === '1달 이상'
+
+    const severeLevel = level === '심함' || level === '매우 심함'
+    const highLevel = level === '중간' || level === '심함' || level === '매우 심함'
+    const longPeriod = period === '1주일~1달' || period === '1달~6개월' || period === '6개월 이상'
     const highFreq = freq === '1개월에 1번' || freq === '1주일에 1번' || freq === '매일'
-    if (level === '매우 심함' && longPeriod && highFreq) return '통증호소자'
-    if (level === '중간' && (longPeriod || highFreq)) return '관리대상자'
+
+    // 통증호소자: 기간 AND 빈도 AND 심함 이상 (3개 모두 충족)
+    if (severeLevel && longPeriod && highFreq) return '통증호소자'
+    // 관리대상자: 중간 이상 AND (기간 OR 빈도) 중 하나 충족
+    if (highLevel && (longPeriod || highFreq)) return '관리대상자'
+    // 약함이거나 기간/빈도 조건 미충족 → 정상
     return '정상'
   }
 
