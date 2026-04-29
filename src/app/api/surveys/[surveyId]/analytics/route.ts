@@ -224,14 +224,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (q.questionCode) codeToId.set(q.questionCode, qId)
   }
 
+  // 증상조사 부위 질문 코드 prefix 탐지 (Q4-1 표준, Q2-1 구형 대응)
+  const SYMPTOM_PREFIX = codeToId.has('Q4-1') ? 'Q4-1' : (codeToId.has('Q2-1') ? 'Q2-1' : 'Q4-1')
+
   // 숨길 질문 ID (개별 표시 대신 합산/판정으로 대체)
   const hiddenCodes = new Set([
     'S0-serviceYears', 'S0-serviceMonths',
     'S0-deptYears', 'S0-deptMonths',
     ...BODY_PARTS.flatMap((bp) => [
-      `Q4-1-${bp.key}-period`,
-      `Q4-1-${bp.key}-level`,
-      `Q4-1-${bp.key}-freq`,
+      `${SYMPTOM_PREFIX}-${bp.key}-period`,
+      `${SYMPTOM_PREFIX}-${bp.key}-level`,
+      `${SYMPTOM_PREFIX}-${bp.key}-freq`,
     ]),
   ])
   const hiddenQuestionIds: string[] = []
@@ -321,16 +324,16 @@ export async function GET(req: NextRequest, { params }: Params) {
     respondentCount++
 
     const ansMap = new Map(response.answers.map((a) => [a.questionId, a.value]))
-    const q41Id = codeToId.get('Q4-1')
-    const selectedParts = q41Id ? (ansMap.get(q41Id) as string[] | undefined) || [] : []
+    const bodyPartQId = codeToId.get(SYMPTOM_PREFIX)
+    const selectedParts = bodyPartQId ? (ansMap.get(bodyPartQId) as string[] | undefined) || [] : []
 
     let worstLevel: AssessmentLevel = '정상'
 
     for (const bp of BODY_PARTS) {
       if (Array.isArray(selectedParts) && selectedParts.includes(bp.label)) {
-        const periodId = codeToId.get(`Q4-1-${bp.key}-period`)
-        const levelId = codeToId.get(`Q4-1-${bp.key}-level`)
-        const freqId = codeToId.get(`Q4-1-${bp.key}-freq`)
+        const periodId = codeToId.get(`${SYMPTOM_PREFIX}-${bp.key}-period`)
+        const levelId = codeToId.get(`${SYMPTOM_PREFIX}-${bp.key}-level`)
+        const freqId = codeToId.get(`${SYMPTOM_PREFIX}-${bp.key}-freq`)
 
         const period = periodId ? String(ansMap.get(periodId) ?? '') || null : null
         const level = levelId ? String(ansMap.get(levelId) ?? '') || null : null
