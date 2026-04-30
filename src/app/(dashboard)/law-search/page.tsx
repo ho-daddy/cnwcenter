@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { Scale, Search, Loader2, ChevronDown, ChevronRight, Gavel, MessageSquare, Paperclip, Bot, ToggleLeft, ToggleRight, Landmark, History, X, GitBranch, ArrowLeftRight } from 'lucide-react'
 
@@ -179,6 +179,13 @@ export default function LawSearchPage() {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [expandedSources, setExpandedSources] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [articlePopup, setArticlePopup] = useState<{
+    lawName: string
+    article: string
+    content: string | null
+    loading: boolean
+  } | null>(null)
+  const mstCache = useRef<Record<string, string>>({})
 
   // Load search history from localStorage
   useEffect(() => {
@@ -217,6 +224,44 @@ export default function LawSearchPage() {
     const interval = setInterval(checkHealth, 10000)
     return () => clearInterval(interval)
   }, [checkHealth])
+
+  const fetchArticlePopup = useCallback(async (lawName: string, articleNo: number, articleLabel: string) => {
+    setArticlePopup({ lawName, article: articleLabel, content: null, loading: true })
+    try {
+      let mst = mstCache.current[lawName]
+      if (!mst) {
+        const res = await fetch(`${API_BASE}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: lawName }),
+        })
+        const data = await res.json()
+        for (const r of (data.results ?? []) as { source?: string; data: string }[]) {
+          if (r.source === 'search_law') {
+            const m = r.data.match(/MST:\s*(\d+)/)
+            if (m) { mst = m[1]; break }
+          }
+        }
+      }
+      if (!mst) throw new Error('법령을 찾을 수 없습니다')
+      mstCache.current[lawName] = mst
+
+      const jo = String(articleNo).padStart(3, '0') + '000'
+      const artRes = await fetch(`${API_BASE}/article`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mst, jo }),
+      })
+      const artData = await artRes.json()
+      setArticlePopup(prev => prev ? { ...prev, content: artData.result, loading: false } : null)
+    } catch (e) {
+      setArticlePopup(prev => prev ? {
+        ...prev,
+        content: `조문을 불러오지 못했습니다.\n${e instanceof Error ? e.message : '알 수 없는 오류'}`,
+        loading: false,
+      } : null)
+    }
+  }, [])
 
   const toggleCard = (id: string) => {
     setExpandedCards(prev => {
@@ -1006,9 +1051,9 @@ export default function LawSearchPage() {
 
                   {/* Answer */}
                   <div className="bg-violet-50 border border-violet-100 rounded-lg p-5">
-                    <p className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
-                      {askResult.answer}
-                    </p>
+                    <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
+                      {renderAnswerWithLinks(askResult.answer, fetchArticlePopup)}
+                    </div>
                   </div>
 
                   {/* Sources */}
@@ -1073,12 +1118,84 @@ export default function LawSearchPage() {
         </div>
       </div>
 
+      {/* Article Popup */}
+      {articlePopup && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setArticlePopup(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-xs text-violet-600 font-medium">{articlePopup.lawName}</p>
+                <h3 className="text-base font-semibold text-gray-900">{articlePopup.article}</h3>
+              </div>
+              <button
+                onClick={() => setArticlePopup(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {articlePopup.loading ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">조문 불러오는 중...</span>
+                </div>
+              ) : (
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {articlePopup.content}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Disclaimer */}
       <p className="mt-10 text-center text-xs text-gray-400">
         ※ 이 서비스는 법령 정보 제공 목적이며, 법률 자문이 아닙니다. 구체적인 사안은 전문가와 상담하시기 바랍니다.
       </p>
     </div>
   )
+}
+
+function renderAnswerWithLinks(
+  text: string,
+  onArticleClick: (lawName: string, articleNo: number, articleLabel: string) => void
+): React.ReactNode[] {
+  // 패턴: 한글 법령명(법/법률/시행령/시행규칙으로 끝남) + 제X조
+  const pattern = /([가-힣\s·]+?(?:법률|시행령|시행규칙|법))\s*(제(\d+)조(?:의\d+)?)/g
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match
+
+  while ((match = pattern.exec(text)) !== null) {
+    const [fullMatch, lawName, articleLabel, articleNoStr] = match
+    const articleNo = parseInt(articleNoStr)
+    if (lawName.trim().length < 2 || articleNo === 0) continue
+
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+    parts.push(
+      <button
+        key={`${match.index}`}
+        onClick={() => onArticleClick(lawName.trim(), articleNo, articleLabel)}
+        className="text-violet-700 underline underline-offset-2 decoration-dotted hover:text-violet-900 hover:decoration-solid font-medium transition-colors"
+        title={`${lawName.trim()} ${articleLabel} 조문 보기`}
+      >
+        {fullMatch}
+      </button>
+    )
+    lastIndex = match.index + fullMatch.length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts.length > 0 ? parts : [text]
 }
 
 function EmptyState({ icon, message, sub }: { icon: React.ReactNode; message: string; sub?: string }) {
