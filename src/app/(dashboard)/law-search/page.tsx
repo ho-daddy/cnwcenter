@@ -225,7 +225,7 @@ export default function LawSearchPage() {
     return () => clearInterval(interval)
   }, [checkHealth])
 
-  const fetchArticlePopup = useCallback(async (lawName: string, articleNo: number, articleLabel: string) => {
+  const fetchArticlePopup = useCallback(async (lawName: string, articleNo: number, articleLabel: string, subNo: number = 0) => {
     setArticlePopup({ lawName, article: articleLabel, content: null, loading: true })
     try {
       let mst = mstCache.current[lawName]
@@ -246,7 +246,8 @@ export default function LawSearchPage() {
       if (!mst) throw new Error('법령을 찾을 수 없습니다')
       mstCache.current[lawName] = mst
 
-      const jo = String(articleNo).padStart(3, '0') + '000'
+      // 법제처 jo 형식: 6자리 (앞 4자리=조번호, 뒤 2자리=가지조번호)
+      const jo = String(articleNo).padStart(4, '0') + String(subNo).padStart(2, '0')
       const artRes = await fetch(`${API_BASE}/article`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1166,17 +1167,18 @@ export default function LawSearchPage() {
 
 function renderAnswerWithLinks(
   text: string,
-  onArticleClick: (lawName: string, articleNo: number, articleLabel: string) => void
+  onArticleClick: (lawName: string, articleNo: number, articleLabel: string, subNo?: number) => void
 ): React.ReactNode[] {
-  // 패턴: 한글 법령명(법/법률/시행령/시행규칙으로 끝남) + 제X조
-  const pattern = /([가-힣\s·]+?(?:법률|시행령|시행규칙|법))\s*(제(\d+)조(?:의\d+)?)/g
+  // 패턴: 한글 법령명(법/법률/시행령/시행규칙으로 끝남) + 제X조(의Y)?
+  const pattern = /([가-힣\s·]+?(?:법률|시행령|시행규칙|법))\s*(제(\d+)조(?:의(\d+))?)/g
   const parts: React.ReactNode[] = []
   let lastIndex = 0
   let match
 
   while ((match = pattern.exec(text)) !== null) {
-    const [fullMatch, lawName, articleLabel, articleNoStr] = match
+    const [fullMatch, lawName, articleLabel, articleNoStr, subNoStr] = match
     const articleNo = parseInt(articleNoStr)
+    const subNo = subNoStr ? parseInt(subNoStr) : 0
     if (lawName.trim().length < 2 || articleNo === 0) continue
 
     if (match.index > lastIndex) {
@@ -1185,7 +1187,7 @@ function renderAnswerWithLinks(
     parts.push(
       <button
         key={`${match.index}`}
-        onClick={() => onArticleClick(lawName.trim(), articleNo, articleLabel)}
+        onClick={() => onArticleClick(lawName.trim(), articleNo, articleLabel, subNo)}
         className="text-violet-700 underline underline-offset-2 decoration-dotted hover:text-violet-900 hover:decoration-solid font-medium transition-colors"
         title={`${lawName.trim()} ${articleLabel} 조문 보기`}
       >
