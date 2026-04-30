@@ -1243,15 +1243,16 @@ function extractReferences(text: string): Reference[] {
   const refs: Reference[] = []
   const seen = new Set<string>()
 
-  // 1단계: 법령명 위치 모두 인덱싱 (한글로 시작, '법률|시행령|시행규칙|법'으로 끝남)
+  // 1단계: 법령명 위치 모두 인덱싱
+  // 패턴: 단어 경계(공백/구두점/괄호 뒤) + 한글단어들 + (법|법률) + 옵션 (시행령|시행규칙)
+  // 예: "산업안전보건법 시행규칙", "중대재해 처벌 등에 관한 법률 시행령"
   const lawMatches: { start: number; end: number; name: string }[] = []
-  const lawPattern = /[가-힣]+(?:[\s·][가-힣]+)*?(?:법률|시행령|시행규칙|법)/g
+  const lawPattern = /(?<=[\s「『」\(\,\.\;\n]|^)[가-힣]+(?:\s+[가-힣]+)*?\s*(?:법률|법)(?:\s+(?:시행령|시행규칙))?/g
   let lm
   while ((lm = lawPattern.exec(text)) !== null) {
     const name = lm[0].trim()
-    // "이 법", "그 법" 같은 짧은 표현 제외
     if (name.length < 3) continue
-    if (/^(이|그|동|당|위|아래|해당)\s/.test(name)) continue
+    if (/^(이|그|동|당|위|아래|해당|본)\s/.test(name)) continue
     lawMatches.push({ start: lm.index, end: lm.index + lm[0].length, name })
   }
 
