@@ -332,7 +332,7 @@ export default function LawSearchPage() {
           const res = await fetch(`${API_BASE}/amendment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ law_name: query.trim() }),
+            body: JSON.stringify({ query: query.trim() }),
           })
           if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
           const data: TextResult = await res.json()
