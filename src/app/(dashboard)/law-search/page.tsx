@@ -185,6 +185,15 @@ export default function LawSearchPage() {
     content: string | null
     loading: boolean
   } | null>(null)
+  const [annexPopup, setAnnexPopup] = useState<{
+    lawName: string
+    annexNo: number
+    title: string | null
+    content: string | null
+    pdfUrl: string | null
+    loading: boolean
+    error: string | null
+  } | null>(null)
   const mstCache = useRef<Record<string, string>>({})
 
   // Load search history from localStorage
@@ -225,7 +234,8 @@ export default function LawSearchPage() {
     return () => clearInterval(interval)
   }, [checkHealth])
 
-  const openAnnexExternal = useCallback(async (lawName: string, annexNo: number) => {
+  const fetchAnnexPopup = useCallback(async (lawName: string, annexNo: number) => {
+    setAnnexPopup({ lawName, annexNo, title: null, content: null, pdfUrl: null, loading: true, error: null })
     try {
       let mst = mstCache.current[lawName]
       if (!mst) {
@@ -242,16 +252,32 @@ export default function LawSearchPage() {
           }
         }
       }
-      if (!mst) {
-        // MST 못 찾으면 법제처 검색 페이지로
-        window.open(`https://www.law.go.kr/lsSc.do?menuId=1&query=${encodeURIComponent(lawName + ' 별표 ' + annexNo)}`, '_blank')
-        return
-      }
+      if (!mst) throw new Error('법령을 찾을 수 없습니다')
       mstCache.current[lawName] = mst
-      const jo = String(annexNo).padStart(4, '0')
-      window.open(`https://www.law.go.kr/lsBylInfoP.do?bylBrNo=&bylCls=BE&MST=${mst}&JO=${jo}`, '_blank')
-    } catch {
-      window.open(`https://www.law.go.kr/lsSc.do?menuId=1&query=${encodeURIComponent(lawName + ' 별표 ' + annexNo)}`, '_blank')
+
+      const res = await fetch(`${API_BASE}/annex-content`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mst, annex_no: String(annexNo) }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || `별표 조회 실패 (${res.status})`)
+      }
+      const data = await res.json()
+      setAnnexPopup(prev => prev ? {
+        ...prev,
+        title: data.title,
+        content: data.content,
+        pdfUrl: data.pdf_url,
+        loading: false,
+      } : null)
+    } catch (e) {
+      setAnnexPopup(prev => prev ? {
+        ...prev,
+        loading: false,
+        error: e instanceof Error ? e.message : '알 수 없는 오류',
+      } : null)
     }
   }, [])
 
@@ -1109,10 +1135,10 @@ export default function LawSearchPage() {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => openAnnexExternal(ref.lawName, ref.annexNo!)}
+                                  onClick={() => fetchAnnexPopup(ref.lawName, ref.annexNo!)}
                                   className="text-violet-700 hover:text-violet-900 hover:underline transition-colors text-left"
                                 >
-                                  📋 {ref.lawName} 별표 {ref.annexNo} <span className="text-xs text-gray-400">(법제처 새창)</span>
+                                  📋 {ref.lawName} 별표 {ref.annexNo}
                                 </button>
                               )}
                             </li>
@@ -1215,6 +1241,62 @@ export default function LawSearchPage() {
               ) : (
                 <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                   {articlePopup.content}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Annex Popup */}
+      {annexPopup && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setAnnexPopup(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-violet-600 font-medium">{annexPopup.lawName}</p>
+                <h3 className="text-base font-semibold text-gray-900 truncate">
+                  별표 {annexPopup.annexNo}{annexPopup.title ? ` — ${annexPopup.title}` : ''}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                {annexPopup.pdfUrl && (
+                  <a
+                    href={annexPopup.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition-colors font-medium"
+                  >
+                    PDF 다운로드
+                  </a>
+                )}
+                <button
+                  onClick={() => setAnnexPopup(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {annexPopup.loading ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">별표 불러오는 중...</span>
+                </div>
+              ) : annexPopup.error ? (
+                <div className="text-sm text-red-600">
+                  {annexPopup.error}
+                </div>
+              ) : (
+                <pre className="text-xs text-gray-700 whitespace-pre font-mono leading-relaxed overflow-x-auto">
+                  {annexPopup.content}
                 </pre>
               )}
             </div>
