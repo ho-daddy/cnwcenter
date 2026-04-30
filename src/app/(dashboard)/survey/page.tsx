@@ -254,7 +254,7 @@ export default function SurveyListPage() {
           surveys.map((survey) => {
             const colors = SURVEY_STATUS_COLORS[survey.status]
             const statusLabel = SURVEY_STATUS_LABELS[survey.status]
-            const isDraft = survey.status === 'DRAFT'
+            const isDraft = survey.status === 'DRAFT' || survey.status === 'CLOSED'
             return (
               <div
                 key={survey.id}
@@ -308,7 +308,7 @@ export default function SurveyListPage() {
                       <Copy className="w-4 h-4" />
                     </button>
 
-                    {/* 삭제 (DRAFT만) */}
+                    {/* 삭제 (DRAFT, CLOSED만) */}
                     {isDraft && (
                       <button
                         onClick={(e) => handleDelete(e, survey)}

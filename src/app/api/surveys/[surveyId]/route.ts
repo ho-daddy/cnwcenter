@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
-// DELETE /api/surveys/[surveyId] — 설문조사 삭제 (DRAFT 상태만)
+// DELETE /api/surveys/[surveyId] — 설문조사 삭제 (DRAFT, CLOSED 상태만)
 export async function DELETE(req: NextRequest, { params }: Params) {
   const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
@@ -98,9 +98,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '설문조사를 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  if (survey.status !== 'DRAFT') {
+  if (survey.status === 'PUBLISHED') {
     return NextResponse.json(
-      { error: '작성중(DRAFT) 상태의 설문만 삭제할 수 있습니다.' },
+      { error: '배포중인 설문은 삭제할 수 없습니다. 먼저 마감 처리 후 삭제해주세요.' },
       { status: 400 }
     )
   }
