@@ -225,6 +225,36 @@ export default function LawSearchPage() {
     return () => clearInterval(interval)
   }, [checkHealth])
 
+  const openAnnexExternal = useCallback(async (lawName: string, annexNo: number) => {
+    try {
+      let mst = mstCache.current[lawName]
+      if (!mst) {
+        const res = await fetch(`${API_BASE}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: lawName }),
+        })
+        const data = await res.json()
+        for (const r of (data.results ?? []) as { source?: string; data: string }[]) {
+          if (r.source === 'search_law') {
+            const m = r.data.match(/MST:\s*(\d+)/)
+            if (m) { mst = m[1]; break }
+          }
+        }
+      }
+      if (!mst) {
+        // MST 못 찾으면 법제처 검색 페이지로
+        window.open(`https://www.law.go.kr/lsSc.do?menuId=1&query=${encodeURIComponent(lawName + ' 별표 ' + annexNo)}`, '_blank')
+        return
+      }
+      mstCache.current[lawName] = mst
+      const jo = String(annexNo).padStart(4, '0')
+      window.open(`https://www.law.go.kr/lsBylInfoP.do?bylBrNo=&bylCls=BE&MST=${mst}&JO=${jo}`, '_blank')
+    } catch {
+      window.open(`https://www.law.go.kr/lsSc.do?menuId=1&query=${encodeURIComponent(lawName + ' 별표 ' + annexNo)}`, '_blank')
+    }
+  }, [])
+
   const fetchArticlePopup = useCallback(async (lawName: string, articleNo: number, articleLabel: string, subNo: number = 0) => {
     setArticlePopup({ lawName, article: articleLabel, content: null, loading: true })
     try {
@@ -1053,9 +1083,44 @@ export default function LawSearchPage() {
                   {/* Answer */}
                   <div className="bg-violet-50 border border-violet-100 rounded-lg p-5">
                     <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
-                      {renderAnswerWithLinks(askResult.answer, fetchArticlePopup)}
+                      {askResult.answer}
                     </div>
                   </div>
+
+                  {/* References - 답변에 언급된 조항/별표 링크 */}
+                  {(() => {
+                    const refs = extractReferences(askResult.answer)
+                    if (refs.length === 0) return null
+                    return (
+                      <div className="bg-white border border-violet-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Scale className="w-4 h-4 text-violet-600" />
+                          <h3 className="text-sm font-semibold text-gray-800">관련 조항·별표 ({refs.length}건)</h3>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {refs.map((ref, i) => (
+                            <li key={i} className="text-sm">
+                              {ref.type === 'article' ? (
+                                <button
+                                  onClick={() => fetchArticlePopup(ref.lawName, ref.articleNo!, ref.label, ref.subNo)}
+                                  className="text-violet-700 hover:text-violet-900 hover:underline transition-colors text-left"
+                                >
+                                  📖 {ref.lawName} {ref.label}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openAnnexExternal(ref.lawName, ref.annexNo!)}
+                                  className="text-violet-700 hover:text-violet-900 hover:underline transition-colors text-left"
+                                >
+                                  📋 {ref.lawName} 별표 {ref.annexNo} <span className="text-xs text-gray-400">(법제처 새창)</span>
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })()}
 
                   {/* Sources */}
                   {askResult.sources && askResult.sources.length > 0 && (
@@ -1165,39 +1230,71 @@ export default function LawSearchPage() {
   )
 }
 
-function renderAnswerWithLinks(
-  text: string,
-  onArticleClick: (lawName: string, articleNo: number, articleLabel: string, subNo?: number) => void
-): React.ReactNode[] {
-  // 패턴: 한글 법령명(법/법률/시행령/시행규칙으로 끝남) + 제X조(의Y)?
-  const pattern = /([가-힣\s·]+?(?:법률|시행령|시행규칙|법))\s*(제(\d+)조(?:의(\d+))?)/g
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
-  let match
+type Reference = {
+  type: 'article' | 'annex'
+  lawName: string
+  label: string
+  articleNo?: number
+  subNo?: number
+  annexNo?: number
+}
 
-  while ((match = pattern.exec(text)) !== null) {
-    const [fullMatch, lawName, articleLabel, articleNoStr, subNoStr] = match
-    const articleNo = parseInt(articleNoStr)
-    const subNo = subNoStr ? parseInt(subNoStr) : 0
-    if (lawName.trim().length < 2 || articleNo === 0) continue
+function extractReferences(text: string): Reference[] {
+  const refs: Reference[] = []
+  const seen = new Set<string>()
 
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index))
-    }
-    parts.push(
-      <button
-        key={`${match.index}`}
-        onClick={() => onArticleClick(lawName.trim(), articleNo, articleLabel, subNo)}
-        className="text-violet-700 underline underline-offset-2 decoration-dotted hover:text-violet-900 hover:decoration-solid font-medium transition-colors"
-        title={`${lawName.trim()} ${articleLabel} 조문 보기`}
-      >
-        {fullMatch}
-      </button>
-    )
-    lastIndex = match.index + fullMatch.length
+  // 1단계: 법령명 위치 모두 인덱싱 (한글로 시작, '법률|시행령|시행규칙|법'으로 끝남)
+  const lawMatches: { start: number; end: number; name: string }[] = []
+  const lawPattern = /[가-힣]+(?:[\s·][가-힣]+)*?(?:법률|시행령|시행규칙|법)/g
+  let lm
+  while ((lm = lawPattern.exec(text)) !== null) {
+    const name = lm[0].trim()
+    // "이 법", "그 법" 같은 짧은 표현 제외
+    if (name.length < 3) continue
+    if (/^(이|그|동|당|위|아래|해당)\s/.test(name)) continue
+    lawMatches.push({ start: lm.index, end: lm.index + lm[0].length, name })
   }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
-  return parts.length > 0 ? parts : [text]
+
+  // 2단계: 조문/별표 매칭하면서 직전 법령명 컨텍스트 사용
+  const itemPattern = /제(\d+)조(?:의(\d+))?|별표\s*(\d+)/g
+  let im
+  while ((im = itemPattern.exec(text)) !== null) {
+    const pos = im.index
+    // 이 매치 직전 100자 이내의 법령명 찾기
+    let lawName: string | null = null
+    for (let i = lawMatches.length - 1; i >= 0; i--) {
+      if (lawMatches[i].end <= pos && pos - lawMatches[i].end < 100) {
+        lawName = lawMatches[i].name
+        break
+      }
+    }
+    if (!lawName) continue
+
+    if (im[1]) {
+      // 제X조[의Y]?
+      const articleNo = parseInt(im[1])
+      const subNo = im[2] ? parseInt(im[2]) : 0
+      if (articleNo === 0) continue
+      const label = subNo > 0 ? `제${articleNo}조의${subNo}` : `제${articleNo}조`
+      const key = `${lawName}|art|${articleNo}|${subNo}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        refs.push({ type: 'article', lawName, label, articleNo, subNo })
+      }
+    } else if (im[3]) {
+      // 별표 N
+      const annexNo = parseInt(im[3])
+      if (annexNo === 0) continue
+      const label = `별표 ${annexNo}`
+      const key = `${lawName}|annex|${annexNo}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        refs.push({ type: 'annex', lawName, label, annexNo })
+      }
+    }
+  }
+
+  return refs
 }
 
 function EmptyState({ icon, message, sub }: { icon: React.ReactNode; message: string; sub?: string }) {
