@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { Scale, Search, Loader2, ChevronDown, ChevronRight, Gavel, MessageSquare, Paperclip, Bot, ToggleLeft, ToggleRight, Landmark, History, X, GitBranch, ArrowLeftRight } from 'lucide-react'
 
-const API_BASE = 'https://hodaddy-b650m-gaming-wifi.tailc7b091.ts.net/law'
+const API_BASE = '/api/law'
 
 type TabType = 'search' | 'precedents' | 'interpretations' | 'annexes' | 'nlrc' | 'system' | 'amendment' | 'ask'
 
