@@ -25,6 +25,7 @@ const PUBLIC_PATHS = [
   '/api/auth',
   '/api/briefing',  // 브리핑 자동 수집/분석
   '/api/surveys/public/',  // 공개 설문 API
+  '/api/law',       // 법령검색 프록시 (내부 서버 relay)
   '/s/',           // 공개 설문 URL
   '/privacy',           // 개인정보처리방침
   '/terms',             // 이용약관
