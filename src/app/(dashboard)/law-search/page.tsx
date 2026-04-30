@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
-import { Scale, Search, Loader2, ChevronDown, ChevronRight, Gavel, MessageSquare, Paperclip, Bot, ToggleLeft, ToggleRight, Landmark, History, X, GitBranch, ArrowLeftRight } from 'lucide-react'
+import { Scale, Search, Loader2, ChevronDown, ChevronRight, Gavel, MessageSquare, Bot, ToggleLeft, ToggleRight, Landmark, History, X } from 'lucide-react'
 
 const API_BASE = '/api/law'
 
-type TabType = 'search' | 'precedents' | 'interpretations' | 'annexes' | 'nlrc' | 'system' | 'amendment' | 'ask'
+type TabType = 'ask' | 'search' | 'precedents' | 'interpretations' | 'nlrc'
 
 interface HistoryItem {
   query: string
@@ -139,19 +139,16 @@ function parsePrecedentsText(text: string): ParsedPrecedentItem[] {
 // --- Tab config ---
 
 const TABS: { key: TabType; label: string; icon: React.ReactNode; color: string; activeColor: string; borderColor: string }[] = [
-  { key: 'search', label: '검색', icon: <Search className="w-4 h-4" />, color: 'text-blue-600', activeColor: 'bg-blue-50 text-blue-700', borderColor: 'border-blue-600' },
+  { key: 'ask', label: 'AI에게 질문', icon: <Bot className="w-4 h-4" />, color: 'text-violet-600', activeColor: 'bg-violet-50 text-violet-700', borderColor: 'border-violet-600' },
+  { key: 'search', label: '법령명으로 검색', icon: <Search className="w-4 h-4" />, color: 'text-blue-600', activeColor: 'bg-blue-50 text-blue-700', borderColor: 'border-blue-600' },
   { key: 'precedents', label: '판례', icon: <Gavel className="w-4 h-4" />, color: 'text-amber-600', activeColor: 'bg-amber-50 text-amber-700', borderColor: 'border-amber-600' },
   { key: 'interpretations', label: '해석례', icon: <MessageSquare className="w-4 h-4" />, color: 'text-emerald-600', activeColor: 'bg-emerald-50 text-emerald-700', borderColor: 'border-emerald-600' },
-  { key: 'annexes', label: '별표/서식', icon: <Paperclip className="w-4 h-4" />, color: 'text-purple-600', activeColor: 'bg-purple-50 text-purple-700', borderColor: 'border-purple-600' },
   { key: 'nlrc', label: '노동위', icon: <Landmark className="w-4 h-4" />, color: 'text-rose-600', activeColor: 'bg-rose-50 text-rose-700', borderColor: 'border-rose-600' },
-  { key: 'system', label: '체계도', icon: <GitBranch className="w-4 h-4" />, color: 'text-cyan-600', activeColor: 'bg-cyan-50 text-cyan-700', borderColor: 'border-cyan-600' },
-  { key: 'amendment', label: '개정추적', icon: <ArrowLeftRight className="w-4 h-4" />, color: 'text-orange-600', activeColor: 'bg-orange-50 text-orange-700', borderColor: 'border-orange-600' },
-  { key: 'ask', label: 'AI에게 질문', icon: <Bot className="w-4 h-4" />, color: 'text-violet-600', activeColor: 'bg-violet-50 text-violet-700', borderColor: 'border-violet-600' },
 ]
 
 export default function LawSearchPage() {
   const [query, setQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<TabType>('search')
+  const [activeTab, setActiveTab] = useState<TabType>('ask')
   const [isOnline, setIsOnline] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -162,10 +159,7 @@ export default function LawSearchPage() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
   const [precedentsText, setPrecedentsText] = useState<string | null>(null)
   const [interpretationsText, setInterpretationsText] = useState<string | null>(null)
-  const [annexesText, setAnnexesText] = useState<string | null>(null)
   const [nlrcText, setNlrcText] = useState<string | null>(null)
-  const [systemText, setSystemText] = useState<string | null>(null)
-  const [amendmentText, setAmendmentText] = useState<string | null>(null)
   const [askResult, setAskResult] = useState<AskResponse | null>(null)
 
   // Detail views
@@ -331,14 +325,11 @@ export default function LawSearchPage() {
 
   const getPlaceholder = () => {
     switch (activeTab) {
-      case 'search': return '법령에 대해 검색하세요... (예: 산업안전보건법 안전관리자)'
+      case 'ask': return 'AI에게 법령에 대해 질문하세요... (예: 50인 미만 사업장에서 선임해야 하는 안전보건 담당자는?)'
+      case 'search': return '법령명으로 검색하세요... (예: 산업안전보건법, 근로기준법)'
       case 'precedents': return '판례를 검색하세요... (예: 산업재해 사업주 책임)'
       case 'interpretations': return '해석례를 검색하세요... (예: 안전보건관리체제)'
-      case 'annexes': return '법령명 + 별표번호 (예: 산업안전보건법 시행령 별표1)'
       case 'nlrc': return '노동위원회 결정례를 검색하세요... (예: 부당해고 원직복직)'
-      case 'system': return '법령 체계도를 조회할 법령명 (예: 산업안전보건법)'
-      case 'amendment': return '개정 이력을 추적할 법령명 (예: 산업안전보건법)'
-      case 'ask': return 'AI에게 법령에 대해 질문하세요... (예: 50인 미만 사업장에서 선임해야 하는 안전보건 담당자는?)'
     }
   }
 
@@ -392,18 +383,6 @@ export default function LawSearchPage() {
           setInterpretationsText(data.result)
           break
         }
-        case 'annexes': {
-          setAnnexesText(null)
-          const res = await fetch(`${API_BASE}/annexes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ law_name: query.trim() }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setAnnexesText(data.result)
-          break
-        }
         case 'nlrc': {
           setNlrcText(null)
           setNlrcDetail(null)
@@ -415,30 +394,6 @@ export default function LawSearchPage() {
           if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
           const data: TextResult = await res.json()
           setNlrcText(data.result)
-          break
-        }
-        case 'system': {
-          setSystemText(null)
-          const res = await fetch(`${API_BASE}/system`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ law_name: query.trim() }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setSystemText(data.result)
-          break
-        }
-        case 'amendment': {
-          setAmendmentText(null)
-          const res = await fetch(`${API_BASE}/amendment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query.trim() }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setAmendmentText(data.result)
           break
         }
         case 'ask': {
@@ -623,34 +578,29 @@ export default function LawSearchPage() {
             onClick={handleSubmit}
             disabled={loading || !query.trim()}
             className={`flex items-center gap-2 px-5 py-3 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap ${
+              activeTab === 'ask' ? 'bg-violet-600 hover:bg-violet-700' :
               activeTab === 'search' ? 'bg-blue-600 hover:bg-blue-700' :
               activeTab === 'precedents' ? 'bg-amber-600 hover:bg-amber-700' :
               activeTab === 'interpretations' ? 'bg-emerald-600 hover:bg-emerald-700' :
-              activeTab === 'annexes' ? 'bg-purple-600 hover:bg-purple-700' :
-              activeTab === 'nlrc' ? 'bg-rose-600 hover:bg-rose-700' :
-              activeTab === 'system' ? 'bg-cyan-600 hover:bg-cyan-700' :
-              activeTab === 'amendment' ? 'bg-orange-600 hover:bg-orange-700' :
-              'bg-violet-600 hover:bg-violet-700'
+              'bg-rose-600 hover:bg-rose-700'
             }`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : currentTabConfig.icon}
             {activeTab === 'ask' ? '질문하기' : '검색'}
           </button>
         </div>
-        {/* OSH Toggle + Display Count - not shown for annexes */}
+        {/* OSH Toggle + Display Count */}
         <div className="flex items-center gap-4 mt-3">
-          {activeTab !== 'annexes' && (
-            <button
-              onClick={() => setOshOnly(!oshOnly)}
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
-                oshOnly ? 'text-blue-700' : 'text-gray-400'
-              }`}
-            >
-              {oshOnly ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-              산업안전보건 법령만
-            </button>
-          )}
-          {(activeTab === 'search' || activeTab === 'precedents' || activeTab === 'interpretations' || activeTab === 'nlrc') && (
+          <button
+            onClick={() => setOshOnly(!oshOnly)}
+            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
+              oshOnly ? 'text-blue-700' : 'text-gray-400'
+            }`}
+          >
+            {oshOnly ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            산업안전보건 법령만
+          </button>
+          {activeTab !== 'ask' && (
             <div className="flex items-center gap-1.5 text-sm text-gray-500 ml-auto">
               <span>결과 수:</span>
               {[5, 10, 20].map(n => (
@@ -934,23 +884,7 @@ export default function LawSearchPage() {
             </>
           )}
 
-          {/* Tab 4: Annexes */}
-          {!loading && activeTab === 'annexes' && (
-            <>
-              {annexesText ? (
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900 mb-3">별표/서식 조회 결과</h2>
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-purple-50 rounded-lg p-4 max-h-[600px] overflow-y-auto border border-purple-100">
-                    {annexesText}
-                  </pre>
-                </div>
-              ) : (
-                <EmptyState icon={<Paperclip className="w-8 h-8 text-purple-300" />} message="법령명과 별표번호를 입력하세요" sub="예: 산업안전보건법 시행령 별표1" />
-              )}
-            </>
-          )}
-
-          {/* Tab 5: NLRC (노동위 결정례) */}
+          {/* Tab: NLRC (노동위 결정례) */}
           {!loading && activeTab === 'nlrc' && (
             <>
               {nlrcText ? (
@@ -1001,95 +935,7 @@ export default function LawSearchPage() {
             </>
           )}
 
-          {/* Tab 6: Law System (체계도) */}
-          {!loading && activeTab === 'system' && (
-            <>
-              {systemText ? (
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900 mb-3">법령 체계도</h2>
-                  <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-5 max-h-[600px] overflow-y-auto">
-                    {systemText.split('\n').map((line, i) => {
-                      const indent = line.search(/\S/)
-                      const level = Math.floor(Math.max(0, indent) / 2)
-                      const trimmed = line.trim()
-                      if (!trimmed) return <div key={i} className="h-2" />
-
-                      const isHeader = trimmed.startsWith('#') || trimmed.startsWith('=') || trimmed.startsWith('■') || trimmed.startsWith('●')
-                      const isSub = trimmed.startsWith('-') || trimmed.startsWith('└') || trimmed.startsWith('├') || trimmed.startsWith('│')
-
-                      return (
-                        <div
-                          key={i}
-                          className={`py-0.5 ${isHeader ? 'font-bold text-cyan-800 text-sm mt-2' : isSub ? 'text-gray-600 text-xs' : 'text-gray-700 text-sm'}`}
-                          style={{ paddingLeft: `${level * 20}px` }}
-                        >
-                          {isSub && <span className="text-cyan-400 mr-1">{trimmed.charAt(0)}</span>}
-                          {isSub ? trimmed.slice(1).trim() : trimmed}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <EmptyState icon={<GitBranch className="w-8 h-8 text-cyan-300" />} message="법령 체계도를 조회하세요" sub="법령명을 입력하면 상위법-하위법 체계를 보여줍니다" />
-              )}
-            </>
-          )}
-
-          {/* Tab 7: Amendment Tracking (개정추적) */}
-          {!loading && activeTab === 'amendment' && (
-            <>
-              {amendmentText ? (
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900 mb-3">개정 이력</h2>
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                    {(() => {
-                      const sections = amendmentText.split(/\n(?=#{1,3}\s|■|●|\d{4}[.-])/).filter(s => s.trim())
-                      if (sections.length <= 1) {
-                        return (
-                          <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-orange-50 rounded-lg p-4 border border-orange-100">
-                            {amendmentText}
-                          </pre>
-                        )
-                      }
-                      return sections.map((section, i) => {
-                        const lines = section.trim().split('\n')
-                        const title = lines[0].replace(/^[#■●\s]+/, '').trim()
-                        const body = lines.slice(1).join('\n').trim()
-                        return (
-                          <div key={i} className="border border-orange-200 rounded-lg overflow-hidden">
-                            <button
-                              onClick={() => toggleCard(`amend-${i}`)}
-                              className="w-full flex items-center gap-2 px-4 py-3 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
-                            >
-                              <span className="text-orange-500 text-xs font-mono">{String(i + 1).padStart(2, '0')}</span>
-                              <span className="text-sm font-medium text-orange-800 flex-1">{title}</span>
-                              {expandedCards.has(`amend-${i}`) ? (
-                                <ChevronDown className="w-4 h-4 text-orange-400" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-orange-400" />
-                              )}
-                            </button>
-                            {expandedCards.has(`amend-${i}`) && body && (
-                              <div className="px-4 pb-3 border-t border-orange-100 bg-white">
-                                <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-3">
-                                  {body}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })
-                    })()}
-                  </div>
-                </div>
-              ) : (
-                <EmptyState icon={<ArrowLeftRight className="w-8 h-8 text-orange-300" />} message="법령 개정 이력을 추적하세요" sub="법령명을 입력하면 개정 연혁과 변경사항을 보여줍니다" />
-              )}
-            </>
-          )}
-
-          {/* Tab 8: AI Ask */}
+          {/* Tab: AI Ask */}
           {!loading && activeTab === 'ask' && (
             <>
               {askResult ? (
