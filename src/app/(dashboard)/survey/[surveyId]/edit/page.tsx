@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronRight, ChevronUp, GripVertical,
   Type, Hash, CircleDot, CheckSquare, SlidersHorizontal,
   List, Table, ArrowUpDown, ShieldCheck, Loader2, Copy,
-  X, Link2, BarChart3, Eye,
+  X, Link2, BarChart3, Eye, MonitorPlay,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -679,6 +679,14 @@ export default function SurveyEditPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Preview */}
+            <button
+              onClick={() => window.open(`/survey/${surveyId}/preview`, '_blank')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <MonitorPlay className="w-4 h-4" />
+              미리보기
+            </button>
             {/* Navigation links */}
             <button
               onClick={() => router.push(`/survey/${surveyId}/responses`)}
