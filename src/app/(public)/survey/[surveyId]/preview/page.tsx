@@ -217,6 +217,16 @@ export default function SurveyPreviewPage() {
   )
 }
 
+// ─── options 형식 정규화 (배열 또는 {choices:[]} 혼재 대응) ───
+function getChoices(opts: unknown): QuestionOption[] {
+  if (!opts) return []
+  if (Array.isArray(opts)) return opts as QuestionOption[]
+  const o = opts as Record<string, unknown>
+  if (Array.isArray(o.choices)) return o.choices as QuestionOption[]
+  if (Array.isArray(o.options)) return o.options as QuestionOption[]
+  return []
+}
+
 // ─── Question Field Renderer ───
 
 function QuestionField({
@@ -236,9 +246,9 @@ function QuestionField({
       {q.questionType === 'CONSENT' && <ConsentField value={value as boolean} onChange={onChange} />}
       {q.questionType === 'TEXT' && <TextField options={q.options as TextOptions} value={value as string} onChange={onChange} />}
       {q.questionType === 'NUMBER' && <NumberField options={q.options as NumberOptions} value={value as number} onChange={onChange} />}
-      {q.questionType === 'RADIO' && <RadioField questionCode={q.questionCode || q.id} options={q.options as QuestionOption[]} value={value as string} onChange={onChange} />}
-      {q.questionType === 'CHECKBOX' && <CheckboxField options={q.options as QuestionOption[]} value={value as string[]} onChange={onChange} />}
-      {q.questionType === 'DROPDOWN' && <DropdownField options={q.options as QuestionOption[]} value={value as string} onChange={onChange} />}
+      {q.questionType === 'RADIO' && <RadioField questionCode={q.questionCode || q.id} options={getChoices(q.options)} value={value as string} onChange={onChange} />}
+      {q.questionType === 'CHECKBOX' && <CheckboxField options={getChoices(q.options)} value={value as string[]} onChange={onChange} />}
+      {q.questionType === 'DROPDOWN' && <DropdownField options={getChoices(q.options)} value={value as string} onChange={onChange} />}
       {q.questionType === 'RANGE' && <RangeField options={q.options as RangeOptions} value={value as number} onChange={onChange} />}
       {q.questionType === 'TABLE' && <TableField options={q.options as TableOptions} value={value as Record<string, string>[]} onChange={onChange} />}
       {q.questionType === 'RANKED_CHOICE' && <RankedChoiceField options={q.options as RankedChoiceOptions} value={value as string[]} onChange={onChange} />}
