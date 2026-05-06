@@ -266,9 +266,10 @@ function buildHtml(params: {
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page :first { margin: 0; }
   body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "나눔고딕", sans-serif; font-size: 12px; color: #222; background: #fff; }
   .page { width: 210mm; min-height: 297mm; padding: 18mm 16mm; }
-  .cover { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-height: 297mm; padding: 20mm 20mm; background: linear-gradient(160deg, #1a237e 0%, #283593 60%, #3949ab 100%); color: white; }
+  .cover { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; height: 297mm; padding: 20mm 20mm; background: linear-gradient(160deg, #1a237e 0%, #283593 60%, #3949ab 100%); color: white; position: relative; break-after: page; }
   .section-title { font-size: 13px; font-weight: 700; color: #1a1a2e; border-left: 3px solid #4472C4; padding-left: 10px; margin: 24px 0 14px 0; }
   @media print { .page-break { page-break-before: always; } }
 </style>
