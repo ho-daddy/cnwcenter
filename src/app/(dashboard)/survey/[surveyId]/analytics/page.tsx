@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, BarChart3, FileText, Users, CheckCircle,
-  Loader2, Download, ChevronDown, ChevronRight, Activity,
+  Loader2, Download, ChevronDown, ChevronRight, Activity, FileDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
@@ -35,6 +35,7 @@ export default function SurveyAnalyticsPage() {
   const [collapsedQuestions, setCollapsedQuestions] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
   const [isExportingAssessment, setIsExportingAssessment] = useState(false)
+  const [isExportingReport, setIsExportingReport] = useState(false)
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
@@ -126,27 +127,50 @@ export default function SurveyAnalyticsPage() {
             </h1>
           </div>
         </div>
-        <button
-          disabled={isExporting || !analytics || analytics.totalResponses === 0}
-          onClick={() => downloadExcel(
-            `/api/surveys/${surveyId}/analytics/export`,
-            '설문_응답데이터.xlsx',
-            setIsExporting,
-          )}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-            isExporting || !analytics || analytics.totalResponses === 0
-              ? 'text-gray-400 border border-gray-200 cursor-not-allowed'
-              : 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100'
-          )}
-        >
-          {isExporting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
-          Excel 내보내기
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            disabled={isExporting || !analytics || analytics.totalResponses === 0}
+            onClick={() => downloadExcel(
+              `/api/surveys/${surveyId}/analytics/export`,
+              '설문_응답데이터.xlsx',
+              setIsExporting,
+            )}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+              isExporting || !analytics || analytics.totalResponses === 0
+                ? 'text-gray-400 border border-gray-200 cursor-not-allowed'
+                : 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100'
+            )}
+          >
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Excel 내보내기
+          </button>
+          <button
+            disabled={isExportingReport || !analytics || analytics.completedResponses === 0}
+            onClick={() => downloadExcel(
+              `/api/surveys/${surveyId}/analytics/export-report`,
+              '분석보고서.pdf',
+              setIsExportingReport,
+            )}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+              isExportingReport || !analytics || analytics.completedResponses === 0
+                ? 'text-gray-400 border border-gray-200 cursor-not-allowed'
+                : 'text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100'
+            )}
+          >
+            {isExportingReport ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            보고서 PDF
+          </button>
+        </div>
       </div>
 
       {/* Overall Stats */}
