@@ -315,6 +315,7 @@ function buildHtml(params: {
 // ─── GET handler ───
 
 export async function GET(req: NextRequest, { params }: Params) {
+  try {
   const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
@@ -521,4 +522,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
     },
   })
+  } catch (e) {
+    console.error('[export-report error]', e)
+    return NextResponse.json({ error: String(e), stack: e instanceof Error ? e.stack : undefined }, { status: 500 })
+  }
 }
