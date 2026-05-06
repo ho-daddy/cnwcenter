@@ -22,10 +22,14 @@ function assessBodyPart(
   freq: string | null
 ): AssessmentLevel {
   if (!level) return '정상'
-  const longPeriod = period === '1주일~1달' || period === '1달 이상'
+
+  const severeLevel = level === '심함' || level === '매우 심함'
+  const highLevel = level === '중간' || level === '심함' || level === '매우 심함'
+  const longPeriod = period === '1주일~1달' || period === '1달~6개월' || period === '6개월 이상'
   const highFreq = freq === '1개월에 1번' || freq === '1주일에 1번' || freq === '매일'
-  if (level === '매우 심함' && longPeriod && highFreq) return '통증호소자'
-  if (level === '중간' && (longPeriod || highFreq)) return '관리대상자'
+
+  if (severeLevel && longPeriod && highFreq) return '통증호소자'
+  if (highLevel && (longPeriod || highFreq)) return '관리대상자'
   return '정상'
 }
 
