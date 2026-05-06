@@ -19,6 +19,9 @@ git pull origin main
 # 의존성 업데이트
 npm ci
 
+# Playwright chromium 동기화 (npm ci로 버전 바뀔 때 자동 대응)
+npx playwright install chromium
+
 # Prisma 스키마 동기화 (nullable 컬럼 추가 등 안전한 변경만 자동 적용)
 npx prisma db push
 npx prisma generate
