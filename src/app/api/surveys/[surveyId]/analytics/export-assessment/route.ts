@@ -65,6 +65,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (q.questionCode) codeToId.set(q.questionCode, q.id)
   }
 
+  // 증상조사 prefix 동적 감지 (Q4-1 표준, Q2-1 구형 호환)
+  const SYMPTOM_PREFIX = codeToId.has('Q4-1') ? 'Q4-1' : (codeToId.has('Q2-1') ? 'Q2-1' : 'Q4-1')
+
   // ─── 개인별 판정 계산 ───
   interface PersonResult {
     name: string
@@ -95,17 +98,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     const department = getStr('S0-department')
     const process = getStr('S0-process')
 
-    const q41Id = codeToId.get('Q4-1')
-    const selectedParts = q41Id ? (ansMap.get(q41Id) as string[] | undefined) || [] : []
+    const symptomQId = codeToId.get(SYMPTOM_PREFIX)
+    const selectedParts = symptomQId ? (ansMap.get(symptomQId) as string[] | undefined) || [] : []
 
     let worstLevel: AssessmentLevel = '정상'
     const bodyParts: PersonResult['bodyParts'] = {}
 
     for (const bp of BODY_PARTS) {
       if (Array.isArray(selectedParts) && selectedParts.includes(bp.label)) {
-        const period = getStr(`Q4-1-${bp.key}-period`)
-        const painLevel = getStr(`Q4-1-${bp.key}-level`)
-        const frequency = getStr(`Q4-1-${bp.key}-freq`)
+        const period = getStr(`${SYMPTOM_PREFIX}-${bp.key}-period`)
+        const painLevel = getStr(`${SYMPTOM_PREFIX}-${bp.key}-level`)
+        const frequency = getStr(`${SYMPTOM_PREFIX}-${bp.key}-freq`)
         const level = assessBodyPart(painLevel || null, period || null, frequency || null)
 
         bodyParts[bp.label] = { level, period, painLevel, frequency }
