@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import {
   ArrowLeft, Eye, Trash2, ChevronDown, ChevronRight,
-  FileText, User, Loader2, AlertCircle,
+  FileText, User, Loader2, AlertCircle, ChevronLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
@@ -36,8 +36,10 @@ interface ResponseItem {
   respondentInfo: Record<string, unknown> | null
   completedAt: string | null
   createdAt: string
-  answers: AnswerItem[]
+  _count?: { answers: number }
 }
+
+const PAGE_SIZE = 20
 
 export default function SurveyResponsesPage() {
   const params = useParams()
@@ -46,15 +48,21 @@ export default function SurveyResponsesPage() {
 
   const [survey, setSurvey] = useState<SurveyMeta | null>(null)
   const [responses, setResponses] = useState<ResponseItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, AnswerItem[]>>({})
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
 
-  const fetchData = useCallback(async () => {
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  const fetchData = useCallback(async (p: number) => {
     setIsLoading(true)
     try {
       const [surveyRes, responsesRes] = await Promise.all([
         fetch(`/api/surveys/${surveyId}`),
-        fetch(`/api/surveys/${surveyId}/responses`),
+        fetch(`/api/surveys/${surveyId}/responses?page=${p}&limit=${PAGE_SIZE}`),
       ])
       if (surveyRes.ok) {
         const surveyData = await surveyRes.json()
@@ -63,6 +71,7 @@ export default function SurveyResponsesPage() {
       if (responsesRes.ok) {
         const data = await responsesRes.json()
         setResponses(data.responses ?? [])
+        setTotal(data.total ?? 0)
       }
     } catch {
       // ignore
@@ -72,8 +81,8 @@ export default function SurveyResponsesPage() {
   }, [surveyId])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData(page)
+  }, [fetchData, page])
 
   const handleDelete = async (responseId: string) => {
     if (!confirm('이 응답을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
@@ -83,6 +92,7 @@ export default function SurveyResponsesPage() {
       })
       if (res.ok) {
         setResponses((prev) => prev.filter((r) => r.id !== responseId))
+        setTotal((prev) => prev - 1)
         if (expandedId === responseId) setExpandedId(null)
       }
     } catch {
@@ -90,8 +100,26 @@ export default function SurveyResponsesPage() {
     }
   }
 
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id))
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(id)
+    if (expandedDetails[id]) return
+
+    setLoadingDetail(id)
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}/responses/${id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setExpandedDetails((prev) => ({ ...prev, [id]: data.answers ?? [] }))
+      }
+    } catch {
+      setExpandedDetails((prev) => ({ ...prev, [id]: [] }))
+    } finally {
+      setLoadingDetail(null)
+    }
   }
 
   // ─── Render answer value ───
@@ -215,6 +243,8 @@ export default function SurveyResponsesPage() {
     )
   }
 
+  const startIdx = (page - 1) * PAGE_SIZE
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -232,7 +262,7 @@ export default function SurveyResponsesPage() {
               {survey?.title ?? '설문'} &mdash; 응답 목록
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              총 {responses.length}건의 응답
+              총 {total}건의 응답
             </p>
           </div>
         </div>
@@ -260,7 +290,7 @@ export default function SurveyResponsesPage() {
               <div key={resp.id}>
                 {/* Row */}
                 <div className="grid grid-cols-[40px_1fr_140px_100px_60px] gap-4 px-5 py-3 items-center">
-                  <span className="text-sm text-gray-500 font-medium">{idx + 1}</span>
+                  <span className="text-sm text-gray-500 font-medium">{startIdx + idx + 1}</span>
                   <div className="flex items-center gap-2 min-w-0">
                     <User className="w-4 h-4 text-gray-400 shrink-0" />
                     <span className="text-sm text-gray-900 truncate">
@@ -282,7 +312,9 @@ export default function SurveyResponsesPage() {
                           : 'text-blue-600 hover:bg-blue-50'
                       )}
                     >
-                      {expandedId === resp.id ? (
+                      {loadingDetail === resp.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : expandedId === resp.id ? (
                         <>
                           <ChevronDown className="w-3 h-3" />
                           접기
@@ -309,10 +341,15 @@ export default function SurveyResponsesPage() {
                 {expandedId === resp.id && (
                   <div className="px-5 pb-4 bg-gray-50 border-t border-gray-100">
                     <div className="space-y-4 pt-3">
-                      {!resp.answers || resp.answers.length === 0 ? (
+                      {!expandedDetails[resp.id] ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          불러오는 중...
+                        </div>
+                      ) : expandedDetails[resp.id].length === 0 ? (
                         <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
                       ) : (
-                        resp.answers.map((answer) => (
+                        expandedDetails[resp.id].map((answer) => (
                           <div
                             key={answer.id}
                             className="bg-white rounded-lg border border-gray-200 p-3"
@@ -344,6 +381,53 @@ export default function SurveyResponsesPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+              if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis')
+              acc.push(p)
+              return acc
+            }, [])
+            .map((p, i) =>
+              p === 'ellipsis' ? (
+                <span key={`e${i}`} className="px-1 text-gray-400 text-sm">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={cn(
+                    'w-8 h-8 rounded-lg text-sm font-medium transition-colors',
+                    page === p
+                      ? 'bg-blue-600 text-white'
+                      : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  )}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
