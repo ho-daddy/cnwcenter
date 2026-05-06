@@ -269,7 +269,7 @@ function buildHtml(params: {
   @page :first { margin: 0; }
   body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "나눔고딕", sans-serif; font-size: 12px; color: #222; background: #fff; }
   .page { width: 210mm; min-height: 297mm; padding: 18mm 16mm; }
-  .cover { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; height: 297mm; padding: 20mm 20mm; background: linear-gradient(160deg, #1a237e 0%, #283593 60%, #3949ab 100%); color: white; position: relative; break-after: page; }
+  .cover { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; height: 297mm; padding: 20mm 20mm; background: linear-gradient(160deg, #1a237e 0%, #283593 60%, #3949ab 100%); color: white; position: relative; break-after: page; }
   .section-title { font-size: 13px; font-weight: 700; color: #1a1a2e; border-left: 3px solid #4472C4; padding-left: 10px; margin: 24px 0 14px 0; }
   @media print { .page-break { page-break-before: always; } }
 </style>
@@ -278,15 +278,28 @@ function buildHtml(params: {
 
 <!-- 표지 -->
 <div class="cover">
-  <div style="font-size:11px;opacity:0.6;margin-bottom:32px;letter-spacing:2px;">SURVEY ANALYSIS REPORT</div>
-  <div style="font-size:26px;font-weight:800;line-height:1.3;margin-bottom:16px;">${params.surveyTitle}</div>
-  ${params.year ? `<div style="font-size:14px;opacity:0.8;margin-bottom:40px;">${params.year}년</div>` : '<div style="margin-bottom:40px;"></div>'}
-  <div style="display:flex;gap:32px;">
-    <div><div style="font-size:10px;opacity:0.6;">총 응답</div><div style="font-size:28px;font-weight:700;">${params.totalResponses}명</div></div>
-    <div><div style="font-size:10px;opacity:0.6;">완료 응답</div><div style="font-size:28px;font-weight:700;">${params.completedResponses}명</div></div>
-    <div><div style="font-size:10px;opacity:0.6;">완료율</div><div style="font-size:28px;font-weight:700;">${completionRate}%</div></div>
+  <!-- 상단 레이블 -->
+  <div style="font-size:11px;opacity:0.5;letter-spacing:2px;">SURVEY ANALYSIS REPORT</div>
+
+  <!-- 중간 메인 콘텐츠 -->
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div style="font-size:26px;font-weight:800;line-height:1.4;margin-bottom:16px;">${params.surveyTitle}</div>
+    ${params.year ? `<div style="font-size:14px;opacity:0.7;margin-bottom:36px;">${params.year}년</div>` : '<div style="margin-bottom:36px;"></div>'}
+    <div style="display:flex;gap:32px;">
+      <div><div style="font-size:10px;opacity:0.6;">총 응답</div><div style="font-size:28px;font-weight:700;">${params.totalResponses}명</div></div>
+      <div><div style="font-size:10px;opacity:0.6;">완료 응답</div><div style="font-size:28px;font-weight:700;">${params.completedResponses}명</div></div>
+      <div><div style="font-size:10px;opacity:0.6;">완료율</div><div style="font-size:28px;font-weight:700;">${completionRate}%</div></div>
+    </div>
   </div>
-  <div style="position:absolute;bottom:20mm;right:20mm;font-size:10px;opacity:0.5;">${params.generatedAt} 생성</div>
+
+  <!-- 하단 기관 정보 -->
+  <div style="width:100%;border-top:1px solid rgba(255,255,255,0.25);padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end;">
+    <div>
+      <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;">새움터</div>
+      <div style="font-size:10px;opacity:0.6;margin-top:3px;">충남노동건강인권센터</div>
+    </div>
+    <div style="font-size:10px;opacity:0.45;">${params.generatedAt} 생성</div>
+  </div>
 </div>
 
 <!-- 본문 -->
