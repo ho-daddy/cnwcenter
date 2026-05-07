@@ -124,6 +124,22 @@ export function RegisterForm() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">회원가입</CardTitle>
           <CardDescription>새움터에 가입하고 서비스를 이용하세요</CardDescription>
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-left text-xs text-amber-800">
+            <p className="font-semibold">건축행정시스템 <span className="underline">세움터</span>를 찾고 계신가요?</p>
+            <p className="mt-1">이 사이트는 충남노동건강인권센터 <span className="font-semibold">새움터</span>의 서비스 플랫폼입니다.</p>
+            <p className="mt-1">
+              건축행정시스템은{' '}
+              <a
+                href="https://www.eais.go.kr"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold underline hover:text-amber-900"
+              >
+                www.eais.go.kr
+              </a>
+              에서 이용하실 수 있습니다.
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* 에러 메시지 */}
