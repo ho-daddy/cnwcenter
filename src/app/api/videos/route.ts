@@ -7,6 +7,10 @@ import {
   getThumbnailUrl,
 } from '@/lib/google-drive'
 
+// 큰 영상 파일(최대 500MB) 업로드 + Google Drive 전송 시간을 고려해 5분으로 확장
+export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+
 const ALLOWED_TYPES = [
   'video/webm',
   'video/mp4',

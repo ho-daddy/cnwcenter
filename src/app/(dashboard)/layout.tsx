@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { cn } from '@/lib/utils'
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider'
+import { UploadQueuePanel } from '@/components/upload/upload-queue-panel'
 
 export default function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default function DashboardLayout({
             {children}
           </main>
         </div>
+        <UploadQueuePanel />
       </div>
     </TutorialProvider>
   )
