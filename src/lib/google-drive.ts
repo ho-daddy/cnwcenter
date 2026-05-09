@@ -136,7 +136,84 @@ export async function getUploadFolderId(
 }
 
 /**
- * Google Drive에 영상 파일 업로드
+ * Google Drive Resumable Upload 세션 시작
+ * 클라이언트가 직접 업로드할 수 있는 임시 URL 발급
+ *
+ * @returns uploadUrl (8시간 유효, 별도 인증 헤더 없이 PUT 가능)
+ */
+export async function createResumableUploadSession(params: {
+  folderId: string
+  fileName: string
+  mimeType: string
+  fileSize: number
+  /**
+   * 클라이언트의 Origin (필수). Drive가 발급하는 uploadUrl 은 이 Origin 에서의
+   * cross-origin PUT 만 허용한다. 누락 시 브라우저에서 PUT 시도가 CORS 로 차단된다.
+   */
+  origin: string
+}): Promise<{ uploadUrl: string }> {
+  if (!isDriveConfigured()) {
+    throw new Error('Google Drive API가 설정되지 않았습니다. 환경변수를 확인해주세요.')
+  }
+
+  const { folderId, fileName, mimeType, fileSize, origin } = params
+
+  // OAuth2 access token 발급
+  const tokenRes = await oauth2Client.getAccessToken()
+  const accessToken = tokenRes.token
+  if (!accessToken) {
+    throw new Error('Google Drive access token 발급 실패')
+  }
+
+  // Resumable session 시작 — Origin 헤더가 있어야 발급된 uploadUrl 이
+  // 같은 Origin 에서의 cross-origin PUT 을 허용한다.
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': mimeType,
+        'X-Upload-Content-Length': String(fileSize),
+        Origin: origin,
+      },
+      body: JSON.stringify({
+        name: fileName,
+        mimeType,
+        parents: [folderId],
+      }),
+    }
+  )
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(
+      `Drive Resumable session 시작 실패: ${res.status} ${text}`
+    )
+  }
+
+  const uploadUrl = res.headers.get('Location') || res.headers.get('location')
+  if (!uploadUrl) {
+    throw new Error('Drive 응답에 Location 헤더가 없습니다')
+  }
+
+  return { uploadUrl }
+}
+
+/**
+ * 업로드 완료 후 파일 공유 권한 설정 (anyone with link reader)
+ */
+export async function setFilePublicReader(fileId: string): Promise<void> {
+  await drive.permissions.create({
+    fileId,
+    requestBody: { role: 'reader', type: 'anyone' },
+  })
+}
+
+/**
+ * Google Drive에 영상 파일 업로드 (기존 방식, 서버 메모리 경유)
+ * @deprecated Resumable Upload 방식 사용 권장 (createResumableUploadSession)
  */
 export async function uploadVideoToDrive(params: {
   buffer: Buffer

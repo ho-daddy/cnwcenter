@@ -47,6 +47,7 @@ import {
 import { Sheet2Modal } from '@/components/musculoskeletal/sheet2-modal'
 import { Sheet3Modal } from '@/components/musculoskeletal/sheet3-modal'
 import { VideoRecordModal } from '@/components/musculoskeletal/video-record-modal'
+import { useUploadQueueStore } from '@/stores/upload-queue-store'
 import MSurveyImprovementPanel, { type MSurveyImprovementItem } from '@/components/musculoskeletal/MSurveyImprovementPanel'
 
 interface Workplace {
@@ -2857,6 +2858,16 @@ function VideoContent({ assessment }: { assessment: Assessment }) {
   useEffect(() => {
     fetchVideos()
   }, [fetchVideos])
+
+  // 큐에서 업로드가 성공할 때마다 영상 목록 자동 갱신
+  const uploadSuccessCount = useUploadQueueStore(
+    (s) => s.items.filter((i) => i.status === 'success').length
+  )
+  useEffect(() => {
+    if (uploadSuccessCount > 0) {
+      fetchVideos()
+    }
+  }, [uploadSuccessCount, fetchVideos])
 
   const openPlayer = async (videoId: string) => {
     try {
