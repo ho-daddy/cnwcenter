@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, getAccessibleWorkplaceIds } from '@/lib/auth-utils'
 import { Prisma } from '@prisma/client'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
+import { resolveChemicalComponent } from '@/lib/chemical-component'
 
 // GET /api/risk-assessment/chemicals — 화학제품 목록
 export async function GET(req: NextRequest) {
@@ -62,11 +63,7 @@ export async function POST(req: NextRequest) {
       })
 
       for (const comp of compArr) {
-        const component = await tx.chemicalComponent.upsert({
-          where: { casNumber: comp.casNumber },
-          create: { casNumber: comp.casNumber, name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-          update: { name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-        })
+        const component = await resolveChemicalComponent(tx, comp)
         await tx.productComponent.create({
           data: {
             productId: product.id,

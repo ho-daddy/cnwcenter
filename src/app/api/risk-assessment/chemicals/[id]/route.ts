@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireWorkplaceAccess } from '@/lib/auth-utils'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
+import { resolveChemicalComponent } from '@/lib/chemical-component'
 
 type Params = { params: { id: string } }
 
@@ -64,11 +65,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       await tx.productComponent.deleteMany({ where: { productId: params.id } })
 
       for (const comp of compArr) {
-        const component = await tx.chemicalComponent.upsert({
-          where: { casNumber: comp.casNumber },
-          create: { casNumber: comp.casNumber, name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-          update: { name: comp.name, hazards: comp.hazards || null, regulations: comp.regulations || null },
-        })
+        const component = await resolveChemicalComponent(tx, comp)
         await tx.productComponent.create({
           data: {
             productId: params.id,
