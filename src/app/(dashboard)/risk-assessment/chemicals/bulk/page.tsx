@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, Upload, FileSpreadsheet, AlertTriangle,
+  ArrowLeft, Upload, FileSpreadsheet, FileText, AlertTriangle,
   CheckCircle2, XCircle, ChevronRight, Download, Loader2,
   FlaskConical, Wand2,
 } from 'lucide-react'
@@ -26,6 +26,7 @@ import {
   STANDARDS_META,
   type SeverityStandard,
 } from '@/lib/msds-rules'
+import MsdsBulkPanel from '../_components/MsdsBulkPanel'
 
 interface Workplace { id: string; name: string }
 
@@ -51,6 +52,7 @@ interface AnalyzedProduct {
 }
 
 type Step = 'upload' | 'analyze' | 'preview' | 'result'
+type BulkMode = 'csv' | 'msds'
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   name: '제품명',
@@ -79,6 +81,7 @@ export default function ChemicalBulkPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [bulkMode, setBulkMode] = useState<BulkMode>('csv')
 
   const standardMeta = getStandardMeta(severityStandard)
 
@@ -433,19 +436,66 @@ export default function ChemicalBulkPage() {
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
+        <>
         <Card>
-          <CardHeader><CardTitle className="text-base">파일 업로드</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1.5">사업장 선택 *</label>
-              <select value={selectedWorkplace} onChange={e => setSelectedWorkplace(e.target.value)}
-                className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                <option value="">사업장을 선택하세요</option>
-                {workplaces.map(wp => <option key={wp.id} value={wp.id}>{wp.name}</option>)}
-              </select>
-              <p className="text-xs text-gray-400 mt-1.5">중대성평가 기준은 미리보기 단계에서 선택합니다 (KOSHA 데이터로 기준 전환 시 즉시 재계산됩니다).</p>
+          <CardContent className="pt-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">사업장 선택 *</label>
+                <select value={selectedWorkplace} onChange={e => setSelectedWorkplace(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                  <option value="">사업장을 선택하세요</option>
+                  {workplaces.map(wp => <option key={wp.id} value={wp.id}>{wp.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">중대성평가 기준</label>
+                <select value={severityStandard} onChange={e => setSeverityStandard(e.target.value as SeverityStandard)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                  {SEVERITY_STANDARDS.map(s => <option key={s} value={s}>{STANDARDS_META[s].label}</option>)}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">CSV 흐름은 미리보기 단계에서도 변경 가능합니다.</p>
+              </div>
             </div>
 
+            {/* 모드 탭 */}
+            <div className="flex gap-1 border-b border-gray-200 -mx-5 px-5">
+              <button
+                type="button"
+                onClick={() => setBulkMode('csv')}
+                className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
+                  bulkMode === 'csv'
+                    ? 'border-blue-600 text-blue-600 font-semibold'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4 inline mr-1.5" />
+                CSV / Excel 일괄
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkMode('msds')}
+                className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
+                  bulkMode === 'msds'
+                    ? 'border-blue-600 text-blue-600 font-semibold'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline mr-1.5" />
+                MSDS 파일 다중 업로드
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {bulkMode === 'msds' && (
+          <MsdsBulkPanel workplaceId={selectedWorkplace} severityStandard={severityStandard} />
+        )}
+
+        {bulkMode === 'csv' && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">CSV / Excel 파일 업로드</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
             <div onDragOver={e => { e.preventDefault(); setDragOver(true) }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}
               onClick={() => document.getElementById('bulk-file-input')?.click()}
               className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}>
@@ -482,6 +532,8 @@ export default function ChemicalBulkPage() {
             </div>
           </CardContent>
         </Card>
+        )}
+        </>
       )}
 
       {/* Step 2: Analyze (column mapping + KOSHA enrichment) */}

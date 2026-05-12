@@ -17,6 +17,10 @@ interface BulkProduct {
   name: string
   manufacturer: string
   description: string
+  managementMethod?: string
+  productHazards?: string
+  productRegulations?: string
+  productSeverityScore?: number | null
   severityScore: number
   components: BulkComponent[]
 }
@@ -61,7 +65,10 @@ export async function POST(req: NextRequest) {
           }
 
           const compScores = p.components.map(c => c.severityScore || 1)
-          const productSeverity = compScores.length > 0 ? Math.max(...compScores) : (p.severityScore || null)
+          const componentsMax = compScores.length > 0 ? Math.max(...compScores) : 0
+          const productSelfScore = typeof p.productSeverityScore === 'number' ? p.productSeverityScore : 0
+          const candidates = [componentsMax, productSelfScore].filter(s => s > 0)
+          const productSeverity = candidates.length > 0 ? Math.max(...candidates) : (p.severityScore || null)
 
           const product = await tx.chemicalProduct.create({
             data: {
@@ -69,6 +76,10 @@ export async function POST(req: NextRequest) {
               name: p.name.trim(),
               manufacturer: p.manufacturer?.trim() || null,
               description: p.description?.trim() || null,
+              managementMethod: p.managementMethod?.trim() || null,
+              productHazards: p.productHazards?.trim() || null,
+              productRegulations: p.productRegulations?.trim() || null,
+              productSeverityScore: typeof p.productSeverityScore === 'number' ? p.productSeverityScore : null,
               severityScore: productSeverity,
               severityStandard: standardValue,
             },
