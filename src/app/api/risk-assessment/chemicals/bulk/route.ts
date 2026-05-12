@@ -7,6 +7,8 @@ interface BulkComponent {
   casNumber: string
   name: string
   concentration: string
+  hazards?: string
+  regulations?: string
   severityScore: number
 }
 
@@ -25,7 +27,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await parseJsonBody(req)
-    const { workplaceId, products } = body as { workplaceId: string; products: BulkProduct[] }
+    const { workplaceId, severityStandard, products } = body as {
+      workplaceId: string
+      severityStandard?: string
+      products: BulkProduct[]
+    }
 
     if (!workplaceId || !products || products.length === 0) {
       return NextResponse.json({ error: '사업장과 제품 데이터가 필요합니다.' }, { status: 400 })
@@ -36,12 +42,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '해당 사업장에 대한 권한이 없습니다.' }, { status: 403 })
     }
 
+    const standardValue: 'SAEUMTER' | 'METAL_UNION' =
+      severityStandard === 'METAL_UNION' ? 'METAL_UNION' : 'SAEUMTER'
+
     const results: { created: number; errors: { row: number; message: string }[] } = {
       created: 0,
       errors: [],
     }
 
-    // 트랜잭션으로 일괄 처리
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < products.length; i++) {
         const p = products[i]
@@ -51,7 +59,6 @@ export async function POST(req: NextRequest) {
             continue
           }
 
-          // 제품 중대성 = 구성성분 최대값
           const compScores = p.components.map(c => c.severityScore || 1)
           const productSeverity = compScores.length > 0 ? Math.max(...compScores) : (p.severityScore || null)
 
@@ -62,21 +69,29 @@ export async function POST(req: NextRequest) {
               manufacturer: p.manufacturer?.trim() || null,
               description: p.description?.trim() || null,
               severityScore: productSeverity,
+              severityStandard: standardValue,
             },
           })
 
           for (const comp of p.components) {
             if (!comp.casNumber || !comp.name) continue
 
-            // CAS번호 기반 글로벌 성분 upsert
+            const cas = comp.casNumber.trim()
+            const hazards = (comp.hazards || '').trim()
+            const regulations = (comp.regulations || '').trim()
+
             const component = await tx.chemicalComponent.upsert({
-              where: { casNumber: comp.casNumber.trim() },
+              where: { casNumber: cas },
               create: {
-                casNumber: comp.casNumber.trim(),
+                casNumber: cas,
                 name: comp.name.trim(),
+                hazards: hazards || null,
+                regulations: regulations || null,
               },
               update: {
                 name: comp.name.trim(),
+                ...(hazards ? { hazards } : {}),
+                ...(regulations ? { regulations } : {}),
               },
             })
 
