@@ -124,7 +124,7 @@ ${articleList}
 
   try {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],

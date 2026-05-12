@@ -464,7 +464,7 @@ async function extractWithClaudeText(text: string): Promise<MsdsExtractedData> {
     : text
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     system: MSDS_SYSTEM_PROMPT,
     messages: [{
@@ -482,7 +482,7 @@ async function extractWithClaudeDocument(buffer: Buffer): Promise<MsdsExtractedD
   const base64Data = buffer.toString('base64')
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     system: MSDS_SYSTEM_PROMPT,
     messages: [{
@@ -573,7 +573,7 @@ async function generateManagementMethod(
   const client = getAnthropicClient()
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     messages: [{
       role: 'user',
