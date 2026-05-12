@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, getAccessibleWorkplaceIds } from '@/lib/auth-utils'
 import { parseJsonBody, ApiError } from '@/lib/api-utils'
+import { resolveChemicalComponent } from '@/lib/chemical-component'
 
 interface BulkComponent {
   casNumber: string
@@ -76,23 +77,11 @@ export async function POST(req: NextRequest) {
           for (const comp of p.components) {
             if (!comp.casNumber || !comp.name) continue
 
-            const cas = comp.casNumber.trim()
-            const hazards = (comp.hazards || '').trim()
-            const regulations = (comp.regulations || '').trim()
-
-            const component = await tx.chemicalComponent.upsert({
-              where: { casNumber: cas },
-              create: {
-                casNumber: cas,
-                name: comp.name.trim(),
-                hazards: hazards || null,
-                regulations: regulations || null,
-              },
-              update: {
-                name: comp.name.trim(),
-                ...(hazards ? { hazards } : {}),
-                ...(regulations ? { regulations } : {}),
-              },
+            const component = await resolveChemicalComponent(tx, {
+              casNumber: comp.casNumber.trim(),
+              name: comp.name.trim(),
+              hazards: (comp.hazards || '').trim() || null,
+              regulations: (comp.regulations || '').trim() || null,
             })
 
             await tx.productComponent.create({
