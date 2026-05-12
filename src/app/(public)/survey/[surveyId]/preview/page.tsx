@@ -29,7 +29,7 @@ export default function SurveyPreviewPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch(`/api/surveys/${surveyId}`)
+        const res = await fetch(`/api/surveys/${surveyId}/preview`)
         if (res.status === 401) {
           setError('로그인이 필요합니다.')
           return
