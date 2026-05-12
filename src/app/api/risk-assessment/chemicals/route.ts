@@ -39,7 +39,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await parseJsonBody(req)
-    const { workplaceId, name, manufacturer, description, managementMethod, severityStandard, components } = body
+    const {
+      workplaceId, name, manufacturer, description, managementMethod, severityStandard,
+      productHazards, productRegulations, productSeverityScore,
+      components,
+    } = body
 
     if (!workplaceId || !name) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
@@ -54,12 +58,26 @@ export async function POST(req: NextRequest) {
       severityStandard === 'METAL_UNION' ? 'METAL_UNION' : 'SAEUMTER'
 
     const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
-    const scores = compArr.map(c => c.severityScore ?? 1)
-    const severityScore = scores.length > 0 ? Math.max(...scores) : null
+    const componentScores = compArr.map(c => c.severityScore ?? 1)
+    const componentsMax = componentScores.length > 0 ? Math.max(...componentScores) : 0
+    const productScore = typeof productSeverityScore === 'number' ? productSeverityScore : 0
+    const candidates = [componentsMax, productScore].filter(s => s > 0)
+    const severityScore = candidates.length > 0 ? Math.max(...candidates) : null
 
     const chemical = await prisma.$transaction(async (tx) => {
       const product = await tx.chemicalProduct.create({
-        data: { workplaceId, name, manufacturer: manufacturer || null, description: description || null, managementMethod: managementMethod || null, severityScore, severityStandard: standardValue },
+        data: {
+          workplaceId,
+          name,
+          manufacturer: manufacturer || null,
+          description: description || null,
+          managementMethod: managementMethod || null,
+          severityScore,
+          severityStandard: standardValue,
+          productHazards: productHazards || null,
+          productRegulations: productRegulations || null,
+          productSeverityScore: typeof productSeverityScore === 'number' ? productSeverityScore : null,
+        },
       })
 
       for (const comp of compArr) {

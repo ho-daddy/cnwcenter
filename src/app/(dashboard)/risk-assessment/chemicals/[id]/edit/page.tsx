@@ -15,6 +15,9 @@ interface ApiProduct {
   managementMethod: string | null
   severityScore: number | null
   severityStandard: string | null
+  productHazards: string | null
+  productRegulations: string | null
+  productSeverityScore: number | null
   workplaceId: string
   workplace: { id: string; name: string }
   components: Array<{
@@ -50,6 +53,9 @@ export default function EditChemicalProductPage() {
     description: product.description || '',
     managementMethod: product.managementMethod || '',
     severityStandard: (product.severityStandard === 'METAL_UNION' ? 'METAL_UNION' : 'SAEUMTER') as SeverityStandard,
+    productHazards: product.productHazards || '',
+    productRegulations: product.productRegulations || '',
+    productSeverityScore: product.productSeverityScore,
     components: product.components.map<ComponentData>(pc => ({
       key: crypto.randomUUID(),
       casNumber: pc.component.casNumber,

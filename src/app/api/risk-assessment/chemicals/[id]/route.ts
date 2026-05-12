@@ -49,7 +49,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   try {
     const body = await parseJsonBody(req)
-    const { name, manufacturer, description, managementMethod, severityStandard, components } = body
+    const {
+      name, manufacturer, description, managementMethod, severityStandard,
+      productHazards, productRegulations, productSeverityScore,
+      components,
+    } = body
     if (!name) return NextResponse.json({ error: '제품명은 필수입니다.' }, { status: 400 })
 
     const standardValue: 'SAEUMTER' | 'METAL_UNION' | undefined =
@@ -58,8 +62,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
       : undefined
 
     const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
-    const scores = compArr.map(c => c.severityScore ?? 1)
-    const severityScore = scores.length > 0 ? Math.max(...scores) : null
+    const componentScores = compArr.map(c => c.severityScore ?? 1)
+    const componentsMax = componentScores.length > 0 ? Math.max(...componentScores) : 0
+    const productScore = typeof productSeverityScore === 'number' ? productSeverityScore : 0
+    const candidates = [componentsMax, productScore].filter(s => s > 0)
+    const severityScore = candidates.length > 0 ? Math.max(...candidates) : null
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.productComponent.deleteMany({ where: { productId: params.id } })
@@ -85,6 +92,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
           managementMethod: managementMethod !== undefined ? (managementMethod || null) : undefined,
           severityScore,
           ...(standardValue ? { severityStandard: standardValue } : {}),
+          productHazards: productHazards !== undefined ? (productHazards || null) : undefined,
+          productRegulations: productRegulations !== undefined ? (productRegulations || null) : undefined,
+          productSeverityScore: productSeverityScore !== undefined
+            ? (typeof productSeverityScore === 'number' ? productSeverityScore : null)
+            : undefined,
         },
         include: {
           workplace: { select: { id: true, name: true } },

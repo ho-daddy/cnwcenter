@@ -34,6 +34,9 @@ interface Product {
   description: string | null
   managementMethod: string | null
   severityScore: number | null
+  productHazards: string | null
+  productRegulations: string | null
+  productSeverityScore: number | null
   workplace: { id: string; name: string }
   components: Component[]
   unitLinks: UnitLink[]
@@ -70,6 +73,14 @@ export default function ChemicalProductViewPage() {
   if (isLoading) return <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
   if (!product) return <div className="text-center py-12 text-gray-400 text-sm">화학제품을 찾을 수 없습니다.</div>
 
+  // 점수 산정 근거: 성분 최댓값 vs 제품 자체점 중 어느 쪽이 최종 점수로 잡혔는지
+  const componentsMax = product.components.reduce((m, c) => Math.max(m, c.severityScore ?? 0), 0)
+  const productSelfScore = product.productSeverityScore ?? 0
+  const scoreSource =
+    product.severityScore == null ? '미산정'
+    : componentsMax >= productSelfScore ? '구성성분 최댓값 자동 산정'
+    : '제품 자체 점수 (MSDS 2번 항목 기반)'
+
   return (
     <div className="space-y-5 max-w-5xl">
       <div className="flex items-center justify-between">
@@ -100,7 +111,7 @@ export default function ChemicalProductViewPage() {
               <p className="text-sm text-gray-500">제품 중대성 점수</p>
               <div className="flex items-center gap-2 mt-0.5">
                 {severityBadge(product.severityScore, 'lg')}
-                <span className="text-xs text-gray-400">구성성분 최댓값 자동 산정</span>
+                <span className="text-xs text-gray-400">{scoreSource}</span>
               </div>
             </div>
           </div>
@@ -121,6 +132,33 @@ export default function ChemicalProductViewPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
               <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{product.managementMethod}</p>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* MSDS 자체정보 (제품 단위) */}
+      {(product.productHazards || product.productRegulations) && (
+        <Card>
+          <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700">MSDS 자체정보 (제품 단위)</h2>
+              <p className="text-xs text-gray-400 mt-0.5">MSDS 2번 항목 — 구성성분과 별개로 제품 전체에 적용되는 유해위험성</p>
+            </div>
+            {severityBadge(product.productSeverityScore)}
+          </div>
+          <CardContent className="pt-0 space-y-3">
+            {product.productHazards && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">제품 자체 유해성 (Section 2)</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-red-50 border border-red-100 rounded-lg px-3 py-2">{product.productHazards}</p>
+              </div>
+            )}
+            {product.productRegulations && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">제품 자체 규제사항 (Section 15)</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">{product.productRegulations}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

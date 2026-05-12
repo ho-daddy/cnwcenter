@@ -600,8 +600,15 @@ model ChemicalProduct {
   manufacturer  String?
   description   String?             @db.Text
   managementMethod String?          @db.Text  // MSDS 기반 관리방법 (AI 자동생성)
-  severityScore Int?                // 구성성분 중 최대 중대성점수 (자동산정)
+  severityScore Int?                // 최종 중대성점수 = max(구성성분 최댓값, 제품 자체 점수)
   severityStandard String           @default("SAEUMTER")  // 중대성평가기준: "SAEUMTER"(1~5) | "METAL_UNION"(1~4)
+
+  // 제품 자체 유해위험성 (MSDS Section 2 등)
+  // 성분이 영업비밀이라도 제품 단위의 유해성은 공개되는 경우가 많음.
+  // 텍스트로부터 자동 점수 산정 + 사용자 직접 수정 가능 (텍스트 수정 시 재계산).
+  productHazards       String?      @db.Text   // MSDS Section 2 유해성·위험성 텍스트
+  productRegulations   String?      @db.Text   // 제품 자체 규제사항
+  productSeverityScore Int?                    // 제품 자체 점수 (자동 or 수동)
 
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt

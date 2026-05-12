@@ -33,6 +33,9 @@ export interface ProductData {
   description: string
   managementMethod: string
   severityStandard: SeverityStandard
+  productHazards: string
+  productRegulations: string
+  productSeverityScore: number | null
   components: ComponentData[]
 }
 
@@ -243,10 +246,21 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
   const [severityStandard, setSeverityStandard] = useState<SeverityStandard>(
     initial?.severityStandard || 'SAEUMTER'
   )
+  const [productHazards, setProductHazards] = useState(initial?.productHazards || '')
+  const [productRegulations, setProductRegulations] = useState(initial?.productRegulations || '')
+  const [productSeverityScore, setProductSeverityScore] = useState<number>(
+    initial?.productSeverityScore ?? 1
+  )
   const [components, setComponents] = useState<ComponentData[]>(
     initial?.components?.length ? initial.components : [emptyComponent()]
   )
   const standardMeta = getStandardMeta(severityStandard)
+
+  // 텍스트로부터 자동 계산된 제품 자체 점수 (참조용 표시)
+  const productAutoScore = useMemo(
+    () => calculateComponentSeverity(productHazards, severityStandard, productRegulations),
+    [productHazards, productRegulations, severityStandard]
+  )
 
   // KOSHA 자동검색 진행 상태
   const [koshaProgress, setKoshaProgress] = useState<{
@@ -255,16 +269,22 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     currentIndex: number // 현재 검색 중인 component index
   } | null>(null)
 
-  const productSeverity = useMemo(
+  const componentsMax = useMemo(
     () => calculateProductSeverity(components.map(c => c.severityScore)),
     [components]
   )
+  // 제품 자체 정보는 텍스트가 입력되어 있을 때만 산입 (성분 점수와 max)
+  const hasProductSelfInfo = !!(productHazards.trim() || productRegulations.trim())
+  const productSeverity = Math.max(
+    componentsMax,
+    hasProductSelfInfo ? productSeverityScore : 0,
+  ) || 1
 
   const handleComponentChange = useCallback((index: number, data: Partial<ComponentData>) => {
     setComponents(prev => prev.map((c, i) => i === index ? { ...c, ...data } : c))
   }, [])
 
-  // 기준 변경: 모든 성분의 점수를 새 기준으로 재계산
+  // 기준 변경: 모든 성분의 점수 + 제품 자체 점수를 새 기준으로 재계산
   const handleStandardChange = (next: SeverityStandard) => {
     if (next === severityStandard) return
     const nextMeta = STANDARDS_META[next]
@@ -280,6 +300,20 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
       const recalc = calculateComponentSeverity(c.hazards, next, c.regulations)
       return { ...c, severityScore: Math.min(recalc, nextMeta.maxScore) }
     }))
+    // 제품 자체 점수 재계산 (텍스트 그대로, 기준만 바뀜)
+    const productRecalc = calculateComponentSeverity(productHazards, next, productRegulations)
+    setProductSeverityScore(Math.min(productRecalc, nextMeta.maxScore))
+  }
+
+  // 제품 자체 유해성/규제사항 변경 시 자동 점수 재계산
+  // (사용자가 수동 override한 경우도 텍스트 변경 시 다시 자동으로 — 성분과 동일 정책)
+  const handleProductHazardsChange = (text: string) => {
+    setProductHazards(text)
+    setProductSeverityScore(calculateComponentSeverity(text, severityStandard, productRegulations))
+  }
+  const handleProductRegulationsChange = (text: string) => {
+    setProductRegulations(text)
+    setProductSeverityScore(calculateComponentSeverity(productHazards, severityStandard, text))
   }
 
   const addComponent = () => setComponents(prev => [...prev, emptyComponent()])
@@ -295,6 +329,13 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     setManufacturer(result.manufacturer || '')
     setDescription(result.description || '')
     setManagementMethod(result.managementMethod || '')
+
+    // 제품 자체 유해위험성 (MSDS Section 2) — 자동 점수도 함께 산정
+    const pHazards = result.productHazards || ''
+    const pRegulations = result.productRegulations || ''
+    setProductHazards(pHazards)
+    setProductRegulations(pRegulations)
+    setProductSeverityScore(calculateComponentSeverity(pHazards, severityStandard, pRegulations))
 
     // 2. 성분 데이터 생성
     const newComponents: ComponentData[] = result.components.map(c => {
@@ -389,6 +430,9 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
       description: description.trim() || null,
       managementMethod: managementMethod.trim() || null,
       severityStandard,
+      productHazards: productHazards.trim() || null,
+      productRegulations: productRegulations.trim() || null,
+      productSeverityScore: hasProductSelfInfo ? productSeverityScore : null,
       components: components.map(c => ({
         casNumber: c.casNumber.trim(),
         name: c.name.trim(),
@@ -491,6 +535,58 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" rows={6}
             placeholder="MSDS 업로드 시 자동 생성됩니다. 직접 입력/수정도 가능합니다." />
           <p className="text-xs text-gray-400 mt-1">MSDS 취급·저장방법 및 노출방지·개인보호구 내용 기반 AI 자동 생성</p>
+        </div>
+      </div>
+
+      {/* MSDS 자체정보 (제품 단위 유해위험성) */}
+      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">MSDS 자체정보 (제품 단위)</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            구성성분이 영업비밀이라도 MSDS 2번 항목(유해성·위험성)에서 제품 단위의 유해성이 공개되는 경우가 있습니다.
+            여기에 입력된 텍스트로부터 점수가 자동 산정되며, 최종 제품 점수는 <strong>성분 최댓값과 이 점수 중 큰 값</strong>으로 결정됩니다.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-12 gap-3">
+          <div className="col-span-5">
+            <label className="text-xs text-gray-500 mb-1 block">제품 자체 유해성 (Section 2)</label>
+            <textarea
+              value={productHazards}
+              onChange={e => handleProductHazardsChange(e.target.value)}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm resize-y"
+              rows={5}
+              placeholder="MSDS 업로드 시 Section 2 내용이 자동 입력됩니다. 한 줄에 분류 항목 하나씩 (예: 발암성: 구분1B)"
+            />
+          </div>
+          <div className="col-span-5">
+            <label className="text-xs text-gray-500 mb-1 block">제품 자체 규제사항 (Section 15)</label>
+            <textarea
+              value={productRegulations}
+              onChange={e => handleProductRegulationsChange(e.target.value)}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm resize-y"
+              rows={5}
+              placeholder="MSDS 업로드 시 Section 15 내용이 자동 입력됩니다."
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-gray-500 mb-1 block">제품 자체 점수</label>
+            <input
+              type="number"
+              value={productSeverityScore}
+              min={1}
+              max={standardMeta.maxScore}
+              onChange={e => {
+                const v = parseInt(e.target.value) || 1
+                setProductSeverityScore(Math.min(Math.max(v, 1), standardMeta.maxScore))
+              }}
+              className={`w-full px-2 py-1.5 border rounded text-sm font-bold text-center ${severityColors[productSeverityScore] || severityColors[1]}`}
+            />
+            <p className="text-xs text-gray-400 mt-1 leading-tight">
+              자동: <span className="font-semibold">{productAutoScore}점</span><br />
+              직접 수정 가능 (1~{standardMeta.maxScore})
+            </p>
+          </div>
         </div>
       </div>
 
