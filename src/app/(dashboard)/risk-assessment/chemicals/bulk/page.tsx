@@ -409,6 +409,14 @@ export default function ChemicalBulkPage() {
     return { ...p, errors, warnings }
   }
 
+  // 모드 전환 시 csv 진행 상태를 안전한 위치로 리셋
+  const switchMode = (next: BulkMode) => {
+    if (next === bulkMode) return
+    setBulkMode(next)
+    setStep('upload')
+    setSubmitResult(null)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -418,27 +426,60 @@ export default function ChemicalBulkPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">화학제품 일괄등록</h1>
-          <p className="text-sm text-gray-500 mt-0.5">CSV/Excel 업로드 → 자동 컬럼 인식 → KOSHA 조회 → 중대성 자동 산정</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {bulkMode === 'csv'
+              ? 'CSV/Excel 업로드 → 자동 컬럼 인식 → KOSHA 조회 → 중대성 자동 산정'
+              : 'MSDS 파일(PDF/HWP/DOCX) 여러 개를 한 번에 업로드 → 자동 파싱 → 검토 후 일괄 등록'}
+          </p>
         </div>
         <FlaskConical className="w-6 h-6 text-purple-600" />
       </div>
 
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 text-sm">
-        <StepBadge num={1} label="파일 업로드" active={step === 'upload'} done={step !== 'upload'} />
-        <ChevronRight className="w-4 h-4 text-gray-300" />
-        <StepBadge num={2} label="컬럼 매핑 & 분석" active={step === 'analyze'} done={step === 'preview' || step === 'result'} />
-        <ChevronRight className="w-4 h-4 text-gray-300" />
-        <StepBadge num={3} label="미리보기" active={step === 'preview'} done={step === 'result'} />
-        <ChevronRight className="w-4 h-4 text-gray-300" />
-        <StepBadge num={4} label="등록 결과" active={step === 'result'} done={false} />
+      {/* Mode Tab */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => switchMode('csv')}
+          className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
+            bulkMode === 'csv'
+              ? 'border-blue-600 text-blue-600 font-semibold'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileSpreadsheet className="w-4 h-4 inline mr-1.5" />
+          CSV / Excel 일괄
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode('msds')}
+          className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
+            bulkMode === 'msds'
+              ? 'border-blue-600 text-blue-600 font-semibold'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText className="w-4 h-4 inline mr-1.5" />
+          MSDS 파일 다중 업로드
+        </button>
       </div>
 
-      {/* Step 1: Upload */}
-      {step === 'upload' && (
-        <>
+      {/* Step indicator (CSV 흐름에서만 의미가 있음) */}
+      {bulkMode === 'csv' && (
+        <div className="flex items-center gap-2 text-sm">
+          <StepBadge num={1} label="파일 업로드" active={step === 'upload'} done={step !== 'upload'} />
+          <ChevronRight className="w-4 h-4 text-gray-300" />
+          <StepBadge num={2} label="컬럼 매핑 & 분석" active={step === 'analyze'} done={step === 'preview' || step === 'result'} />
+          <ChevronRight className="w-4 h-4 text-gray-300" />
+          <StepBadge num={3} label="미리보기" active={step === 'preview'} done={step === 'result'} />
+          <ChevronRight className="w-4 h-4 text-gray-300" />
+          <StepBadge num={4} label="등록 결과" active={step === 'result'} done={false} />
+        </div>
+      )}
+
+      {/* 사업장 + 중대성평가 기준 (csv 첫 단계 또는 msds 모드) */}
+      {((bulkMode === 'csv' && step === 'upload') || bulkMode === 'msds') && (
         <Card>
-          <CardContent className="pt-5 space-y-4">
+          <CardContent className="pt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1.5">사업장 선택 *</label>
@@ -454,45 +495,22 @@ export default function ChemicalBulkPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                   {SEVERITY_STANDARDS.map(s => <option key={s} value={s}>{STANDARDS_META[s].label}</option>)}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">CSV 흐름은 미리보기 단계에서도 변경 가능합니다.</p>
+                {bulkMode === 'csv' && (
+                  <p className="text-xs text-gray-400 mt-1">CSV 흐름은 미리보기 단계에서도 변경 가능합니다.</p>
+                )}
               </div>
-            </div>
-
-            {/* 모드 탭 */}
-            <div className="flex gap-1 border-b border-gray-200 -mx-5 px-5">
-              <button
-                type="button"
-                onClick={() => setBulkMode('csv')}
-                className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
-                  bulkMode === 'csv'
-                    ? 'border-blue-600 text-blue-600 font-semibold'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <FileSpreadsheet className="w-4 h-4 inline mr-1.5" />
-                CSV / Excel 일괄
-              </button>
-              <button
-                type="button"
-                onClick={() => setBulkMode('msds')}
-                className={`px-4 py-2 text-sm border-b-2 -mb-px transition ${
-                  bulkMode === 'msds'
-                    ? 'border-blue-600 text-blue-600 font-semibold'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <FileText className="w-4 h-4 inline mr-1.5" />
-                MSDS 파일 다중 업로드
-              </button>
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {bulkMode === 'msds' && (
-          <MsdsBulkPanel workplaceId={selectedWorkplace} severityStandard={severityStandard} />
-        )}
+      {/* MSDS 다중 업로드 패널 */}
+      {bulkMode === 'msds' && (
+        <MsdsBulkPanel workplaceId={selectedWorkplace} severityStandard={severityStandard} />
+      )}
 
-        {bulkMode === 'csv' && (
+      {/* Step 1: Upload (CSV) */}
+      {bulkMode === 'csv' && step === 'upload' && (
         <Card>
           <CardHeader><CardTitle className="text-base">CSV / Excel 파일 업로드</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -532,8 +550,6 @@ export default function ChemicalBulkPage() {
             </div>
           </CardContent>
         </Card>
-        )}
-        </>
       )}
 
       {/* Step 2: Analyze (column mapping + KOSHA enrichment) */}
