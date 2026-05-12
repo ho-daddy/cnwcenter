@@ -542,10 +542,11 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
       <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
         <div>
           <h2 className="text-base font-semibold text-gray-800">MSDS 자체정보 (제품 단위)</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            구성성분이 영업비밀이라도 MSDS 2번 항목(유해성·위험성)에서 제품 단위의 유해성이 공개되는 경우가 있습니다.
-            여기에 입력된 텍스트로부터 점수가 자동 산정되며, 최종 제품 점수는 <strong>성분 최댓값과 이 점수 중 큰 값</strong>으로 결정됩니다.
-          </p>
+          <ul className="text-xs text-gray-500 mt-1 list-disc pl-4 space-y-0.5">
+            <li>MSDS 서류상의 유해성(2번 항목)과 규제사항(15번 항목)이 자동 추출되며 점수도 자동으로 계산됩니다.</li>
+            <li>자동추출에 실패한 경우 직접 입력해 주세요.</li>
+            <li>최종 중대성 점수는 <strong>성분별 최대값과 이 점수 중 큰 값</strong>으로 결정됩니다.</li>
+          </ul>
         </div>
 
         <div className="grid grid-cols-12 gap-3">
