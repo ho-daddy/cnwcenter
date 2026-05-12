@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await parseJsonBody(req)
-    const { workplaceId, name, manufacturer, description, managementMethod, components } = body
+    const { workplaceId, name, manufacturer, description, managementMethod, severityStandard, components } = body
 
     if (!workplaceId || !name) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
@@ -49,13 +49,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '해당 사업장에 대한 권한이 없습니다.' }, { status: 403 })
     }
 
+    const standardValue: 'SAEUMTER' | 'METAL_UNION' =
+      severityStandard === 'METAL_UNION' ? 'METAL_UNION' : 'SAEUMTER'
+
     const compArr: Array<{ casNumber: string; name: string; concentration?: string; hazards?: string; regulations?: string; severityScore?: number }> = components || []
     const scores = compArr.map(c => c.severityScore ?? 1)
     const severityScore = scores.length > 0 ? Math.max(...scores) : null
 
     const chemical = await prisma.$transaction(async (tx) => {
       const product = await tx.chemicalProduct.create({
-        data: { workplaceId, name, manufacturer: manufacturer || null, description: description || null, managementMethod: managementMethod || null, severityScore },
+        data: { workplaceId, name, manufacturer: manufacturer || null, description: description || null, managementMethod: managementMethod || null, severityScore, severityStandard: standardValue },
       })
 
       for (const comp of compArr) {

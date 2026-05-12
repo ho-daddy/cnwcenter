@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import ChemicalForm, { type ComponentData, type ProductData } from '../../_components/ChemicalForm'
+import type { SeverityStandard } from '@/lib/msds-rules'
 
 interface ApiProduct {
   id: string
@@ -13,6 +14,7 @@ interface ApiProduct {
   description: string | null
   managementMethod: string | null
   severityScore: number | null
+  severityStandard: string | null
   workplaceId: string
   workplace: { id: string; name: string }
   components: Array<{
@@ -47,6 +49,7 @@ export default function EditChemicalProductPage() {
     manufacturer: product.manufacturer || '',
     description: product.description || '',
     managementMethod: product.managementMethod || '',
+    severityStandard: (product.severityStandard === 'METAL_UNION' ? 'METAL_UNION' : 'SAEUMTER') as SeverityStandard,
     components: product.components.map<ComponentData>(pc => ({
       key: crypto.randomUUID(),
       casNumber: pc.component.casNumber,

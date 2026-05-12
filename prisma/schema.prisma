@@ -601,6 +601,7 @@ model ChemicalProduct {
   description   String?             @db.Text
   managementMethod String?          @db.Text  // MSDS 기반 관리방법 (AI 자동생성)
   severityScore Int?                // 구성성분 중 최대 중대성점수 (자동산정)
+  severityStandard String           @default("SAEUMTER")  // 중대성평가기준: "SAEUMTER"(1~5) | "METAL_UNION"(1~4)
 
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt

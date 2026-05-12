@@ -3,7 +3,14 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Search, Loader2 } from 'lucide-react'
-import { calculateComponentSeverity, calculateProductSeverity } from '@/lib/msds-rules'
+import {
+  calculateComponentSeverity,
+  calculateProductSeverity,
+  getStandardMeta,
+  SEVERITY_STANDARDS,
+  STANDARDS_META,
+  type SeverityStandard,
+} from '@/lib/msds-rules'
 import MsdsUploadSection, { type MsdsParseResult } from './MsdsUploadSection'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -25,6 +32,7 @@ export interface ProductData {
   manufacturer: string
   description: string
   managementMethod: string
+  severityStandard: SeverityStandard
   components: ComponentData[]
 }
 
@@ -47,7 +55,7 @@ function emptyComponent(): ComponentData {
 // ─── Component Entry ─────────────────────────────────────────────────────────
 
 function ComponentEntry({
-  comp, index, onChange, onRemove, canRemove, isAutoSearching,
+  comp, index, onChange, onRemove, canRemove, isAutoSearching, standard,
 }: {
   comp: ComponentData
   index: number
@@ -55,8 +63,10 @@ function ComponentEntry({
   onRemove: (index: number) => void
   canRemove: boolean
   isAutoSearching?: boolean
+  standard: SeverityStandard
 }) {
   const [isSearching, setIsSearching] = useState(false)
+  const meta = STANDARDS_META[standard]
 
   const handleCasSearch = async () => {
     if (!comp.casNumber.trim()) { alert('CAS 번호를 입력해주세요.'); return }
@@ -67,11 +77,12 @@ function ComponentEntry({
         const data = await res.json()
         if (data.error) { alert(data.error); return }
         const hazards = data.hazards || ''
-        const severity = hazards ? calculateComponentSeverity(hazards) : 1
+        const regulations = data.regulations || ''
+        const severity = calculateComponentSeverity(hazards, standard, regulations)
         onChange(index, {
           name: data.name || comp.name,
           hazards,
-          regulations: data.regulations || '',
+          regulations,
           severityScore: severity,
         })
       } else { alert('KOSHA API 호출에 실패했습니다.') }
@@ -83,8 +94,11 @@ function ComponentEntry({
     if (checked) {
       onChange(index, {
         isTradeSecret: true,
-        casNumber: '영업비밀', name: '영업비밀', hazards: '영업비밀', regulations: '영업비밀',
-        severityScore: 5,
+        casNumber: '영업비밀',
+        name: '영업비밀',
+        hazards: meta.tradeSecretFillsHazards ? meta.tradeSecretHazardsText : '영업비밀',
+        regulations: '영업비밀',
+        severityScore: meta.tradeSecretScore,
       })
     } else {
       onChange(index, {
@@ -99,8 +113,13 @@ function ComponentEntry({
   }
 
   const handleHazardsChange = (text: string) => {
-    const severity = text.trim() ? calculateComponentSeverity(text) : 1
+    const severity = calculateComponentSeverity(text, standard, comp.regulations)
     onChange(index, { hazards: text, severityScore: severity })
+  }
+
+  const handleRegulationsChange = (text: string) => {
+    const severity = calculateComponentSeverity(comp.hazards, standard, text)
+    onChange(index, { regulations: text, severityScore: severity })
   }
 
   const severityColors: Record<number, string> = {
@@ -150,7 +169,7 @@ function ComponentEntry({
             <input type="checkbox" checked={comp.isTradeSecret}
               onChange={e => handleTradeSecretChange(e.target.checked)}
               className="rounded border-gray-300" />
-            영업비밀 <span className="text-red-400">(5점)</span>
+            영업비밀 <span className="text-red-400">({meta.tradeSecretScore}점)</span>
           </label>
         </div>
 
@@ -178,11 +197,14 @@ function ComponentEntry({
 
         <div className="col-span-2">
           <label className="text-xs text-gray-500 mb-1 block">중대성</label>
-          <input type="number" value={comp.severityScore} min={1} max={5}
-            onChange={e => onChange(index, { severityScore: parseInt(e.target.value) || 1 })}
+          <input type="number" value={comp.severityScore} min={1} max={meta.maxScore}
+            onChange={e => {
+              const v = parseInt(e.target.value) || 1
+              onChange(index, { severityScore: Math.min(Math.max(v, 1), meta.maxScore) })
+            }}
             readOnly={comp.isTradeSecret}
             className={`w-full px-2 py-1.5 border rounded text-sm font-bold text-center ${severityColors[comp.severityScore] || severityColors[1]}`} />
-          <p className="text-xs text-gray-400 mt-1">자동 / 수정 가능</p>
+          <p className="text-xs text-gray-400 mt-1">자동 / 수정 가능 (1~{meta.maxScore})</p>
         </div>
       </div>
 
@@ -199,7 +221,7 @@ function ComponentEntry({
         <div>
           <label className="text-xs text-gray-500 mb-1 block">규제사항</label>
           <textarea value={comp.regulations}
-            onChange={e => onChange(index, { regulations: e.target.value })}
+            onChange={e => handleRegulationsChange(e.target.value)}
             readOnly={comp.isTradeSecret}
             className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm resize-none" rows={3}
             placeholder="KOSHA 검색 시 자동 입력됩니다" />
@@ -218,9 +240,13 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
   const [manufacturer, setManufacturer] = useState(initial?.manufacturer || '')
   const [description, setDescription] = useState(initial?.description || '')
   const [managementMethod, setManagementMethod] = useState(initial?.managementMethod || '')
+  const [severityStandard, setSeverityStandard] = useState<SeverityStandard>(
+    initial?.severityStandard || 'SAEUMTER'
+  )
   const [components, setComponents] = useState<ComponentData[]>(
     initial?.components?.length ? initial.components : [emptyComponent()]
   )
+  const standardMeta = getStandardMeta(severityStandard)
 
   // KOSHA 자동검색 진행 상태
   const [koshaProgress, setKoshaProgress] = useState<{
@@ -237,6 +263,24 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
   const handleComponentChange = useCallback((index: number, data: Partial<ComponentData>) => {
     setComponents(prev => prev.map((c, i) => i === index ? { ...c, ...data } : c))
   }, [])
+
+  // 기준 변경: 모든 성분의 점수를 새 기준으로 재계산
+  const handleStandardChange = (next: SeverityStandard) => {
+    if (next === severityStandard) return
+    const nextMeta = STANDARDS_META[next]
+    setSeverityStandard(next)
+    setComponents(prev => prev.map(c => {
+      if (c.isTradeSecret) {
+        return {
+          ...c,
+          hazards: nextMeta.tradeSecretFillsHazards ? nextMeta.tradeSecretHazardsText : '영업비밀',
+          severityScore: nextMeta.tradeSecretScore,
+        }
+      }
+      const recalc = calculateComponentSeverity(c.hazards, next, c.regulations)
+      return { ...c, severityScore: Math.min(recalc, nextMeta.maxScore) }
+    }))
+  }
 
   const addComponent = () => setComponents(prev => [...prev, emptyComponent()])
   const removeComponent = (index: number) => {
@@ -296,13 +340,14 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
           const data = await res.json()
           if (!data.error) {
             const hazards = data.hazards || ''
-            const severity = hazards ? calculateComponentSeverity(hazards) : 1
+            const regulations = data.regulations || ''
+            const severity = calculateComponentSeverity(hazards, severityStandard, regulations)
             setComponents(prev => prev.map((c, i) =>
               i === target.index ? {
                 ...c,
                 name: data.name || c.name,
                 hazards,
-                regulations: data.regulations || '',
+                regulations,
                 severityScore: severity,
               } : c
             ))
@@ -321,7 +366,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
     setKoshaProgress(prev => prev ? { ...prev, completed: searchTargets.length, currentIndex: -1 } : null)
     // 완료 후 잠시 뒤 progress 숨기기
     setTimeout(() => setKoshaProgress(null), 2000)
-  }, [])
+  }, [severityStandard])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -343,6 +388,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
       manufacturer: manufacturer.trim() || null,
       description: description.trim() || null,
       managementMethod: managementMethod.trim() || null,
+      severityStandard,
       components: components.map(c => ({
         casNumber: c.casNumber.trim(),
         name: c.name.trim(),
@@ -381,6 +427,23 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* 중대성평가 기준 선택 */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
+        <div>
+          <label className="text-sm font-semibold text-gray-800 mb-1 block">중대성평가 기준</label>
+          <p className="text-xs text-gray-500">선택한 기준에 따라 유해성 → 점수 자동산정 규칙이 달라집니다.</p>
+        </div>
+        <select
+          value={severityStandard}
+          onChange={e => handleStandardChange(e.target.value as SeverityStandard)}
+          className="ml-auto px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+        >
+          {SEVERITY_STANDARDS.map(s => (
+            <option key={s} value={s}>{STANDARDS_META[s].label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* MSDS 자동 입력 (신규 등록 모드에서만) */}
       {mode === 'new' && (
         <MsdsUploadSection onParsed={handleMsdsParsed} />
@@ -399,7 +462,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
           <div>
             <label className="text-sm text-gray-600 mb-1 block">제품 중대성 점수</label>
             <div className={`px-3 py-2 rounded-lg text-sm font-bold text-center ${severityColors[productSeverity]}`}>
-              {productSeverity}점 (구성성분 최댓값 자동 계산)
+              {productSeverity}/{standardMeta.maxScore}점 · {standardMeta.label}
             </div>
           </div>
         </div>
@@ -478,6 +541,7 @@ export default function ChemicalForm({ mode, workplaceId, workplaceName, product
               onRemove={removeComponent}
               canRemove={components.length > 1}
               isAutoSearching={koshaProgress !== null && koshaProgress.currentIndex === idx}
+              standard={severityStandard}
             />
           ))}
         </div>
