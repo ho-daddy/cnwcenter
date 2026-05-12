@@ -633,7 +633,8 @@ model ProductComponent {
   concentration String?           // 함유량: "30", "모름", "영업비밀"
   severityScore Int?              // 이 성분의 중대성점수 (MSDS 룰 자동산정)
 
-  @@unique([productId, componentId])
+  // 같은 (productId, componentId) 페어가 한 제품 안에 여러 번 들어올 수 있다.
+  // MSDS에 같은 CAS가 두 줄로 나오는 케이스, 미세하게 다른 물질을 같은 CAS로 표기하는 케이스를 허용.
   @@index([productId])
   @@index([componentId])
 }

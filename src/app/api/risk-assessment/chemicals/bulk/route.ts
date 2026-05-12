@@ -55,21 +55,22 @@ export async function POST(req: NextRequest) {
       errors: [],
     }
 
-    await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < products.length; i++) {
-        const p = products[i]
-        try {
-          if (!p.name || p.name.trim() === '') {
-            results.errors.push({ row: i + 1, message: `제품명이 비어있습니다.` })
-            continue
-          }
+    // 제품별로 트랜잭션 분리: 한 제품 실패가 다른 제품에 캐스케이드 abort를 일으키지 않도록.
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i]
+      try {
+        if (!p.name || p.name.trim() === '') {
+          results.errors.push({ row: i + 1, message: `제품명이 비어있습니다.` })
+          continue
+        }
 
-          const compScores = p.components.map(c => c.severityScore || 1)
-          const componentsMax = compScores.length > 0 ? Math.max(...compScores) : 0
-          const productSelfScore = typeof p.productSeverityScore === 'number' ? p.productSeverityScore : 0
-          const candidates = [componentsMax, productSelfScore].filter(s => s > 0)
-          const productSeverity = candidates.length > 0 ? Math.max(...candidates) : (p.severityScore || null)
+        const compScores = p.components.map(c => c.severityScore || 1)
+        const componentsMax = compScores.length > 0 ? Math.max(...compScores) : 0
+        const productSelfScore = typeof p.productSeverityScore === 'number' ? p.productSeverityScore : 0
+        const candidates = [componentsMax, productSelfScore].filter(s => s > 0)
+        const productSeverity = candidates.length > 0 ? Math.max(...candidates) : (p.severityScore || null)
 
+        await prisma.$transaction(async (tx) => {
           const product = await tx.chemicalProduct.create({
             data: {
               workplaceId,
@@ -85,6 +86,9 @@ export async function POST(req: NextRequest) {
             },
           })
 
+          // MSDS에는 같은 CAS가 두 줄로 나오는 경우가 실제로 있고,
+          // 미세하게 다른 물질을 같은 CAS로 표기하는 경우도 있다.
+          // ProductComponent의 (productId, componentId) 유니크를 풀었으므로 그대로 다 등록한다.
           for (const comp of p.components) {
             if (!comp.casNumber || !comp.name) continue
 
@@ -104,14 +108,14 @@ export async function POST(req: NextRequest) {
               },
             })
           }
+        })
 
-          results.created++
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : '알 수 없는 오류'
-          results.errors.push({ row: i + 1, message: msg })
-        }
+        results.created++
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '알 수 없는 오류'
+        results.errors.push({ row: i + 1, message: msg })
       }
-    })
+    }
     return NextResponse.json(results)
   } catch (error) {
     if (error instanceof ApiError) {
