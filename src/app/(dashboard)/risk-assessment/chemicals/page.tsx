@@ -69,6 +69,13 @@ export default function ChemicalProductsPage() {
     if (res.ok) setChemicals(prev => prev.filter(c => c.id !== id))
   }
 
+  const openPopup = (url: string, name: string) => {
+    const w = 1100, h = 800
+    const left = Math.max(0, (window.screen.availWidth - w) / 2)
+    const top = Math.max(0, (window.screen.availHeight - h) / 2)
+    window.open(url, name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`)
+  }
+
   const filtered = useMemo(() => {
     let list = chemicals
     if (searchText) {
@@ -225,12 +232,12 @@ export default function ChemicalProductsPage() {
                     <td className="px-4 py-3 text-center">{severityBadge(c.severityScore)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Link href={`/risk-assessment/chemicals/${c.id}`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600" title="상세보기 (새 창)">
+                        <button onClick={() => openPopup(`/risk-assessment/chemicals/${c.id}`, `chemical-detail-${c.id}`)} className="p-1.5 text-gray-400 hover:text-blue-600" title="상세보기 (팝업)">
                           <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link href={`/risk-assessment/chemicals/${c.id}/edit`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-green-600" title="수정 (새 창)">
+                        </button>
+                        <button onClick={() => openPopup(`/risk-assessment/chemicals/${c.id}/edit`, `chemical-edit-${c.id}`)} className="p-1.5 text-gray-400 hover:text-green-600" title="수정 (팝업)">
                           <Pencil className="w-4 h-4" />
-                        </Link>
+                        </button>
                         <button onClick={() => handleDelete(c.id, c.name)} className="p-1.5 text-gray-400 hover:text-red-500" title="삭제">
                           <Trash2 className="w-4 h-4" />
                         </button>
