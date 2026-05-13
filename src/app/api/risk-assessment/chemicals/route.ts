@@ -12,17 +12,27 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const workplaceId = searchParams.get('workplaceId')
+  const q = searchParams.get('q')?.trim() || ''
 
   const accessibleIds = await getAccessibleWorkplaceIds(auth.user!.id, auth.user!.role)
 
   const where: Prisma.ChemicalProductWhereInput = {
     ...(accessibleIds !== null ? { workplaceId: { in: accessibleIds } } : {}),
     ...(workplaceId ? { workplaceId } : {}),
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { manufacturer: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
   }
 
   const chemicals = await prisma.chemicalProduct.findMany({
     where,
     orderBy: { createdAt: 'desc' },
+    ...(q ? { take: 20 } : {}),
     include: {
       workplace: { select: { id: true, name: true } },
       _count: { select: { components: true, unitLinks: true } },

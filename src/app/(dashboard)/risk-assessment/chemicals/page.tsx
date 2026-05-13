@@ -225,10 +225,10 @@ export default function ChemicalProductsPage() {
                     <td className="px-4 py-3 text-center">{severityBadge(c.severityScore)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <Link href={`/risk-assessment/chemicals/${c.id}`} className="p-1.5 text-gray-400 hover:text-blue-600" title="상세보기">
+                        <Link href={`/risk-assessment/chemicals/${c.id}`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600" title="상세보기 (새 창)">
                           <Eye className="w-4 h-4" />
                         </Link>
-                        <Link href={`/risk-assessment/chemicals/${c.id}/edit`} className="p-1.5 text-gray-400 hover:text-green-600" title="수정">
+                        <Link href={`/risk-assessment/chemicals/${c.id}/edit`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-green-600" title="수정 (새 창)">
                           <Pencil className="w-4 h-4" />
                         </Link>
                         <button onClick={() => handleDelete(c.id, c.name)} className="p-1.5 text-gray-400 hover:text-red-500" title="삭제">
