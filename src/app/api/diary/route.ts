@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { requireStaffOrAbove } from '@/lib/auth-utils'
 import { DiaryAuthorType } from '@prisma/client'
 
-const ADMIN_KEY = process.env.ADMIN_PASSWORD ?? ''
+const DIARY_API_KEY = process.env.DIARY_API_KEY ?? ''
 
 function isAdminKey(req: NextRequest) {
-  return req.headers.get('x-admin-key') === ADMIN_KEY && ADMIN_KEY !== ''
+  return DIARY_API_KEY !== '' && req.headers.get('x-admin-key') === DIARY_API_KEY
 }
 
 // GET /api/diary — 일기 목록 (날짜 내림차순, 페이지네이션)
