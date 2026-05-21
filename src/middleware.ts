@@ -24,6 +24,7 @@ const PUBLIC_PATHS = [
   '/pending-approval',
   '/api/auth',
   '/api/briefing',  // 브리핑 자동 수집/분석
+  '/api/diary',     // 교환일기 AI 에이전트 접근 (x-admin-key로 별도 인증)
   '/api/surveys/public/',  // 공개 설문 API
   '/api/law',       // 법령검색 프록시 (내부 서버 relay)
   '/s/',           // 공개 설문 URL
