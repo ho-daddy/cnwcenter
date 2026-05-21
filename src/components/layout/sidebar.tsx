@@ -61,6 +61,11 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
   }
 
+  // 교환일기: STAFF 이상
+  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+    items.push({ title: '교환일기', href: '/diary', icon: BookOpen })
+  }
+
   // 위험성평가 서브메뉴
   items.push({
     title: '위험성평가',

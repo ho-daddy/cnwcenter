@@ -1321,6 +1321,25 @@ model WorkVideo {
   @@index([uploadedById])
 }
 
+// 교환일기
+model Diary {
+  id          String          @id @default(cuid())
+  authorName  String          // "캣", "사라", "최진일", "영희동지" 등
+  authorType  DiaryAuthorType @default(HUMAN)
+  content     String          @db.Text
+  entryDate   DateTime        // 이 일기가 속한 날짜 (날짜 기준 그루핑)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([entryDate])
+  @@index([authorName])
+}
+
+enum DiaryAuthorType {
+  AI
+  HUMAN
+}
+
 // 팝업 관리
 model Popup {
   id          String   @id @default(cuid())
