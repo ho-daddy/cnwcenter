@@ -11,8 +11,10 @@ function isAdminKey(req: NextRequest) {
 
 // GET /api/diary — 일기 목록 (날짜 내림차순, 페이지네이션)
 export async function GET(req: NextRequest) {
-  const auth = await requireStaffOrAbove()
-  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+  if (!isAdminKey(req)) {
+    const auth = await requireStaffOrAbove()
+    if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+  }
 
   const { searchParams } = req.nextUrl
   const page = parseInt(searchParams.get('page') ?? '1')
