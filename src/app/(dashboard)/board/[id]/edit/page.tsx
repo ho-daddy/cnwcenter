@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Paperclip, X, FileText } from 'lucide-react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 
 interface ExistingAttachment {
   id: string
@@ -164,13 +165,12 @@ export default function EditBoardPostPage() {
         </div>
 
         {/* 내용 */}
-        <div className="px-6 pt-4">
-          <textarea
+        <div className="px-6 pt-4 pb-2">
+          <RichTextEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={16}
+            onChange={setContent}
             placeholder="내용을 입력하세요"
-            className="w-full text-sm text-gray-800 placeholder-gray-400 border-0 resize-y focus:outline-none leading-relaxed"
+            className="min-h-[280px]"
           />
         </div>
 

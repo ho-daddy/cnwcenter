@@ -3,11 +3,12 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Paperclip, X, FileText, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Paperclip, X, FileText } from 'lucide-react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 
 interface AttachedFile {
   file: File
-  preview?: string // 이미지 미리보기 URL
+  preview?: string
 }
 
 export default function NewBoardPostPage() {
@@ -26,7 +27,6 @@ export default function NewBoardPostPage() {
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
     }))
     setFiles((prev) => [...prev, ...newFiles])
-    // input 초기화 (같은 파일 재선택 가능)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -80,18 +80,13 @@ export default function NewBoardPostPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* 헤더 */}
       <div className="flex items-center gap-3">
-        <Link
-          href="/board"
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-        >
+        <Link href="/board" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold text-gray-900">글쓰기</h1>
       </div>
 
-      {/* 폼 */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {error && (
           <div className="mx-6 mt-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
@@ -99,7 +94,6 @@ export default function NewBoardPostPage() {
           </div>
         )}
 
-        {/* 제목 */}
         <div className="px-6 pt-6">
           <input
             type="text"
@@ -110,18 +104,16 @@ export default function NewBoardPostPage() {
           />
         </div>
 
-        {/* 내용 */}
-        <div className="px-6 pt-4">
-          <textarea
+        <div className="px-6 pt-4 pb-2">
+          <RichTextEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={16}
+            onChange={setContent}
             placeholder="내용을 입력하세요"
-            className="w-full text-sm text-gray-800 placeholder-gray-400 border-0 resize-y focus:outline-none leading-relaxed"
+            className="min-h-[280px]"
           />
         </div>
 
-        {/* 첨부파일 영역 */}
+        {/* 파일 첨부 */}
         <div className="px-6 py-4 border-t border-gray-100">
           <div className="flex items-center gap-3 mb-3">
             <button
@@ -132,45 +124,29 @@ export default function NewBoardPostPage() {
               <Paperclip className="w-4 h-4" />
               파일 첨부
             </button>
-            <span className="text-xs text-gray-400">이미지, 문서, PDF 등 (최대 20MB)</span>
+            <span className="text-xs text-gray-400">문서, PDF, HWP 등 (최대 20MB)</span>
             <input
               ref={fileInputRef}
               type="file"
               multiple
               onChange={handleFileSelect}
               className="hidden"
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.txt,.zip"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.zip"
             />
           </div>
 
-          {/* 첨부파일 목록 */}
           {files.length > 0 && (
             <div className="space-y-2">
               {files.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg"
-                >
-                  {f.preview ? (
-                    <img
-                      src={f.preview}
-                      alt={f.file.name}
-                      className="w-10 h-10 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 flex items-center justify-center bg-gray-200 rounded">
-                      <FileText className="w-5 h-5 text-gray-500" />
-                    </div>
-                  )}
+                <div key={i} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg">
+                  <div className="w-10 h-10 flex items-center justify-center bg-gray-200 rounded">
+                    <FileText className="w-5 h-5 text-gray-500" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate">{f.file.name}</p>
                     <p className="text-xs text-gray-400">{formatFileSize(f.file.size)}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                  >
+                  <button type="button" onClick={() => removeFile(i)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -179,12 +155,8 @@ export default function NewBoardPostPage() {
           )}
         </div>
 
-        {/* 하단 버튼 */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
-          <Link
-            href="/board"
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-          >
+          <Link href="/board" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
             취소
           </Link>
           <button

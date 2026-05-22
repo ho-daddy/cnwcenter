@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { RichTextContent } from '@/components/ui/rich-text-editor'
 import {
   ArrowLeft,
   Pencil,
@@ -228,9 +229,7 @@ export default function BoardPostDetailPage() {
         {/* 본문 */}
         <div className="px-6 py-6 min-h-[120px]">
           {post.content ? (
-            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-              {post.content}
-            </p>
+            <RichTextContent html={post.content} />
           ) : (
             <p className="text-sm text-gray-400 italic">내용이 없습니다.</p>
           )}
