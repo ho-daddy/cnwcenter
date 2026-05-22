@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
 const ALLOWED_TYPES = [
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'image/heic', 'image/heif',  // iOS 기본 포맷
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -52,6 +53,11 @@ const ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'application/haansofthwp', 'application/x-hwp',
   'text/plain', 'application/zip',
+]
+const ALLOWED_EXTS = [
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.hwp', '.hwpx', '.txt', '.zip',
 ]
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
 
@@ -71,7 +77,10 @@ export async function POST(req: NextRequest) {
 
   // 파일 검증
   for (const file of files) {
-    if (!ALLOWED_TYPES.includes(file.type) && !file.name.endsWith('.hwp')) {
+    const ext = path.extname(file.name).toLowerCase()
+    const typeOk = ALLOWED_TYPES.includes(file.type) || file.type === ''
+    const extOk = ALLOWED_EXTS.includes(ext)
+    if (!typeOk && !extOk) {
       return NextResponse.json({ error: `허용되지 않는 파일 형식입니다: ${file.name}` }, { status: 400 })
     }
     if (file.size > MAX_FILE_SIZE) {
