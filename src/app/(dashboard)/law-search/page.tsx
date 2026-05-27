@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Scale, Loader2, X, Bot, ToggleLeft, ToggleRight, FileText, BookOpen } from 'lucide-react'
 
 const API_BASE = '/api/law'
@@ -35,6 +35,13 @@ export default function LawSearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [askResult, setAskResult] = useState<AskResponse | null>(null)
+  const [serverOnline, setServerOnline] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/health`).then(r => r.ok ? r.json() : null)
+      .then(d => setServerOnline(d?.status === 'online'))
+      .catch(() => setServerOnline(false))
+  }, [])
 
   const [articlePopup, setArticlePopup] = useState<{
     lawName: string
@@ -199,9 +206,23 @@ export default function LawSearchPage() {
             <Scale className="w-6 h-6 text-violet-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">법령 AI 검색</h1>
+          {serverOnline === null ? (
+            <span className="text-xs text-gray-400">확인 중...</span>
+          ) : serverOnline ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />ON
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs font-medium text-red-500">
+              <span className="w-2 h-2 rounded-full bg-red-400" />OFF
+            </span>
+          )}
         </div>
         <p className="text-sm text-gray-500">
           궁금한 법령 내용을 자연어로 질문하면 AI가 답변하고, 참고한 조문/별표를 클릭해 전문을 볼 수 있습니다.
+        </p>
+        <p className="mt-1 text-xs text-gray-400">
+          본 서비스는 별도 서버에서 제공되므로 해당 서버가 ON 상태인 경우에만 작동합니다.
         </p>
       </div>
 
