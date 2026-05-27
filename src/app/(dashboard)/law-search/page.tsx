@@ -6,7 +6,7 @@ import { Scale, Loader2, X, Bot, ToggleLeft, ToggleRight, FileText, BookOpen } f
 const API_BASE = '/api/law'
 
 interface AskSource {
-  type: 'law' | 'precedent' | 'interpretation'
+  type: 'law' | 'precedent' | 'interpretation' | 'annex'
   title: string
   text?: string
   detail?: string
@@ -171,7 +171,24 @@ export default function LawSearchPage() {
     }
   }
 
-  const references = askResult?.answer ? extractReferences(askResult.answer) : []
+  const references: Reference[] = (() => {
+    const fromText = askResult?.answer ? extractReferences(askResult.answer) : []
+    const seen = new Set(fromText.map(r => r.type === 'annex' ? `${r.lawName}|annex|${r.annexNo}` : `${r.lawName}|art|${r.articleNo}|${r.subNo ?? 0}`))
+    // API sources의 annex 항목 추가 (텍스트 파싱으로 못 잡은 별표 보완)
+    const fromSources: Reference[] = (askResult?.sources ?? [])
+      .filter(s => s.type === 'annex')
+      .flatMap(s => {
+        const m = s.title.match(/^(.+?)\s+별표\s+(\d+)$/)
+        if (!m) return []
+        const lawName = m[1].trim()
+        const annexNo = parseInt(m[2])
+        const key = `${lawName}|annex|${annexNo}`
+        if (seen.has(key)) return []
+        seen.add(key)
+        return [{ type: 'annex' as const, lawName, label: `별표 ${annexNo}`, annexNo }]
+      })
+    return [...fromText, ...fromSources]
+  })()
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
