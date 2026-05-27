@@ -16,6 +16,7 @@ export function RegisterForm() {
   const [success, setSuccess] = useState(false)
   const [privacyAgreed, setPrivacyAgreed] = useState(false)
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
+  const [warningConfirmed, setWarningConfirmed] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -124,22 +125,6 @@ export function RegisterForm() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">회원가입</CardTitle>
           <CardDescription>새움터에 가입하고 서비스를 이용하세요</CardDescription>
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-left text-xs text-amber-800">
-            <p className="font-semibold">건축행정시스템 <span className="underline">세움터</span>를 찾고 계신가요?</p>
-            <p className="mt-1">이 사이트는 충남노동건강인권센터 <span className="font-semibold">새움터</span>의 서비스 플랫폼입니다.</p>
-            <p className="mt-1">
-              건축행정시스템은{' '}
-              <a
-                href="https://www.eais.go.kr"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold underline hover:text-amber-900"
-              >
-                www.eais.go.kr
-              </a>
-              에서 이용하실 수 있습니다.
-            </p>
-          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* 에러 메시지 */}
@@ -313,6 +298,48 @@ export function RegisterForm() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 세움터 오인 경고 팝업 */}
+      {!warningConfirmed && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="사이트 확인"
+        >
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl p-6 space-y-5">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 p-2 bg-amber-100 rounded-full">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">이용 전 확인해 주세요</h2>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  SAEUM.SPACE는 일터의 안전보건관리를 지원하는 시스템입니다. 최근 건축행정시스템 <span className="font-semibold">'세움터(www.eais.go.kr)'</span>로 오인하여 가입신청하시는 분들이 있으나 본 시스템은 건축행정과는 아무런 관련이 없습니다. 다시 한번 확인 후 가입신청해주시기 바랍니다.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Button
+                type="button"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => setWarningConfirmed(true)}
+              >
+                안전보건관리시스템을 찾아온 것이 맞습니다
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => { window.location.href = 'https://www.eais.go.kr' }}
+              >
+                건축행정시스템을 찾고 있습니다
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 개인정보처리방침 모달 */}
       {privacyModalOpen && (
