@@ -1178,7 +1178,7 @@ function extractReferences(text: string): Reference[] {
   // + 옵션 (시행령|시행규칙)
   // 임의 단어 조합 ("제공된 자료에서 산업안전보건법 ...") 매칭 방지
   const lawMatches: { start: number; end: number; name: string }[] = []
-  const lawPattern = /(?<=[\s「『」\(\,\.\;\n]|^)(?:[가-힣]+(?:법률|법)|[가-힣]+(?:\s+[가-힣]+)+\s+관한\s+법(?:률)?)(?:\s+(?:시행령|시행규칙))?/g
+  const lawPattern = /(?<=[\s「『」\(\,\.\;\n]|^)(?:[가-힣]+(?:법률|법)|[가-힣]+(?:\s+[가-힣]+)*\s+관한\s+(?:법(?:률)?|규칙|규정))(?:\s+(?:시행령|시행규칙))?/g
   let lm
   while ((lm = lawPattern.exec(text)) !== null) {
     const name = lm[0].trim()
