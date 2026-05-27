@@ -1,34 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Image from 'next/image'
-import { Scale, Search, Loader2, ChevronDown, ChevronRight, Gavel, MessageSquare, Bot, ToggleLeft, ToggleRight, Landmark, History, X } from 'lucide-react'
+import { useState, useCallback, useRef } from 'react'
+import { Scale, Loader2, X, Bot, ToggleLeft, ToggleRight, FileText, BookOpen } from 'lucide-react'
 
 const API_BASE = '/api/law'
-
-type TabType = 'ask' | 'search' | 'precedents' | 'interpretations' | 'nlrc'
-
-interface HistoryItem {
-  query: string
-  tab: TabType
-  timestamp: number
-}
-
-const HISTORY_KEY = 'law-search-history'
-const MAX_HISTORY = 20
-
-interface SearchResult {
-  source?: string
-  law_name?: string
-  data: string
-}
-
-interface SearchResponse {
-  query?: string
-  preset?: string
-  results?: SearchResult[]
-  search_time_ms?: number
-}
 
 interface AskSource {
   type: 'law' | 'precedent' | 'interpretation'
@@ -45,134 +20,22 @@ interface AskResponse {
   generate_time_ms?: number
 }
 
-interface TextResult {
-  result: string
+type Reference = {
+  type: 'article' | 'annex'
+  lawName: string
+  label: string
+  articleNo?: number
+  subNo?: number
+  annexNo?: number
 }
-
-// --- CLI text parsers ---
-
-interface ParsedLawItem {
-  id: string
-  title: string
-  fields: { label: string; value: string }[]
-  rawText?: string
-}
-
-function parseLawSearchResults(results: SearchResult[]): ParsedLawItem[] {
-  return results.map((r, idx) => {
-    const lines = r.data.split('\n')
-    const title = r.law_name || r.source || `결과 ${idx + 1}`
-    const fields: { label: string; value: string }[] = []
-    const textLines: string[] = []
-
-    for (const line of lines) {
-      const fieldMatch = line.match(/^\s*-\s*(.+?):\s*(.+)$/)
-      if (fieldMatch) {
-        fields.push({ label: fieldMatch[1].trim(), value: fieldMatch[2].trim() })
-      } else if (line.trim()) {
-        textLines.push(line)
-      }
-    }
-
-    return {
-      id: `law-${idx}`,
-      title,
-      fields,
-      rawText: textLines.length > 0 ? textLines.join('\n') : undefined,
-    }
-  })
-}
-
-interface ParsedPrecedentItem {
-  id: string
-  caseId?: string
-  court?: string
-  date?: string
-  title: string
-  rawId?: string
-  rawText: string
-}
-
-function parsePrecedentsText(text: string): ParsedPrecedentItem[] {
-  const items: ParsedPrecedentItem[] = []
-  // Split by item pattern: [id] title or numbered items
-  const blocks = text.split(/\n(?=\[[\d]+\]|\d+\.\s)/).filter(b => b.trim())
-
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i].trim()
-    if (!block) continue
-
-    const headerMatch = block.match(/^\[(\d+)\]\s*(.+?)(?:\n|$)/)
-    const numberedMatch = !headerMatch ? block.match(/^(\d+)\.\s*(.+?)(?:\n|$)/) : null
-
-    if (headerMatch || numberedMatch) {
-      const rawId = headerMatch ? headerMatch[1] : numberedMatch![1]
-      const titleLine = headerMatch ? headerMatch[2] : numberedMatch![2]
-      const rest = block.slice(block.indexOf('\n') + 1)
-
-      const caseMatch = rest.match(/사건번호:\s*(.+)/)
-      const courtMatch = rest.match(/법원:\s*(.+)/)
-      const dateMatch = rest.match(/선고일:\s*(.+)/)
-
-      items.push({
-        id: `prec-${rawId}-${i}`,
-        rawId,
-        title: titleLine.trim(),
-        caseId: caseMatch?.[1]?.trim(),
-        court: courtMatch?.[1]?.trim(),
-        date: dateMatch?.[1]?.trim(),
-        rawText: rest.trim(),
-      })
-    } else if (block.length > 20) {
-      // Fallback: treat as a single block if it doesn't match patterns
-      items.push({
-        id: `prec-fallback-${i}`,
-        title: block.slice(0, 80) + (block.length > 80 ? '...' : ''),
-        rawText: block,
-      })
-    }
-  }
-
-  return items
-}
-
-// --- Tab config ---
-
-const TABS: { key: TabType; label: string; icon: React.ReactNode; color: string; activeColor: string; borderColor: string }[] = [
-  { key: 'ask', label: 'AI에게 질문', icon: <Bot className="w-4 h-4" />, color: 'text-violet-600', activeColor: 'bg-violet-50 text-violet-700', borderColor: 'border-violet-600' },
-  { key: 'search', label: '법령명으로 검색', icon: <Search className="w-4 h-4" />, color: 'text-blue-600', activeColor: 'bg-blue-50 text-blue-700', borderColor: 'border-blue-600' },
-  { key: 'precedents', label: '판례', icon: <Gavel className="w-4 h-4" />, color: 'text-amber-600', activeColor: 'bg-amber-50 text-amber-700', borderColor: 'border-amber-600' },
-  { key: 'interpretations', label: '해석례', icon: <MessageSquare className="w-4 h-4" />, color: 'text-emerald-600', activeColor: 'bg-emerald-50 text-emerald-700', borderColor: 'border-emerald-600' },
-  { key: 'nlrc', label: '노동위', icon: <Landmark className="w-4 h-4" />, color: 'text-rose-600', activeColor: 'bg-rose-50 text-rose-700', borderColor: 'border-rose-600' },
-]
 
 export default function LawSearchPage() {
   const [query, setQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<TabType>('ask')
-  const [isOnline, setIsOnline] = useState<boolean | null>(null)
+  const [oshOnly, setOshOnly] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [oshOnly, setOshOnly] = useState(false)
-  const [displayCount, setDisplayCount] = useState(10)
-
-  // Results per tab
-  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
-  const [precedentsText, setPrecedentsText] = useState<string | null>(null)
-  const [interpretationsText, setInterpretationsText] = useState<string | null>(null)
-  const [nlrcText, setNlrcText] = useState<string | null>(null)
   const [askResult, setAskResult] = useState<AskResponse | null>(null)
 
-  // Detail views
-  const [precedentDetail, setPrecedentDetail] = useState<{ id: string; text: string } | null>(null)
-  const [interpretationDetail, setInterpretationDetail] = useState<{ id: string; text: string } | null>(null)
-  const [nlrcDetail, setNlrcDetail] = useState<{ id: string; text: string } | null>(null)
-
-  // Search history
-  const [searchHistory, setSearchHistory] = useState<HistoryItem[]>([])
-  const [showHistory, setShowHistory] = useState(false)
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
-  const [expandedSources, setExpandedSources] = useState(true)
-  const [detailLoading, setDetailLoading] = useState(false)
   const [articlePopup, setArticlePopup] = useState<{
     lawName: string
     article: string
@@ -189,44 +52,6 @@ export default function LawSearchPage() {
     error: string | null
   } | null>(null)
   const mstCache = useRef<Record<string, string>>({})
-
-  // Load search history from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(HISTORY_KEY)
-      if (saved) setSearchHistory(JSON.parse(saved))
-    } catch { /* ignore */ }
-  }, [])
-
-  const saveToHistory = useCallback((q: string, tab: TabType) => {
-    setSearchHistory(prev => {
-      const filtered = prev.filter(h => !(h.query === q && h.tab === tab))
-      const next = [{ query: q, tab, timestamp: Date.now() }, ...filtered].slice(0, MAX_HISTORY)
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)) } catch { /* ignore */ }
-      return next
-    })
-  }, [])
-
-  const clearHistory = useCallback(() => {
-    setSearchHistory([])
-    try { localStorage.removeItem(HISTORY_KEY) } catch { /* ignore */ }
-  }, [])
-
-  // Health check every 10 seconds
-  const checkHealth = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/health`, { method: 'GET' })
-      setIsOnline(res.ok)
-    } catch {
-      setIsOnline(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    checkHealth()
-    const interval = setInterval(checkHealth, 10000)
-    return () => clearInterval(interval)
-  }, [checkHealth])
 
   const fetchAnnexPopup = useCallback(async (lawName: string, annexNo: number) => {
     setAnnexPopup({ lawName, annexNo, title: null, content: null, pdfUrl: null, loading: true, error: null })
@@ -314,25 +139,6 @@ export default function LawSearchPage() {
     }
   }, [])
 
-  const toggleCard = (id: string) => {
-    setExpandedCards(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const getPlaceholder = () => {
-    switch (activeTab) {
-      case 'ask': return 'AI에게 법령에 대해 질문하세요... (예: 50인 미만 사업장에서 선임해야 하는 안전보건 담당자는?)'
-      case 'search': return '법령명으로 검색하세요... (예: 산업안전보건법, 근로기준법)'
-      case 'precedents': return '판례를 검색하세요... (예: 산업재해 사업주 책임)'
-      case 'interpretations': return '해석례를 검색하세요... (예: 안전보건관리체제)'
-      case 'nlrc': return '노동위원회 결정례를 검색하세요... (예: 부당해고 원직복직)'
-    }
-  }
-
   const handleSubmit = async () => {
     if (!query.trim() || loading) return
 
@@ -340,149 +146,21 @@ export default function LawSearchPage() {
     setError(null)
 
     try {
-      switch (activeTab) {
-        case 'search': {
-          setSearchResults(null)
-          const res = await fetch(`${API_BASE}/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: query.trim(),
-              preset: oshOnly ? 'osh' : null,
-              display: displayCount,
-            }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: SearchResponse = await res.json()
-          setSearchResults(data)
-          break
-        }
-        case 'precedents': {
-          setPrecedentsText(null)
-          setPrecedentDetail(null)
-          const res = await fetch(`${API_BASE}/precedents`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query.trim(), display: displayCount }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setPrecedentsText(data.result)
-          break
-        }
-        case 'interpretations': {
-          setInterpretationsText(null)
-          setInterpretationDetail(null)
-          const res = await fetch(`${API_BASE}/interpretations`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query.trim(), display: displayCount }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setInterpretationsText(data.result)
-          break
-        }
-        case 'nlrc': {
-          setNlrcText(null)
-          setNlrcDetail(null)
-          const res = await fetch(`${API_BASE}/nlrc`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query.trim(), display: displayCount }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: TextResult = await res.json()
-          setNlrcText(data.result)
-          break
-        }
-        case 'ask': {
-          setAskResult(null)
-          const res = await fetch(`${API_BASE}/ask`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              question: query.trim(),
-              preset: oshOnly ? 'osh' : null,
-            }),
-          })
-          if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-          const data: AskResponse = await res.json()
-          setAskResult(data)
-          break
-        }
-      }
-      saveToHistory(query.trim(), activeTab)
+      const res = await fetch(`${API_BASE}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: query.trim(),
+          preset: oshOnly ? 'osh' : null,
+        }),
+      })
+      if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
+      const data: AskResponse = await res.json()
+      setAskResult(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : '요청 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadNlrcDetail = async (id: string) => {
-    if (nlrcDetail?.id === id) {
-      setNlrcDetail(null)
-      return
-    }
-    setDetailLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/nlrc/detail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      })
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-      const data: TextResult = await res.json()
-      setNlrcDetail({ id, text: data.result })
-    } catch {
-      setError('노동위 결정례 전문을 불러오는데 실패했습니다.')
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  const loadPrecedentDetail = async (id: string) => {
-    if (precedentDetail?.id === id) {
-      setPrecedentDetail(null)
-      return
-    }
-    setDetailLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/precedents/detail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      })
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-      const data: TextResult = await res.json()
-      setPrecedentDetail({ id, text: data.result })
-    } catch {
-      setError('판례 전문을 불러오는데 실패했습니다.')
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  const loadInterpretationDetail = async (id: string) => {
-    if (interpretationDetail?.id === id) {
-      setInterpretationDetail(null)
-      return
-    }
-    setDetailLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/interpretations/detail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      })
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
-      const data: TextResult = await res.json()
-      setInterpretationDetail({ id, text: data.result })
-    } catch {
-      setError('해석례 전문을 불러오는데 실패했습니다.')
-    } finally {
-      setDetailLoading(false)
     }
   }
 
@@ -493,599 +171,183 @@ export default function LawSearchPage() {
     }
   }
 
-  const currentTabConfig = TABS.find(t => t.key === activeTab)!
+  const references = askResult?.answer ? extractReferences(askResult.answer) : []
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Scale className="w-7 h-7 text-blue-600" />
-        <h1 className="text-2xl font-bold text-gray-900">법령 검색</h1>
-      </div>
-
-      {/* Status Banner */}
-      <div
-        className={`rounded-xl mb-6 overflow-hidden border ${
-          isOnline === null
-            ? 'bg-gray-50 border-gray-200'
-            : isOnline
-              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
-              : 'bg-gradient-to-r from-gray-50 to-slate-100 border-gray-200'
-        }`}
-      >
-        {isOnline === null ? (
-          <div className="flex items-center justify-center py-6 text-sm text-gray-400">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            연결 확인 중...
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-violet-100">
+            <Scale className="w-6 h-6 text-violet-600" />
           </div>
-        ) : (
-          <div className="flex items-center gap-5 p-5">
-            <div className="relative flex-shrink-0">
-              <Image
-                src={isOnline ? '/images/catherine-working.png' : '/images/catherine-away.png'}
-                alt={isOnline ? '캐서린팀장 출근중' : '캐서린팀장 자리비움'}
-                width={120}
-                height={120}
-                className="rounded-xl object-cover shadow-md"
-              />
-              <span
-                className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                  isOnline ? 'bg-green-500' : 'bg-gray-400'
-                }`}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  isOnline
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-200 text-gray-500'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                  {isOnline ? '출근중' : '자리비움'}
-                </span>
-              </div>
-              <p className={`text-sm leading-relaxed ${isOnline ? 'text-gray-700' : 'text-gray-500'}`}>
-                {isOnline ? (
-                  <>
-                    <strong className="text-green-700">캐서린팀장</strong>이 출근중입니다.{' '}
-                    법령 검색, 판례, 해석례, 별표/서식, 노동위 결정례, 체계도, 개정추적, AI 질문을 이용하실 수 있습니다.
-                  </>
-                ) : (
-                  <>
-                    <strong className="text-gray-600">캐서린팀장</strong>이 자리를 비운 상태입니다.{' '}
-                    아쉽게도 법령검색시스템은 캐서린팀장 출근중에만 작동합니다.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Search Bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-0 rounded-b-none border-b-0">
-        <div className="flex gap-3 items-center">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={getPlaceholder()}
-            className="flex-1 px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !query.trim()}
-            className={`flex items-center gap-2 px-5 py-3 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap ${
-              activeTab === 'ask' ? 'bg-violet-600 hover:bg-violet-700' :
-              activeTab === 'search' ? 'bg-blue-600 hover:bg-blue-700' :
-              activeTab === 'precedents' ? 'bg-amber-600 hover:bg-amber-700' :
-              activeTab === 'interpretations' ? 'bg-emerald-600 hover:bg-emerald-700' :
-              'bg-rose-600 hover:bg-rose-700'
-            }`}
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : currentTabConfig.icon}
-            {activeTab === 'ask' ? '질문하기' : '검색'}
-          </button>
+          <h1 className="text-2xl font-bold text-gray-900">법령 AI 검색</h1>
         </div>
-        {/* OSH Toggle + Display Count */}
-        <div className="flex items-center gap-4 mt-3">
+        <p className="text-sm text-gray-500">
+          궁금한 법령 내용을 자연어로 질문하면 AI가 답변하고, 참고한 조문/별표를 클릭해 전문을 볼 수 있습니다.
+        </p>
+      </div>
+
+      {/* Question Input */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6">
+        <textarea
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="법령에 대해 질문하세요... (예: 50인 미만 사업장 안전보건 담당자 선임 의무)"
+          rows={3}
+          className="w-full px-3 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+          disabled={loading}
+        />
+
+        <div className="mt-3 flex items-center justify-between flex-wrap gap-3">
           <button
-            onClick={() => setOshOnly(!oshOnly)}
-            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
-              oshOnly ? 'text-blue-700' : 'text-gray-400'
+            type="button"
+            onClick={() => setOshOnly(v => !v)}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              oshOnly ? 'bg-violet-50 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
             }`}
           >
-            {oshOnly ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            {oshOnly ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
             산업안전보건 법령만
           </button>
-          {activeTab !== 'ask' && (
-            <div className="flex items-center gap-1.5 text-sm text-gray-500 ml-auto">
-              <span>결과 수:</span>
-              {[5, 10, 20].map(n => (
-                <button
-                  key={n}
-                  onClick={() => setDisplayCount(n)}
-                  className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-                    displayCount === n
-                      ? 'bg-gray-800 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Search History */}
-        {searchHistory.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <History className="w-3.5 h-3.5" />
-                최근 검색 ({searchHistory.length})
-                {showHistory ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              </button>
-              {showHistory && (
-                <button
-                  onClick={clearHistory}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  전체 삭제
-                </button>
-              )}
-            </div>
-            {showHistory && (
-              <div className="flex flex-wrap gap-1.5">
-                {searchHistory.map((h, i) => {
-                  const tabConfig = TABS.find(t => t.key === h.tab)
-                  return (
-                    <button
-                      key={`${h.query}-${h.tab}-${i}`}
-                      onClick={() => {
-                        setQuery(h.query)
-                        setActiveTab(h.tab)
-                      }}
-                      className="group flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-xs text-gray-600 transition-colors"
-                    >
-                      {tabConfig && <span className={`${tabConfig.color} opacity-70`}>{tabConfig.icon}</span>}
-                      <span className="max-w-[150px] truncate">{h.query}</span>
-                      <X
-                        className="w-3 h-3 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSearchHistory(prev => {
-                            const next = prev.filter((_, idx) => idx !== i)
-                            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)) } catch { /* ignore */ }
-                            return next
-                          })
-                        }}
-                      />
-                    </button>
-                  )
-                })}
-              </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || !query.trim()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Bot className="w-4 h-4" />
+                질문하기
+              </>
             )}
+          </button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Loading hint */}
+      {loading && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-lg text-sm text-violet-700">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span>법령 검색 및 답변 생성 중... (1~2분 소요될 수 있습니다)</span>
+        </div>
+      )}
+
+      {/* Result */}
+      {askResult?.answer && (
+        <div className={`transition-opacity ${loading ? 'opacity-50' : 'opacity-100'}`}>
+          {/* AI Answer */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Bot className="w-4 h-4 text-violet-600" />
+              <h2 className="text-sm font-semibold text-gray-700">AI 답변</h2>
+              {(askResult.search_time_ms || askResult.generate_time_ms) && (
+                <span className="ml-auto text-xs text-gray-400">
+                  {askResult.search_time_ms ? `검색 ${(askResult.search_time_ms / 1000).toFixed(1)}s` : ''}
+                  {askResult.search_time_ms && askResult.generate_time_ms ? ' · ' : ''}
+                  {askResult.generate_time_ms ? `생성 ${(askResult.generate_time_ms / 1000).toFixed(1)}s` : ''}
+                </span>
+              )}
+            </div>
+            <div
+              className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(askResult.answer) }}
+            />
           </div>
-        )}
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white border border-gray-200 rounded-b-xl shadow-sm overflow-hidden">
-        <div className="flex border-b border-gray-200 overflow-x-auto">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                activeTab === tab.key
-                  ? `${tab.activeColor} ${tab.borderColor}`
-                  : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-5 min-h-[200px]">
-          {/* Loading */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-3" />
-              <span className="text-gray-500">
-                {activeTab === 'ask'
-                  ? 'AI가 법령, 판례, 해석례를 종합하여 답변을 생성하고 있습니다...'
-                  : '검색 중...'}
-              </span>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 text-sm mb-4">
-              {error}
-            </div>
-          )}
-
-          {/* Tab 1: Law Search */}
-          {!loading && activeTab === 'search' && (
-            <>
-              {searchResults ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-base font-semibold text-gray-900">
-                      검색 결과 ({searchResults.results?.length ?? 0}건)
-                    </h2>
-                    {searchResults.search_time_ms != null && (
-                      <span className="text-xs text-gray-400">
-                        {searchResults.search_time_ms}ms
-                      </span>
-                    )}
-                  </div>
-                  {searchResults.results && searchResults.results.length > 0 ? (
-                    parseLawSearchResults(searchResults.results).map(item => (
-                      <div
-                        key={item.id}
-                        className="border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer"
-                        onClick={() => toggleCard(item.id)}
-                      >
-                        <div className="flex items-center justify-between px-4 py-3">
-                          <span className="font-medium text-blue-700 text-sm">{item.title}</span>
-                          <div className="flex items-center gap-2">
-                            {item.fields.slice(0, 2).map((f, i) => (
-                              <span key={i} className="text-xs text-gray-400">{f.label}: {f.value}</span>
-                            ))}
-                            {expandedCards.has(item.id) ? (
-                              <ChevronDown className="w-4 h-4 text-gray-400" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                        {expandedCards.has(item.id) && (
-                          <div className="px-4 pb-3 border-t border-gray-100">
-                            {item.fields.length > 0 && (
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 py-2 text-xs text-gray-500">
-                                {item.fields.map((f, i) => (
-                                  <span key={i}><span className="font-medium text-gray-600">{f.label}:</span> {f.value}</span>
-                                ))}
-                              </div>
-                            )}
-                            {item.rawText && (
-                              <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2 bg-gray-50 rounded p-3">
-                                {item.rawText}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">검색 결과가 없습니다.</p>
-                  )}
-                </div>
-              ) : (
-                <EmptyState icon={<Search className="w-8 h-8 text-blue-300" />} message="법령을 검색하세요" />
-              )}
-            </>
-          )}
-
-          {/* Tab 2: Precedents */}
-          {!loading && activeTab === 'precedents' && (
-            <>
-              {precedentsText ? (
-                <div className="space-y-3">
-                  <h2 className="text-base font-semibold text-gray-900 mb-2">판례 검색 결과</h2>
-                  {(() => {
-                    const items = parsePrecedentsText(precedentsText)
-                    if (items.length === 0) {
-                      return (
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">
-                          {precedentsText}
-                        </pre>
-                      )
-                    }
-                    return items.map(item => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg hover:border-amber-300 transition-colors">
-                        <div
-                          className="flex items-start justify-between px-4 py-3 cursor-pointer"
-                          onClick={() => {
-                            if (item.rawId) loadPrecedentDetail(item.rawId)
-                            else toggleCard(item.id)
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-amber-700 text-sm truncate">{item.title}</p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-                              {item.caseId && <span>사건번호: {item.caseId}</span>}
-                              {item.court && <span>법원: {item.court}</span>}
-                              {item.date && <span>선고일: {item.date}</span>}
-                            </div>
-                          </div>
-                          <div className="flex items-center ml-2">
-                            {detailLoading && precedentDetail?.id !== item.rawId ? null : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                        {precedentDetail && precedentDetail.id === item.rawId && (
-                          <div className="px-4 pb-3 border-t border-gray-100">
-                            <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2 bg-amber-50 rounded p-3 max-h-96 overflow-y-auto">
-                              {precedentDetail.text}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  })()}
-                </div>
-              ) : (
-                <EmptyState icon={<Gavel className="w-8 h-8 text-amber-300" />} message="판례를 검색하세요" />
-              )}
-            </>
-          )}
-
-          {/* Tab 3: Interpretations */}
-          {!loading && activeTab === 'interpretations' && (
-            <>
-              {interpretationsText ? (
-                <div className="space-y-3">
-                  <h2 className="text-base font-semibold text-gray-900 mb-2">해석례 검색 결과</h2>
-                  {(() => {
-                    const items = parsePrecedentsText(interpretationsText)
-                    if (items.length === 0) {
-                      return (
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">
-                          {interpretationsText}
-                        </pre>
-                      )
-                    }
-                    return items.map(item => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors">
-                        <div
-                          className="flex items-start justify-between px-4 py-3 cursor-pointer"
-                          onClick={() => {
-                            if (item.rawId) loadInterpretationDetail(item.rawId)
-                            else toggleCard(item.id)
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-emerald-700 text-sm truncate">{item.title}</p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-                              {item.caseId && <span>{item.caseId}</span>}
-                              {item.date && <span>{item.date}</span>}
-                            </div>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400 ml-2" />
-                        </div>
-                        {interpretationDetail && interpretationDetail.id === item.rawId && (
-                          <div className="px-4 pb-3 border-t border-gray-100">
-                            <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2 bg-emerald-50 rounded p-3 max-h-96 overflow-y-auto">
-                              {interpretationDetail.text}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  })()}
-                </div>
-              ) : (
-                <EmptyState icon={<MessageSquare className="w-8 h-8 text-emerald-300" />} message="해석례를 검색하세요" />
-              )}
-            </>
-          )}
-
-          {/* Tab: NLRC (노동위 결정례) */}
-          {!loading && activeTab === 'nlrc' && (
-            <>
-              {nlrcText ? (
-                <div className="space-y-3">
-                  <h2 className="text-base font-semibold text-gray-900 mb-2">노동위원회 결정례 검색 결과</h2>
-                  {(() => {
-                    const items = parsePrecedentsText(nlrcText)
-                    if (items.length === 0) {
-                      return (
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">
-                          {nlrcText}
-                        </pre>
-                      )
-                    }
-                    return items.map(item => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg hover:border-rose-300 transition-colors">
-                        <div
-                          className="flex items-start justify-between px-4 py-3 cursor-pointer"
-                          onClick={() => {
-                            if (item.rawId) loadNlrcDetail(item.rawId)
-                            else toggleCard(item.id)
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-rose-700 text-sm truncate">{item.title}</p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-                              {item.caseId && <span>사건번호: {item.caseId}</span>}
-                              {item.court && <span>{item.court}</span>}
-                              {item.date && <span>{item.date}</span>}
-                            </div>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400 ml-2" />
-                        </div>
-                        {nlrcDetail && nlrcDetail.id === item.rawId && (
-                          <div className="px-4 pb-3 border-t border-gray-100">
-                            <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mt-2 bg-rose-50 rounded p-3 max-h-96 overflow-y-auto">
-                              {nlrcDetail.text}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  })()}
-                </div>
-              ) : (
-                <EmptyState icon={<Landmark className="w-8 h-8 text-rose-300" />} message="노동위원회 결정례를 검색하세요" sub="부당해고, 부당노동행위 등 노동위 결정례 검색" />
-              )}
-            </>
-          )}
-
-          {/* Tab: AI Ask */}
-          {!loading && activeTab === 'ask' && (
-            <>
-              {askResult ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-gray-900">AI 답변</h2>
-                    <div className="flex gap-3 text-xs text-gray-400">
-                      {askResult.search_time_ms != null && (
-                        <span>검색 {askResult.search_time_ms}ms</span>
-                      )}
-                      {askResult.generate_time_ms != null && (
-                        <span>생성 {(askResult.generate_time_ms / 1000).toFixed(1)}초</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Answer */}
-                  <div className="bg-violet-50 border border-violet-100 rounded-lg p-5">
-                    <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
-                      {askResult.answer}
-                    </div>
-                  </div>
-
-                  {/* References - 답변에 언급된 조항/별표 링크 */}
-                  {(() => {
-                    const refs = extractReferences(askResult.answer)
-                    if (refs.length === 0) return null
-                    return (
-                      <div className="bg-white border border-violet-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Scale className="w-4 h-4 text-violet-600" />
-                          <h3 className="text-sm font-semibold text-gray-800">관련 조항·별표 ({refs.length}건)</h3>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {refs.map((ref, i) => (
-                            <li key={i} className="text-sm">
-                              {ref.type === 'article' ? (
-                                <button
-                                  onClick={() => fetchArticlePopup(ref.lawName, ref.articleNo!, ref.label, ref.subNo)}
-                                  className="text-violet-700 hover:text-violet-900 hover:underline transition-colors text-left"
-                                >
-                                  📖 {ref.lawName} {ref.label}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => fetchAnnexPopup(ref.lawName, ref.annexNo!)}
-                                  className="text-violet-700 hover:text-violet-900 hover:underline transition-colors text-left"
-                                >
-                                  📋 {ref.lawName} 별표 {ref.annexNo}
-                                </button>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )
-                  })()}
-
-                  {/* Sources */}
-                  {askResult.sources && askResult.sources.length > 0 && (
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => setExpandedSources(!expandedSources)}
-                        className="w-full flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
-                      >
-                        {expandedSources ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        관련 근거 ({askResult.sources.length}건)
-                      </button>
-                      {expandedSources && (
-                        <div className="p-4 space-y-2 bg-white">
-                          {askResult.sources.map((source, i) => {
-                            const sourceId = `source-${i}`
-                            const icon = source.type === 'law' ? '📖' : source.type === 'precedent' ? '⚖️' : '💬'
-                            const typeLabel = source.type === 'law' ? '법령' : source.type === 'precedent' ? '판례' : '해석례'
-                            return (
-                              <div key={sourceId} className="border border-gray-100 rounded-lg">
-                                <button
-                                  onClick={() => toggleCard(sourceId)}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-                                >
-                                  <span>{icon}</span>
-                                  <span className="text-xs text-gray-400 font-medium">[{typeLabel}]</span>
-                                  <span className="text-sm text-gray-700 flex-1 truncate">{source.title}</span>
-                                  {expandedCards.has(sourceId) ? (
-                                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                                  )}
-                                </button>
-                                {expandedCards.has(sourceId) && (source.text || source.detail) && (
-                                  <div className="px-3 pb-3 border-t border-gray-50">
-                                    <pre className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed mt-2 bg-gray-50 rounded p-2.5">
-                                      {source.detail || source.text}
-                                    </pre>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <EmptyState icon={<Bot className="w-8 h-8 text-violet-300" />} message="AI에게 법령에 대해 질문하세요" sub="법령, 판례, 해석례를 종합하여 답변합니다" />
-              )}
-            </>
-          )}
-
-          {/* Detail Loading Overlay */}
-          {detailLoading && (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-4 h-4 animate-spin text-gray-400 mr-2" />
-              <span className="text-sm text-gray-400">전문 불러오는 중...</span>
+          {/* References */}
+          {references.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-violet-600" />
+                <h2 className="text-sm font-semibold text-gray-700">참고 법조항</h2>
+                <span className="text-xs text-gray-400">클릭하여 전문 보기</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {references.map((ref, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      if (ref.type === 'article' && ref.articleNo !== undefined) {
+                        fetchArticlePopup(ref.lawName, ref.articleNo, ref.label, ref.subNo ?? 0)
+                      } else if (ref.type === 'annex' && ref.annexNo !== undefined) {
+                        fetchAnnexPopup(ref.lawName, ref.annexNo)
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      ref.type === 'annex'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                        : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                    }`}
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>{ref.lawName} {ref.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Article Popup */}
+      {/* Empty state */}
+      {!loading && !askResult && !error && (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <Bot className="w-12 h-12 mb-3" />
+          <p className="text-sm font-medium">위 입력창에 법령 관련 질문을 입력해주세요</p>
+          <p className="mt-1 text-xs">AI가 법령을 검색하고 답변과 함께 참고 조문을 보여줍니다</p>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      <p className="mt-10 text-center text-xs text-gray-400">
+        ※ 이 서비스는 법령 정보 제공 목적이며, 법률 자문이 아닙니다. 구체적인 사안은 전문가와 상담하시기 바랍니다.
+      </p>
+
+      {/* Article popup */}
       {articlePopup && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setArticlePopup(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setArticlePopup(null)}>
           <div
             className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
               <div>
-                <p className="text-xs text-violet-600 font-medium">{articlePopup.lawName}</p>
+                <div className="text-xs text-gray-500">{articlePopup.lawName}</div>
                 <h3 className="text-base font-semibold text-gray-900">{articlePopup.article}</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setArticlePopup(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-5 overflow-y-auto flex-1">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
               {articlePopup.loading ? (
-                <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">조문 불러오는 중...</span>
+                  조문을 불러오는 중...
                 </div>
               ) : (
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                <pre className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap font-sans">
                   {articlePopup.content}
                 </pre>
               )}
@@ -1094,77 +356,82 @@ export default function LawSearchPage() {
         </div>
       )}
 
-      {/* Annex Popup */}
+      {/* Annex popup */}
       {annexPopup && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setAnnexPopup(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAnnexPopup(null)}>
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col"
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-violet-600 font-medium">{annexPopup.lawName}</p>
-                <h3 className="text-base font-semibold text-gray-900 truncate">
-                  별표 {annexPopup.annexNo}{annexPopup.title ? ` — ${annexPopup.title}` : ''}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <div className="text-xs text-gray-500">{annexPopup.lawName}</div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  별표 {annexPopup.annexNo}
+                  {annexPopup.title ? ` · ${annexPopup.title}` : ''}
                 </h3>
               </div>
-              <div className="flex items-center gap-2 ml-4">
-                {annexPopup.pdfUrl && (
-                  <a
-                    href={annexPopup.pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs px-3 py-1.5 bg-violet-100 text-violet-700 rounded-lg hover:bg-violet-200 transition-colors font-medium"
-                  >
-                    PDF 다운로드
-                  </a>
-                )}
-                <button
-                  onClick={() => setAnnexPopup(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setAnnexPopup(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="p-5 overflow-y-auto flex-1">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
               {annexPopup.loading ? (
-                <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">별표 불러오는 중...</span>
+                  별표를 불러오는 중...
                 </div>
               ) : annexPopup.error ? (
-                <div className="text-sm text-red-600">
-                  {annexPopup.error}
-                </div>
+                <div className="text-sm text-red-600">{annexPopup.error}</div>
               ) : (
-                <pre className="text-xs text-gray-700 whitespace-pre font-mono leading-relaxed overflow-x-auto">
-                  {annexPopup.content}
-                </pre>
+                <>
+                  {annexPopup.content && (
+                    <pre className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap font-sans">
+                      {annexPopup.content}
+                    </pre>
+                  )}
+                  {annexPopup.pdfUrl && (
+                    <a
+                      href={annexPopup.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg text-xs font-medium hover:bg-violet-100"
+                    >
+                      <FileText className="w-3 h-3" />
+                      PDF 보기
+                    </a>
+                  )}
+                </>
               )}
             </div>
           </div>
         </div>
       )}
-
-      {/* Disclaimer */}
-      <p className="mt-10 text-center text-xs text-gray-400">
-        ※ 이 서비스는 법령 정보 제공 목적이며, 법률 자문이 아닙니다. 구체적인 사안은 전문가와 상담하시기 바랍니다.
-      </p>
     </div>
   )
 }
 
-type Reference = {
-  type: 'article' | 'annex'
-  lawName: string
-  label: string
-  articleNo?: number
-  subNo?: number
-  annexNo?: number
+// --- helpers ---
+
+function renderMarkdown(text: string): string {
+  // 간단한 markdown 렌더링: bold, 줄바꿈
+  // 1. HTML escape
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+  // 2. **bold** → <strong>
+  const bolded = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+
+  // 3. 줄바꿈 → <br>
+  return bolded.replace(/\n/g, '<br>')
 }
 
 function extractReferences(text: string): Reference[] {
@@ -1227,14 +494,4 @@ function extractReferences(text: string): Reference[] {
   }
 
   return refs
-}
-
-function EmptyState({ icon, message, sub }: { icon: React.ReactNode; message: string; sub?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-      {icon}
-      <p className="mt-3 text-sm font-medium">{message}</p>
-      {sub && <p className="mt-1 text-xs">{sub}</p>}
-    </div>
-  )
 }
