@@ -104,6 +104,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     subItems: [
       { title: '설문 목록', href: '/survey' },
       { title: '새 설문', href: '/survey/create' },
+      { title: '종이설문 입력', href: '/survey/paper-input' },
     ],
   })
 
