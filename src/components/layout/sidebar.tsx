@@ -113,8 +113,8 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   // 휴지통 (모든 역할)
   items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
 
-  // SUPER_ADMIN 전용
-  if (role === 'SUPER_ADMIN') {
+  // STAFF 이상
+  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
     items.push({ title: '사용자 관리', href: '/admin/users', icon: UserCog })
   }
 
