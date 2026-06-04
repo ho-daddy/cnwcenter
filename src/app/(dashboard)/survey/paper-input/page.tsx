@@ -89,6 +89,12 @@ export default function PaperInputPage() {
   const [submitMsg, setSubmitMsg] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // PDF 뷰어 (pdfjs-dist, iframe 대체)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfRef = useRef<any>(null)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const [pdfReady, setPdfReady] = useState(false)
+  const renderCancelRef = useRef(false)
   // 강제 리렌더용 (persons 내부 객체 mutate 후)
   const [, forceTick] = useState(0)
   const rerender = useCallback(() => forceTick((t) => t + 1), [])
@@ -107,6 +113,58 @@ export default function PaperInputPage() {
       }
     })()
   }, [])
+
+  // ── PDF 로드 (pdfjs-dist) ──────────────────────────────────
+  useEffect(() => {
+    if (!sessionId) { pdfRef.current = null; setPdfReady(false); return }
+    setPdfReady(false)
+    pdfRef.current = null
+    ;(async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pdfjs: any = await import('pdfjs-dist')
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+        const resp = await fetch(`/api/paper-ocr/file/${sessionId}`)
+        const data = await resp.arrayBuffer()
+        pdfRef.current = await pdfjs.getDocument({ data }).promise
+        setPdfReady(true)
+      } catch (e) {
+        setStatus('PDF 뷰어 로드 실패: ' + (e instanceof Error ? e.message : String(e)))
+      }
+    })()
+  }, [sessionId])
+
+  // ── PDF 페이지 렌더링 ──────────────────────────────────────
+  useEffect(() => {
+    if (!pdfReady || !pdfRef.current || !canvasContainerRef.current) return
+    renderCancelRef.current = true  // 이전 렌더 취소
+    const cancelled = { v: false }
+    renderCancelRef.current = false
+
+    const container = canvasContainerRef.current
+    container.innerHTML = ''
+    const startPage = cur?.pages[0] ?? 1
+    const endPage = cur?.pages[1] ?? pdfRef.current.numPages
+    ;(async () => {
+      for (let p = startPage; p <= endPage; p++) {
+        if (cancelled.v) break
+        const page = await pdfRef.current.getPage(p)
+        const vp = page.getViewport({ scale: 1.5 })
+        const canvas = document.createElement('canvas')
+        canvas.width = vp.width
+        canvas.height = vp.height
+        canvas.style.width = '100%'
+        canvas.style.display = 'block'
+        if (p < endPage) canvas.style.marginBottom = '2px'
+        container.appendChild(canvas)
+        const ctx = canvas.getContext('2d')
+        if (ctx) await page.render({ canvasContext: ctx, viewport: vp }).promise
+      }
+      if (!cancelled.v) container.scrollTop = 0
+    })()
+    return () => { cancelled.v = true }
+  }, [pdfReady, cur])
 
   // ── 설문 선택 → 구조 로드 ──────────────────────────────────
   async function onSurveyChange(id: string) {
@@ -375,12 +433,9 @@ export default function PaperInputPage() {
           </div>
           <div className="flex-1 overflow-hidden bg-[#0a0a10]">
             {sessionId ? (
-              <iframe
-                key={cur ? cur.pages[0] : 'all'}
-                src={`/api/paper-ocr/file/${sessionId}#page=${cur ? cur.pages[0] : 1}`}
-                title="PDF 뷰어"
-                className="w-full h-full border-0 bg-white"
-                sandbox="allow-scripts allow-same-origin"
+              <div
+                ref={canvasContainerRef}
+                className="w-full h-full overflow-y-auto bg-white"
               />
             ) : (
               <div className="text-[#555] text-[0.95rem] h-full flex items-center justify-center text-center leading-loose">
