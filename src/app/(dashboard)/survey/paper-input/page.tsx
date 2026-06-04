@@ -433,9 +433,11 @@ export default function PaperInputPage() {
           </div>
           <div className="flex-1 overflow-hidden bg-[#0a0a10]">
             {sessionId ? (
-              <div
-                ref={canvasContainerRef}
-                className="w-full h-full overflow-y-auto bg-white"
+              <iframe
+                key={cur ? cur.pages[0] : 'all'}
+                src={`/api/paper-ocr/file/${sessionId}#page=${cur ? cur.pages[0] : 1}`}
+                title="PDF 뷰어"
+                className="w-full h-full border-0 bg-white"
               />
             ) : (
               <div className="text-[#555] text-[0.95rem] h-full flex items-center justify-center text-center leading-loose">
