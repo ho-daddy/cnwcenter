@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { requireSuperAdmin } from '@/lib/auth-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 import { sendAdminEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
-  const authCheck = await requireSuperAdmin()
+  const authCheck = await requireStaffOrAbove()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }

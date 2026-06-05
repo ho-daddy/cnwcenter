@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSuperAdmin } from '@/lib/auth-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 
 // 사용자 목록 조회
 export async function GET(request: NextRequest) {
-  const authCheck = await requireSuperAdmin()
+  const authCheck = await requireStaffOrAbove()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -28,6 +28,17 @@ export async function GET(request: NextRequest) {
         { email: { contains: search, mode: 'insensitive' } },
         { name: { contains: search, mode: 'insensitive' } },
       ]
+    }
+
+    // STAFF는 SUPER_ADMIN 계정 조회 불가 (role 필터가 있어도 SUPER_ADMIN은 항상 제외)
+    if (authCheck.user!.role === 'STAFF') {
+      if (role === 'SUPER_ADMIN') {
+        where.role = { in: [] as any }
+      } else if (role) {
+        where.role = role
+      } else {
+        where.role = { not: 'SUPER_ADMIN' as any }
+      }
     }
 
     const users = await prisma.user.findMany({

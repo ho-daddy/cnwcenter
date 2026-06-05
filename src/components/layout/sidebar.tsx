@@ -42,12 +42,15 @@ const TUTORIAL_ATTR_MAP: Record<string, string> = {
 
 // 역할별 메뉴 정의
 const getNavItems = (role?: UserRole): NavItem[] => {
+  const boardSubItems = [
+    { title: '공지사항', href: '/notices' },
+    { title: '사용자 게시판', href: '/board' },
+    ...(role === 'SUPER_ADMIN' || role === 'STAFF' ? [{ title: '교환일기', href: '/diary' }] : []),
+  ]
+
   const items: NavItem[] = [
     { title: '오늘의 새움터', href: '/', icon: LayoutDashboard },
-    { title: '게시판', href: '/notices', icon: MessageCircle, subItems: [
-      { title: '공지사항', href: '/notices' },
-      { title: '사용자 게시판', href: '/board' },
-    ]},
+    { title: '게시판', href: '/notices', icon: MessageCircle, subItems: boardSubItems },
   ]
 
   // 법령 검색: 모든 역할
@@ -59,11 +62,6 @@ const getNavItems = (role?: UserRole): NavItem[] => {
   // 상담 관리: STAFF 이상
   if (role === 'SUPER_ADMIN' || role === 'STAFF') {
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
-  }
-
-  // 교환일기: STAFF 이상
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
-    items.push({ title: '교환일기', href: '/diary', icon: BookOpen })
   }
 
   // 위험성평가 서브메뉴

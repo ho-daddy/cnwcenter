@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { Send, BookOpen } from 'lucide-react'
+import { Send, BookOpen, ChevronDown } from 'lucide-react'
 
 interface DiaryEntry {
   id: string
@@ -30,32 +30,46 @@ function authorEmoji(name: string, type: 'AI' | 'HUMAN') {
   return type === 'AI' ? '🤖' : '✍️'
 }
 
+const PAGE_SIZE = 30  // 하루 최대 3개 기준 약 10일치
+
 export default function DiaryPage() {
   const { data: session } = useSession()
   const [entries, setEntries] = useState<DiaryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
   const [content, setContent] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (session?.user?.name) setAuthorName(session.user.name)
   }, [session])
 
-  const fetchEntries = async () => {
-    setIsLoading(true)
+  const fetchEntries = useCallback(async (pageNum: number, append: boolean) => {
+    if (pageNum === 1) setIsLoading(true)
+    else setIsLoadingMore(true)
     try {
-      const res = await fetch('/api/diary?limit=100')
+      const res = await fetch(`/api/diary?page=${pageNum}&limit=${PAGE_SIZE}`)
       const data = await res.json()
-      setEntries(data.entries ?? [])
+      const fetched: DiaryEntry[] = data.entries ?? []
+      setEntries(prev => append ? [...prev, ...fetched] : fetched)
+      setHasMore(data.total > pageNum * PAGE_SIZE)
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { fetchEntries() }, [])
+  useEffect(() => { fetchEntries(1, false) }, [fetchEntries])
+
+  const loadMore = () => {
+    const next = page + 1
+    setPage(next)
+    fetchEntries(next, true)
+  }
 
   const grouped = entries.reduce<Record<string, DiaryEntry[]>>((acc, e) => {
     const day = format(parseISO(e.entryDate), 'yyyy-MM-dd')
@@ -86,7 +100,8 @@ export default function DiaryPage() {
         return
       }
       setContent('')
-      await fetchEntries()
+      setPage(1)
+      await fetchEntries(1, false)
     } finally {
       setIsSubmitting(false)
     }
@@ -104,32 +119,45 @@ export default function DiaryPage() {
       ) : sortedDays.length === 0 ? (
         <div className="text-center text-gray-400 py-20">아직 아무도 쓰지 않았어요. 첫 번째 일기를 써보세요 ✍️</div>
       ) : (
-        <div className="space-y-10">
-          {sortedDays.map((day) => (
-            <div key={day}>
-              <div className="text-sm font-medium text-gray-400 mb-4">
-                {format(parseISO(day), 'yyyy년 M월 d일 (EEE)', { locale: ko })}
-              </div>
-              <div className="space-y-4">
-                {grouped[day].map((e) => (
-                  <div
-                    key={e.id}
-                    className={`rounded-xl border p-5 whitespace-pre-wrap leading-relaxed text-sm ${authorStyle(e.authorName)}`}
-                  >
-                    <div className="flex items-center gap-1.5 mb-3 font-semibold">
-                      <span>{authorEmoji(e.authorName, e.authorType)}</span>
-                      <span>{e.authorName}</span>
+        <>
+          <div className="space-y-10">
+            {sortedDays.map((day) => (
+              <div key={day}>
+                <div className="text-sm font-medium text-gray-400 mb-4">
+                  {format(parseISO(day), 'yyyy년 M월 d일 (EEE)', { locale: ko })}
+                </div>
+                <div className="space-y-4">
+                  {grouped[day].map((e) => (
+                    <div
+                      key={e.id}
+                      className={`rounded-xl border p-5 whitespace-pre-wrap leading-relaxed text-sm ${authorStyle(e.authorName)}`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-3 font-semibold">
+                        <span>{authorEmoji(e.authorName, e.authorType)}</span>
+                        <span>{e.authorName}</span>
+                      </div>
+                      {e.content}
                     </div>
-                    {e.content}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
 
-      <div ref={bottomRef} />
+          {hasMore && (
+            <div className="mt-10 text-center">
+              <button
+                onClick={loadMore}
+                disabled={isLoadingMore}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              >
+                <ChevronDown className="w-4 h-4" />
+                {isLoadingMore ? '불러오는 중...' : '더 보기'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {/* 작성 폼 */}
       <div className="mt-12 border-t pt-8">

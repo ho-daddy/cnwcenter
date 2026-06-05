@@ -14,6 +14,7 @@ const ROLE_ACCESS: Record<string, string[]> = {
   '/notices/new': ['SUPER_ADMIN', 'STAFF'],
   '/notices/edit': ['SUPER_ADMIN', 'STAFF'],
   '/counseling': ['SUPER_ADMIN', 'STAFF'],
+  '/diary': ['SUPER_ADMIN', 'STAFF'],
   // /workplaces는 모든 역할 접근 가능 (API에서 권한 체크)
 }
 

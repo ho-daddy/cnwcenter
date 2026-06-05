@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSuperAdmin } from '@/lib/auth-utils'
+import { requireStaffOrAbove } from '@/lib/auth-utils'
 import { UserRole } from '@prisma/client'
 
 // 사용자 역할 변경
@@ -8,7 +8,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authCheck = await requireSuperAdmin()
+  const authCheck = await requireStaffOrAbove()
   if (!authCheck.authorized) {
     return NextResponse.json({ error: authCheck.error }, { status: 401 })
   }
@@ -21,6 +21,17 @@ export async function PATCH(
     // 유효한 역할인지 확인
     if (!['SUPER_ADMIN', 'STAFF', 'WORKPLACE_USER'].includes(role)) {
       return NextResponse.json({ error: '유효하지 않은 역할입니다.' }, { status: 400 })
+    }
+
+    // STAFF 제약: SUPER_ADMIN 역할 부여 불가, SUPER_ADMIN 계정 역할 변경 불가
+    if (authCheck.user!.role === 'STAFF') {
+      if (role === 'SUPER_ADMIN') {
+        return NextResponse.json({ error: '최고관리자 역할은 부여할 수 없습니다.' }, { status: 403 })
+      }
+      const target = await prisma.user.findUnique({ where: { id }, select: { role: true } })
+      if (target?.role === 'SUPER_ADMIN') {
+        return NextResponse.json({ error: '최고관리자 계정의 역할은 변경할 수 없습니다.' }, { status: 403 })
+      }
     }
 
     // 사용자 존재 확인
