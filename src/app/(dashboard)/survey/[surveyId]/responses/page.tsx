@@ -7,6 +7,7 @@ import { ko } from 'date-fns/locale'
 import {
   ArrowLeft, Eye, Trash2, ChevronDown, ChevronRight,
   FileText, User, Loader2, AlertCircle, ChevronLeft,
+  Pencil, Check, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
@@ -54,6 +55,10 @@ export default function SurveyResponsesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedDetails, setExpandedDetails] = useState<Record<string, AnswerItem[]>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
+  const [editName, setEditName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -84,6 +89,81 @@ export default function SurveyResponsesPage() {
     fetchData(page)
   }, [fetchData, page])
 
+  const loadDetail = async (id: string) => {
+    if (expandedDetails[id]) return
+    setLoadingDetail(id)
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}/responses/${id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setExpandedDetails((prev) => ({ ...prev, [id]: data.answers ?? [] }))
+      }
+    } catch {
+      setExpandedDetails((prev) => ({ ...prev, [id]: [] }))
+    } finally {
+      setLoadingDetail(null)
+    }
+  }
+
+  const handleEdit = async (resp: ResponseItem) => {
+    setExpandedId(resp.id)
+    setEditName(resp.respondentName ?? '')
+
+    let answers = expandedDetails[resp.id]
+    if (!answers) {
+      setLoadingDetail(resp.id)
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/responses/${resp.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          answers = data.answers ?? []
+          setExpandedDetails((prev) => ({ ...prev, [resp.id]: answers! }))
+        }
+      } catch {
+        answers = []
+        setExpandedDetails((prev) => ({ ...prev, [resp.id]: [] }))
+      } finally {
+        setLoadingDetail(null)
+      }
+    }
+
+    const vals: Record<string, unknown> = {}
+    ;(answers ?? []).forEach((a) => { vals[a.id] = a.value })
+    setEditValues(vals)
+    setEditingId(resp.id)
+  }
+
+  const handleSave = async (responseId: string) => {
+    setIsSaving(true)
+    try {
+      const answers = expandedDetails[responseId] ?? []
+      const res = await fetch(`/api/surveys/${surveyId}/responses/${responseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          respondentName: editName,
+          answers: answers.map((a) => ({ id: a.id, value: editValues[a.id] })),
+        }),
+      })
+      if (res.ok) {
+        setResponses((prev) =>
+          prev.map((r) => r.id === responseId ? { ...r, respondentName: editName } : r)
+        )
+        setExpandedDetails((prev) => ({
+          ...prev,
+          [responseId]: (prev[responseId] ?? []).map((a) => ({ ...a, value: editValues[a.id] })),
+        }))
+        setEditingId(null)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => setEditingId(null)
+
   const handleDelete = async (responseId: string) => {
     if (!confirm('이 응답을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
     try {
@@ -103,23 +183,11 @@ export default function SurveyResponsesPage() {
   const toggleExpand = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null)
+      setEditingId(null)
       return
     }
     setExpandedId(id)
-    if (expandedDetails[id]) return
-
-    setLoadingDetail(id)
-    try {
-      const res = await fetch(`/api/surveys/${surveyId}/responses/${id}`)
-      if (res.ok) {
-        const data = await res.json()
-        setExpandedDetails((prev) => ({ ...prev, [id]: data.answers ?? [] }))
-      }
-    } catch {
-      setExpandedDetails((prev) => ({ ...prev, [id]: [] }))
-    } finally {
-      setLoadingDetail(null)
-    }
+    await loadDetail(id)
   }
 
   // ─── Render answer value ───
@@ -234,6 +302,101 @@ export default function SurveyResponsesPage() {
     }
   }
 
+  const renderEditInput = (answer: AnswerItem) => {
+    const type = answer.question.questionType
+    const opts = answer.question.options as Record<string, unknown> | null
+    const val = editValues[answer.id]
+    const set = (v: unknown) => setEditValues((prev) => ({ ...prev, [answer.id]: v }))
+
+    switch (type) {
+      case 'TEXT':
+      case 'CONSENT':
+        return (
+          <textarea
+            className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+            rows={2}
+            value={typeof val === 'string' ? val : ''}
+            onChange={(e) => set(e.target.value)}
+          />
+        )
+      case 'NUMBER':
+        return (
+          <input
+            type="number"
+            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 w-32"
+            value={typeof val === 'number' ? val : (val ?? '')}
+            onChange={(e) => set(e.target.value === '' ? '' : Number(e.target.value))}
+          />
+        )
+      case 'RADIO':
+      case 'DROPDOWN': {
+        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        return (
+          <select
+            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            value={typeof val === 'string' ? val : ''}
+            onChange={(e) => set(e.target.value)}
+          >
+            <option value="">선택 안함</option>
+            {choices.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        )
+      }
+      case 'CHECKBOX': {
+        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const selected: string[] = Array.isArray(val) ? val : []
+        return (
+          <div className="flex flex-wrap gap-2">
+            {choices.map((c) => (
+              <label key={c.value} className="flex items-center gap-1 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(c.value)}
+                  onChange={(e) => {
+                    if (e.target.checked) set([...selected, c.value])
+                    else set(selected.filter((v) => v !== c.value))
+                  }}
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        )
+      }
+      case 'RANGE': {
+        const min = Number(opts?.min ?? 0)
+        const max = Number(opts?.max ?? 10)
+        const numVal = typeof val === 'number' ? val : Number(val ?? min)
+        return (
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={min}
+              max={max}
+              value={numVal}
+              onChange={(e) => set(Number(e.target.value))}
+              className="w-32"
+            />
+            <span className="text-sm font-medium text-blue-600 w-6 text-center">{numVal}</span>
+          </div>
+        )
+      }
+      default:
+        return (
+          <textarea
+            className="w-full text-xs font-mono border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+            rows={3}
+            value={JSON.stringify(val, null, 2)}
+            onChange={(e) => {
+              try { set(JSON.parse(e.target.value)) } catch { set(e.target.value) }
+            }}
+          />
+        )
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32 text-sm text-gray-400">
@@ -271,11 +434,12 @@ export default function SurveyResponsesPage() {
       {/* Response list */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[40px_1fr_140px_100px_60px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <div className="grid grid-cols-[40px_1fr_140px_90px_90px_60px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           <span>#</span>
           <span>응답자</span>
           <span>완료 일시</span>
           <span className="text-center">보기</span>
+          <span className="text-center">수정</span>
           <span className="text-center">삭제</span>
         </div>
 
@@ -289,7 +453,7 @@ export default function SurveyResponsesPage() {
             {responses.map((resp, idx) => (
               <div key={resp.id}>
                 {/* Row */}
-                <div className="grid grid-cols-[40px_1fr_140px_100px_60px] gap-4 px-5 py-3 items-center">
+                <div className="grid grid-cols-[40px_1fr_140px_90px_90px_60px] gap-4 px-5 py-3 items-center">
                   <span className="text-sm text-gray-500 font-medium">{startIdx + idx + 1}</span>
                   <div className="flex items-center gap-2 min-w-0">
                     <User className="w-4 h-4 text-gray-400 shrink-0" />
@@ -329,6 +493,20 @@ export default function SurveyResponsesPage() {
                   </div>
                   <div className="text-center">
                     <button
+                      onClick={() => handleEdit(resp)}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors',
+                        editingId === resp.id
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'text-amber-600 hover:bg-amber-50'
+                      )}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      수정
+                    </button>
+                  </div>
+                  <div className="text-center">
+                    <button
                       onClick={() => handleDelete(resp.id)}
                       className="p-1.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
                     >
@@ -340,19 +518,29 @@ export default function SurveyResponsesPage() {
                 {/* Expanded detail */}
                 {expandedId === resp.id && (
                   <div className="px-5 pb-4 bg-gray-50 border-t border-gray-100">
-                    <div className="space-y-4 pt-3">
-                      {!expandedDetails[resp.id] ? (
-                        <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          불러오는 중...
+                    {!expandedDetails[resp.id] ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        불러오는 중...
+                      </div>
+                    ) : editingId === resp.id ? (
+                      /* ── 수정 모드 ── */
+                      <div className="space-y-4 pt-3">
+                        {/* 응답자 이름 */}
+                        <div className="bg-white rounded-lg border border-amber-200 p-3">
+                          <p className="text-xs font-semibold text-gray-500 mb-1.5">응답자 이름</p>
+                          <input
+                            type="text"
+                            className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="이름 입력"
+                          />
                         </div>
-                      ) : expandedDetails[resp.id].length === 0 ? (
-                        <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
-                      ) : (
-                        expandedDetails[resp.id].map((answer) => (
+                        {expandedDetails[resp.id].map((answer) => (
                           <div
                             key={answer.id}
-                            className="bg-white rounded-lg border border-gray-200 p-3"
+                            className="bg-white rounded-lg border border-amber-200 p-3"
                           >
                             <div className="flex items-start gap-2 mb-1.5">
                               {answer.question.questionCode && (
@@ -367,13 +555,63 @@ export default function SurveyResponsesPage() {
                             <p className="text-sm font-medium text-gray-800 mb-2">
                               {answer.question.questionText}
                             </p>
-                            <div className="pl-2 border-l-2 border-blue-200">
-                              {renderAnswer(answer)}
+                            <div className="pl-2 border-l-2 border-amber-300">
+                              {renderEditInput(answer)}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                        {/* 저장/취소 */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => handleSave(resp.id)}
+                            disabled={isSaving}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            저장
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            disabled={isSaving}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-100 text-gray-600 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── 보기 모드 ── */
+                      <div className="space-y-4 pt-3">
+                        {expandedDetails[resp.id].length === 0 ? (
+                          <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
+                        ) : (
+                          expandedDetails[resp.id].map((answer) => (
+                            <div
+                              key={answer.id}
+                              className="bg-white rounded-lg border border-gray-200 p-3"
+                            >
+                              <div className="flex items-start gap-2 mb-1.5">
+                                {answer.question.questionCode && (
+                                  <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded font-mono shrink-0">
+                                    {answer.question.questionCode}
+                                  </span>
+                                )}
+                                <span className="text-xs text-gray-500 shrink-0">
+                                  [{QUESTION_TYPE_LABELS[answer.question.questionType as keyof typeof QUESTION_TYPE_LABELS] ?? answer.question.questionType}]
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-gray-800 mb-2">
+                                {answer.question.questionText}
+                              </p>
+                              <div className="pl-2 border-l-2 border-blue-200">
+                                {renderAnswer(answer)}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
