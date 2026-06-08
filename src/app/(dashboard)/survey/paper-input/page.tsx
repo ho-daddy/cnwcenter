@@ -2,6 +2,75 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+// ── IME(한/영) 안전 텍스트 입력 ───────────────────────────────
+// controlled input + 한글 IME 조합 중 리렌더로 조합이 끊기는 문제 방지.
+// 조합 중에는 부모 상태를 갱신하지 않고 로컬 값만 유지, 조합 종료/blur 시 커밋.
+function ImeTextInput({
+  value,
+  onCommit,
+  type = 'text',
+  className,
+  placeholder,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onCommit: (v: any) => void
+  type?: 'text' | 'number'
+  className?: string
+  placeholder?: string
+}) {
+  const isNull = value === null || value === undefined
+  const [local, setLocal] = useState<string>(isNull ? '' : String(value))
+  const composing = useRef(false)
+  const focused = useRef(false)
+
+  // 외부 값이 바뀌면(다른 응답자 선택, OCR 결과 등) 로컬 동기화.
+  // 단, 사용자가 편집 중(focus)일 때는 덮어쓰지 않는다.
+  useEffect(() => {
+    if (!focused.current) setLocal(isNull ? '' : String(value))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  const commit = (raw: string) => {
+    if (type === 'number') {
+      onCommit(raw === '' ? null : Number(raw))
+    } else {
+      onCommit(raw === '' ? null : raw)
+    }
+  }
+
+  return (
+    <input
+      type={type}
+      lang="ko"
+      value={local}
+      placeholder={placeholder}
+      className={className}
+      onFocus={() => {
+        focused.current = true
+      }}
+      onChange={(e) => {
+        const v = e.target.value
+        setLocal(v)
+        // 한글 조합 중에는 커밋하지 않음 (IME 끊김 방지)
+        if (!composing.current) commit(v)
+      }}
+      onCompositionStart={() => {
+        composing.current = true
+      }}
+      onCompositionEnd={(e) => {
+        composing.current = false
+        commit((e.target as HTMLInputElement).value)
+      }}
+      onBlur={(e) => {
+        focused.current = false
+        commit(e.target.value)
+      }}
+    />
+  )
+}
+
 // ── 타입 ──────────────────────────────────────────────────────
 interface SurveyListItem {
   id: string
@@ -45,6 +114,7 @@ interface Person {
   respondentName: string | null
   codeToId: Record<string, string>
   submitted: boolean
+  responseId: string | null // 제출 후 받은 응답 ID (재제출 시 수정용)
 }
 
 // ── 증상표 상수 ───────────────────────────────────────────────
@@ -69,6 +139,29 @@ function getChoices(q: Question): Choice[] {
   if (Array.isArray(o)) return o
   if (o.choices) return o.choices
   return []
+}
+
+// 설문 구조에서 "이름" 질문의 questionCode 를 찾는다.
+// 우선순위: 코드가 S0-name / name / 성명 류 → 질문 텍스트에 "이름"/"성명" 포함
+function findNameQuestionCode(structure: Structure | null): string | null {
+  if (!structure) return null
+  const all: Question[] = []
+  for (const sec of structure.sections ?? []) {
+    for (const q of sec.questions ?? []) all.push(q)
+  }
+  const byCode = all.find((q) => {
+    const c = (q.questionCode || '').toLowerCase()
+    return c === 's0-name' || c === 'name' || c.includes('name') || c.includes('성명')
+  })
+  if (byCode) return byCode.questionCode
+  const byText = all.find((q) => {
+    const t = q.questionText || ''
+    return (
+      (t.includes('이름') || t.includes('성명')) &&
+      (q.questionType === 'TEXT' || !q.questionType)
+    )
+  })
+  return byText ? byText.questionCode : null
 }
 
 export default function PaperInputPage() {
@@ -156,6 +249,8 @@ export default function PaperInputPage() {
         canvas.height = vp.height
         canvas.style.width = '100%'
         canvas.style.display = 'block'
+        // 폼 ↔ PDF 스크롤 연동용: 응답자 내 상대 페이지 인덱스(0-base) 태깅
+        canvas.dataset.page = String(p - startPage)
         if (p < endPage) canvas.style.marginBottom = '2px'
         container.appendChild(canvas)
         const ctx = canvas.getContext('2d')
@@ -165,6 +260,36 @@ export default function PaperInputPage() {
     })()
     return () => { cancelled.v = true }
   }, [pdfReady, cur])
+
+  // ── 폼 스크롤 → PDF 페이지 동기화 ──────────────────────────
+  const formScrollRef = useRef<HTMLDivElement>(null)
+  const syncRaf = useRef<number | null>(null)
+  function onFormScroll() {
+    if (syncRaf.current != null) return // throttle (rAF)
+    syncRaf.current = requestAnimationFrame(() => {
+      syncRaf.current = null
+      const form = formScrollRef.current
+      const container = canvasContainerRef.current
+      if (!form || !container || !cur) return
+      const canvases = container.querySelectorAll<HTMLCanvasElement>('canvas[data-page]')
+      const pageCountForPerson = cur.pages[1] - cur.pages[0] + 1
+      if (canvases.length === 0 || pageCountForPerson <= 1) return
+      // 폼 스크롤 비율 → 해당 페이지 인덱스
+      const maxScroll = form.scrollHeight - form.clientHeight
+      const ratio = maxScroll > 0 ? form.scrollTop / maxScroll : 0
+      const idx = Math.min(
+        pageCountForPerson - 1,
+        Math.round(ratio * (pageCountForPerson - 1))
+      )
+      const target = container.querySelector<HTMLCanvasElement>(
+        `canvas[data-page="${idx}"]`
+      )
+      if (target) {
+        const top = target.offsetTop - container.offsetTop
+        container.scrollTo({ top, behavior: 'smooth' })
+      }
+    })
+  }
 
   // ── 설문 선택 → 구조 로드 ──────────────────────────────────
   async function onSurveyChange(id: string) {
@@ -225,6 +350,7 @@ export default function PaperInputPage() {
       respondentName: null,
       codeToId: {},
       submitted: false,
+      responseId: null,
     }))
     setPersons(next)
     setCurrentIdx(-1)
@@ -248,13 +374,25 @@ export default function PaperInputPage() {
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
       setStructure(data.structure)
+      const nameCode = findNameQuestionCode(data.structure || structure)
       const updated = persons.map((p, i) => {
         const r = data.results[i] || {}
+        const answers = r.answers || {}
+        // 이름 ↔ 이름질문 답변 상호 보정
+        let respondentName = r.respondentName || null
+        if (nameCode) {
+          const nameAns = answers[nameCode]
+          if (!respondentName && typeof nameAns === 'string' && nameAns) {
+            respondentName = nameAns
+          } else if (respondentName && !answers[nameCode]) {
+            answers[nameCode] = respondentName
+          }
+        }
         return {
           ...p,
           codeToId: data.codeToId,
-          answers: r.answers || {},
-          respondentName: r.respondentName || null,
+          answers,
+          respondentName,
         }
       })
       setPersons(updated)
@@ -269,28 +407,40 @@ export default function PaperInputPage() {
 
   function selectPerson(idx: number) {
     setCurrentIdx(idx)
-    setSubmitMsg(persons[idx]?.submitted ? '이미 제출됨' : '')
+    setSubmitMsg(persons[idx]?.submitted ? '제출됨 (수정 후 다시 제출 가능)' : '')
   }
+
+  // 이름 질문 코드 (이름 ↔ S0-name 연동용)
+  const nameQuestionCode = findNameQuestionCode(structure)
 
   // ── 답변 변경 헬퍼 (현재 응답자 mutate) ────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function setAnswer(code: string, value: any) {
     if (!cur) return
     cur.answers[code] = value
+    // 이름 질문 답변 변경 → 상단 응답자 이름도 동기화
+    if (nameQuestionCode && code === nameQuestionCode) {
+      cur.respondentName = typeof value === 'string' && value ? value : null
+    }
     rerender()
   }
 
   function setName(name: string) {
     if (!cur) return
     cur.respondentName = name || null
+    // 상단 응답자 이름 변경 → 이름 질문 답변도 동기화
+    if (nameQuestionCode) {
+      cur.answers[nameQuestionCode] = name || null
+    }
     rerender()
   }
 
   // ── 제출 ───────────────────────────────────────────────────
   async function onSubmit() {
-    if (!accessToken || !cur || cur.submitted) return
+    if (!accessToken || !cur) return
+    const wasSubmitted = cur.submitted
     setSubmitting(true)
-    setStatus('시스템에 제출 중...')
+    setStatus(wasSubmitted ? '수정 내용 다시 제출 중...' : '시스템에 제출 중...')
     try {
       const res = await fetch('/api/paper-ocr/submit', {
         method: 'POST',
@@ -300,17 +450,23 @@ export default function PaperInputPage() {
           respondentName: cur.respondentName,
           answers: cur.answers,
           codeToId: cur.codeToId,
+          responseId: cur.responseId, // 있으면 기존 응답 수정
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || JSON.stringify(data))
       cur.submitted = true
+      cur.responseId = data.id // 재제출 시 동일 응답 수정하도록 ID 보관
       rerender()
-      setSubmitMsg(`제출 완료 (${data.answerCount}개)`)
-      setStatus(`${cur.respondentName || `${currentIdx + 1}번`} 제출 완료!`)
-      // 다음 미제출 응답자로 이동
-      const nextIdx = persons.findIndex((p, i) => i > currentIdx && !p.submitted)
-      if (nextIdx >= 0) setTimeout(() => selectPerson(nextIdx), 800)
+      setSubmitMsg(`${data.updated ? '수정 제출 완료' : '제출 완료'} (${data.answerCount}개)`)
+      setStatus(
+        `${cur.respondentName || `${currentIdx + 1}번`} ${data.updated ? '수정 제출 완료!' : '제출 완료!'}`
+      )
+      // 최초 제출일 때만 다음 미제출 응답자로 자동 이동 (수정 시엔 머무름)
+      if (!wasSubmitted) {
+        const nextIdx = persons.findIndex((p, i) => i > currentIdx && !p.submitted)
+        if (nextIdx >= 0) setTimeout(() => selectPerson(nextIdx), 800)
+      }
     } catch (e) {
       setStatus('제출 실패: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
@@ -431,19 +587,23 @@ export default function PaperInputPage() {
               <span className="opacity-60">PDF 미리보기</span>
             )}
           </div>
-          <div className="flex-1 overflow-hidden bg-[#0a0a10]">
-            {sessionId ? (
-              <iframe
-                key={cur ? cur.pages[0] : 'all'}
-                src={`/api/paper-ocr/file/${sessionId}#page=${cur ? cur.pages[0] : 1}`}
-                title="PDF 뷰어"
-                className="w-full h-full border-0 bg-white"
-              />
-            ) : (
+          <div className="flex-1 overflow-hidden bg-[#0a0a10] relative">
+            {/* pdfjs 캔버스 렌더 영역 (폼 스크롤 연동 대상) */}
+            <div
+              ref={canvasContainerRef}
+              className="w-full h-full overflow-y-auto"
+              style={{ display: sessionId ? 'block' : 'none' }}
+            />
+            {!sessionId && (
               <div className="text-[#555] text-[0.95rem] h-full flex items-center justify-center text-center leading-loose">
                 PDF 업로드 후
                 <br />
                 미리보기가 표시됩니다
+              </div>
+            )}
+            {sessionId && !pdfReady && (
+              <div className="absolute inset-0 text-[#777] text-[0.9rem] flex items-center justify-center pointer-events-none">
+                PDF 로딩 중...
               </div>
             )}
           </div>
@@ -460,7 +620,7 @@ export default function PaperInputPage() {
               <span className="text-[#888]">응답자를 선택하면 폼이 표시됩니다</span>
             )}
           </div>
-          <div className="flex-1 overflow-y-auto p-3.5">
+          <div ref={formScrollRef} onScroll={onFormScroll} className="flex-1 overflow-y-auto p-3.5">
             {!structure || !cur ? (
               <div className="text-[#aaa] text-[0.95rem] text-center mt-10">
                 왼쪽에서 응답자를 선택하세요
@@ -477,10 +637,10 @@ export default function PaperInputPage() {
           <div className="px-3.5 py-2.5 bg-white border-t border-gray-200 flex items-center gap-2.5 shadow-[0_-1px_4px_rgba(0,0,0,0.06)]">
             <button
               onClick={onSubmit}
-              disabled={!cur || cur.submitted || submitting}
+              disabled={!cur || submitting}
               className="bg-[#2a7a4a] text-white px-5 py-2 rounded-md text-[0.92rem] cursor-pointer hover:bg-[#3a9a5a] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? '제출 중...' : '시스템에 제출'}
+              {submitting ? '제출 중...' : cur?.submitted ? '수정 다시 제출' : '시스템에 제출'}
             </button>
             <span className="text-[0.88rem] text-[#2a7a4a]">{submitMsg}</span>
           </div>
@@ -508,9 +668,9 @@ function FormBody({
       {/* 응답자 이름 */}
       <div className="bg-[#eef8ee] border border-[#8cc8a0] rounded-md px-3 py-2.5 mb-3.5 flex items-center gap-2.5">
         <label className="text-[0.92rem] text-[#2a6a3a] whitespace-nowrap font-semibold">응답자 이름:</label>
-        <input
+        <ImeTextInput
           value={person.respondentName || ''}
-          onChange={(e) => onName(e.target.value)}
+          onCommit={(v) => onName(typeof v === 'string' ? v : '')}
           placeholder="이름 (선택)"
           className="bg-white border border-gray-300 text-[#222] rounded px-2.5 py-1.5 text-[0.92rem] max-w-[200px]"
         />
@@ -874,19 +1034,11 @@ function QuestionInput({
   // TEXT / NUMBER
   const isNull = val === null || val === undefined
   return (
-    <input
+    <ImeTextInput
       type={type === 'NUMBER' ? 'number' : 'text'}
-      value={isNull ? '' : val}
+      value={val}
+      onCommit={(v) => onAnswer(code, v)}
       placeholder={isNull ? '판독불가 — 직접 입력' : q.options?.unit ? `(${q.options.unit})` : undefined}
-      onChange={(e) => {
-        const v =
-          type === 'NUMBER'
-            ? e.target.value === ''
-              ? null
-              : Number(e.target.value)
-            : e.target.value || null
-        onAnswer(code, v)
-      }}
       className={
         'bg-white border rounded px-2.5 py-1.5 text-[0.92rem] w-full ' +
         (isNull ? 'text-[#aaa] border-[#e0b090] bg-[#fff8f0]' : 'border-gray-300 text-[#222]')
