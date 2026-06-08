@@ -13,12 +13,13 @@ export async function POST(req: NextRequest) {
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
   const body = await parseJsonBody(req)
-  const { accessToken, respondentName, answers, codeToId } = body as {
+  const { accessToken, respondentName, answers, codeToId, responseId } = body as {
     accessToken?: string
     respondentName?: string | null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     answers?: Record<string, any>
     codeToId?: Record<string, string>
+    responseId?: string | null
   }
 
   if (!accessToken) {
@@ -64,29 +65,59 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await prisma.surveyResponse.create({
-      data: {
-        surveyId: survey.id,
-        respondentName: respondentName || null,
-        respondentInfo: Prisma.JsonNull,
-        completedAt: new Date(),
-        answers: {
-          create: answersById.map(([questionId, value]) => ({
-            questionId,
-            value: value as Prisma.InputJsonValue,
-          })),
+    // responseId가 있고 해당 응답이 이 설문에 속하면 기존 응답을 수정(재제출),
+    // 없으면 새로 생성. → 제출 후 수정/재제출 지원
+    let existingId: string | null = null
+    if (responseId) {
+      const existing = await prisma.surveyResponse.findUnique({
+        where: { id: responseId },
+        select: { id: true, surveyId: true },
+      })
+      if (existing && existing.surveyId === survey.id) existingId = existing.id
+    }
+
+    const answersCreate = answersById.map(([questionId, value]) => ({
+      questionId,
+      value: value as Prisma.InputJsonValue,
+    }))
+
+    let response: { id: string; completedAt: Date | null; _count: { answers: number } }
+
+    if (existingId) {
+      // 기존 답변 전체 삭제 후 재생성 (in-place update)
+      response = await prisma.$transaction(async (tx) => {
+        await tx.surveyAnswer.deleteMany({ where: { responseId: existingId! } })
+        return tx.surveyResponse.update({
+          where: { id: existingId! },
+          data: {
+            respondentName: respondentName || null,
+            completedAt: new Date(),
+            answers: { create: answersCreate },
+          },
+          include: { _count: { select: { answers: true } } },
+        })
+      })
+    } else {
+      response = await prisma.surveyResponse.create({
+        data: {
+          surveyId: survey.id,
+          respondentName: respondentName || null,
+          respondentInfo: Prisma.JsonNull,
+          completedAt: new Date(),
+          answers: { create: answersCreate },
         },
-      },
-      include: { _count: { select: { answers: true } } },
-    })
+        include: { _count: { select: { answers: true } } },
+      })
+    }
 
     return NextResponse.json(
       {
         id: response.id,
         completedAt: response.completedAt,
         answerCount: response._count.answers,
+        updated: !!existingId,
       },
-      { status: 201 }
+      { status: existingId ? 200 : 201 }
     )
   } catch (e) {
     console.error('[paper-ocr submit]', e)
