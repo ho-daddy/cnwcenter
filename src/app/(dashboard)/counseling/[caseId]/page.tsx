@@ -9,6 +9,7 @@ import { ko } from 'date-fns/locale'
 import {
   ArrowLeft, Plus, Trash2, Phone, Calendar, Tag, User,
   Building2, FileText, Upload, Download, Stethoscope, Shield,
+  Pencil, Check, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -101,6 +102,21 @@ export default function CounselingCaseDetailPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 케이스 정보 편집
+  const [isEditingCase, setIsEditingCase] = useState(false)
+  const [caseEditForm, setCaseEditForm] = useState<Partial<CounselingCase>>({})
+  const [isSavingCase, setIsSavingCase] = useState(false)
+
+  // 상담기록 편집
+  const [editConsultId, setEditConsultId] = useState<string | null>(null)
+  const [consultEditForm, setConsultEditForm] = useState({
+    consultDate: '',
+    consultType: '전화',
+    content: '',
+    nextAction: '',
+  })
+  const [isSavingConsult, setIsSavingConsult] = useState(false)
+
   const isStaff = session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'STAFF'
 
   useEffect(() => {
@@ -128,6 +144,73 @@ export default function CounselingCaseDetailPage() {
     const res = await fetch(`/api/counseling/${caseId}`, { method: 'DELETE' })
     if (res.ok) router.push('/counseling')
     else setIsDeleting(false)
+  }
+
+  const handleStartEditCase = () => {
+    if (!caseData) return
+    setCaseEditForm({
+      victimName: caseData.victimName,
+      victimContact: caseData.victimContact,
+      workplaceName: caseData.workplaceName ?? '',
+      caseType: caseData.caseType ?? '',
+      diseaseCategory: caseData.diseaseCategory ?? '',
+      accidentDate: caseData.accidentDate ? caseData.accidentDate.slice(0, 10) : '',
+      diagnosisDate: caseData.diagnosisDate ? caseData.diagnosisDate.slice(0, 10) : '',
+      diagnosisName: caseData.diagnosisName ?? '',
+      guardianName: caseData.guardianName ?? '',
+      guardianContact: caseData.guardianContact ?? '',
+    } as Partial<CounselingCase>)
+    setIsEditingCase(true)
+  }
+
+  const handleSaveCase = async () => {
+    setIsSavingCase(true)
+    try {
+      const res = await fetch(`/api/counseling/${caseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(caseEditForm),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setCaseData((prev) => prev ? { ...prev, ...updated } : prev)
+        setIsEditingCase(false)
+      }
+    } finally {
+      setIsSavingCase(false)
+    }
+  }
+
+  const handleStartEditConsult = (consult: Consultation) => {
+    setEditConsultId(consult.id)
+    setConsultEditForm({
+      consultDate: format(new Date(consult.consultDate), "yyyy-MM-dd'T'HH:mm"),
+      consultType: consult.consultType,
+      content: consult.content,
+      nextAction: consult.nextAction ?? '',
+    })
+  }
+
+  const handleSaveConsult = async () => {
+    if (!editConsultId) return
+    setIsSavingConsult(true)
+    try {
+      const res = await fetch(`/api/counseling/${caseId}/consultations/${editConsultId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(consultEditForm),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setCaseData((prev) => prev ? {
+          ...prev,
+          consultations: prev.consultations.map((c) => c.id === editConsultId ? updated : c),
+        } : prev)
+        setEditConsultId(null)
+      }
+    } finally {
+      setIsSavingConsult(false)
+    }
   }
 
   const handleAddConsultation = async (e: React.FormEvent) => {
@@ -231,85 +314,181 @@ export default function CounselingCaseDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <span className={cn('px-3 py-1 rounded-full text-sm font-semibold', status.color)}>{status.label}</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isEditingCase && isStaff && (
               <button
-                key={key}
-                onClick={() => handleStatusChange(key)}
-                disabled={caseData.status === key}
-                className={cn(
-                  'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
-                  caseData.status === key
-                    ? 'opacity-30 cursor-not-allowed border-gray-200'
-                    : 'border-gray-200 hover:bg-gray-50'
-                )}
+                onClick={handleStartEditCase}
+                className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 px-2.5 py-1 rounded-lg hover:bg-amber-50 border border-amber-200 transition-colors"
               >
-                {cfg.label}
+                <Pencil className="w-3 h-3" />
+                정보 수정
               </button>
-            ))}
+            )}
+            <div className="flex gap-1.5 flex-wrap">
+              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  onClick={() => handleStatusChange(key)}
+                  disabled={caseData.status === key}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
+                    caseData.status === key
+                      ? 'opacity-30 cursor-not-allowed border-gray-200'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  )}
+                >
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Phone className="w-4 h-4 text-gray-400 shrink-0" />
-            {caseData.victimContact}
+        {isEditingCase ? (
+          /* ── 케이스 정보 편집 모드 ── */
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">피재자 이름 *</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).victimName ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, victimName: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">연락처 *</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).victimContact ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, victimContact: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">사업장</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).workplaceName ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, workplaceName: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">재해유형</label>
+                <select value={(caseEditForm as Record<string, string>).caseType ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, caseType: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  <option value="">선택 안함</option>
+                  {Object.entries(CASE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">재해일</label>
+                <input type="date" value={(caseEditForm as Record<string, string>).accidentDate ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, accidentDate: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">질병분류</label>
+                <select value={(caseEditForm as Record<string, string>).diseaseCategory ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, diseaseCategory: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  <option value="">선택 안함</option>
+                  {Object.entries(DISEASE_CATEGORY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">진단일</label>
+                <input type="date" value={(caseEditForm as Record<string, string>).diagnosisDate ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, diagnosisDate: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">진단명</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).diagnosisName ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, diagnosisName: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">보호자</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).guardianName ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, guardianName: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">보호자 연락처</label>
+                <input type="text" value={(caseEditForm as Record<string, string>).guardianContact ?? ''}
+                  onChange={(e) => setCaseEditForm((p) => ({ ...p, guardianContact: e.target.value }))}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={handleSaveCase} disabled={isSavingCase}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+                {isSavingCase ? '저장 중...' : <><Check className="w-3.5 h-3.5" />저장</>}
+              </button>
+              <button onClick={() => setIsEditingCase(false)} disabled={isSavingCase}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-100 text-gray-600 text-sm font-medium rounded-lg transition-colors">
+                <X className="w-3.5 h-3.5" />취소
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-gray-700">
-            <User className="w-4 h-4 text-gray-400 shrink-0" />
-            담당: {caseData.user.name}
-          </div>
-          {caseData.workplaceName && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
-              {caseData.workplaceName}
-            </div>
-          )}
-          {caseData.caseType && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Tag className="w-4 h-4 text-gray-400 shrink-0" />
-              재해유형: {CASE_TYPE_LABELS[caseData.caseType] || caseData.caseType}
-            </div>
-          )}
-          {caseData.accidentDate && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-              재해일: {format(new Date(caseData.accidentDate), 'yyyy년 M월 d일', { locale: ko })}
-            </div>
-          )}
-          {caseData.diseaseCategory && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
-              질병분류: {caseData.diseaseCategory.startsWith('OTHER:')
-                ? `기타 (${caseData.diseaseCategory.slice(6)})`
-                : DISEASE_CATEGORY_LABELS[caseData.diseaseCategory] || caseData.diseaseCategory}
-            </div>
-          )}
-          {caseData.diagnosisDate && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-              진단일: {format(new Date(caseData.diagnosisDate), 'yyyy년 M월 d일', { locale: ko })}
-            </div>
-          )}
-          {caseData.diagnosisName && (
-            <div className="flex items-center gap-2 text-gray-700 col-span-2">
-              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-              진단명: {caseData.diagnosisName}
-            </div>
-          )}
-          {caseData.guardianName && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <Shield className="w-4 h-4 text-gray-400 shrink-0" />
-              보호자: {caseData.guardianName}
-            </div>
-          )}
-          {caseData.guardianContact && (
+        ) : (
+          /* ── 케이스 정보 보기 모드 ── */
+          <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2 text-gray-700">
               <Phone className="w-4 h-4 text-gray-400 shrink-0" />
-              보호자 연락처: {caseData.guardianContact}
+              {caseData.victimContact}
             </div>
-          )}
-        </div>
+            <div className="flex items-center gap-2 text-gray-700">
+              <User className="w-4 h-4 text-gray-400 shrink-0" />
+              담당: {caseData.user.name}
+            </div>
+            {caseData.workplaceName && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Building2 className="w-4 h-4 text-gray-400 shrink-0" />
+                {caseData.workplaceName}
+              </div>
+            )}
+            {caseData.caseType && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Tag className="w-4 h-4 text-gray-400 shrink-0" />
+                재해유형: {CASE_TYPE_LABELS[caseData.caseType] || caseData.caseType}
+              </div>
+            )}
+            {caseData.accidentDate && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                재해일: {format(new Date(caseData.accidentDate), 'yyyy년 M월 d일', { locale: ko })}
+              </div>
+            )}
+            {caseData.diseaseCategory && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
+                질병분류: {caseData.diseaseCategory.startsWith('OTHER:')
+                  ? `기타 (${caseData.diseaseCategory.slice(6)})`
+                  : DISEASE_CATEGORY_LABELS[caseData.diseaseCategory] || caseData.diseaseCategory}
+              </div>
+            )}
+            {caseData.diagnosisDate && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                진단일: {format(new Date(caseData.diagnosisDate), 'yyyy년 M월 d일', { locale: ko })}
+              </div>
+            )}
+            {caseData.diagnosisName && (
+              <div className="flex items-center gap-2 text-gray-700 col-span-2">
+                <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                진단명: {caseData.diagnosisName}
+              </div>
+            )}
+            {caseData.guardianName && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Shield className="w-4 h-4 text-gray-400 shrink-0" />
+                보호자: {caseData.guardianName}
+              </div>
+            )}
+            {caseData.guardianContact && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                보호자 연락처: {caseData.guardianContact}
+              </div>
+            )}
+          </div>
+        )}
         <p className="text-xs text-gray-400">
           등록일: {format(new Date(caseData.createdAt), 'yyyy.MM.dd', { locale: ko })}
         </p>
@@ -429,26 +608,79 @@ export default function CounselingCaseDetailPage() {
           <div className="divide-y divide-gray-50">
             {caseData.consultations.map((consult) => (
               <div key={consult.id} className="px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xs font-semibold text-gray-700">
-                        {format(new Date(consult.consultDate), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                      </span>
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{consult.consultType}</span>
-                    </div>
-                    <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{consult.content}</p>
-                    {consult.nextAction && (
-                      <div className="mt-2 pl-3 border-l-2 border-blue-200">
-                        <p className="text-xs text-blue-700 font-medium">다음 조치: {consult.nextAction}</p>
+                {editConsultId === consult.id ? (
+                  /* ── 상담기록 편집 모드 ── */
+                  <div className="space-y-3 bg-amber-50 rounded-lg p-3 -mx-1">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">상담 일시</label>
+                        <input type="datetime-local" value={consultEditForm.consultDate}
+                          onChange={(e) => setConsultEditForm((p) => ({ ...p, consultDate: e.target.value }))}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                       </div>
-                    )}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">상담 방법</label>
+                        <select value={consultEditForm.consultType}
+                          onChange={(e) => setConsultEditForm((p) => ({ ...p, consultType: e.target.value }))}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                          {CONSULT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">상담 내용</label>
+                      <textarea value={consultEditForm.content}
+                        onChange={(e) => setConsultEditForm((p) => ({ ...p, content: e.target.value }))}
+                        rows={4} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">다음 조치사항</label>
+                      <input type="text" value={consultEditForm.nextAction}
+                        onChange={(e) => setConsultEditForm((p) => ({ ...p, nextAction: e.target.value }))}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleSaveConsult} disabled={isSavingConsult}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+                        {isSavingConsult ? '저장 중...' : <><Check className="w-3.5 h-3.5" />저장</>}
+                      </button>
+                      <button onClick={() => setEditConsultId(null)} disabled={isSavingConsult}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-100 text-gray-600 text-sm font-medium rounded-lg transition-colors">
+                        <X className="w-3.5 h-3.5" />취소
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => handleDeleteConsultation(consult.id)}
-                    className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                ) : (
+                  /* ── 상담기록 보기 모드 ── */
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs font-semibold text-gray-700">
+                          {format(new Date(consult.consultDate), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                        </span>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{consult.consultType}</span>
+                      </div>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{consult.content}</p>
+                      {consult.nextAction && (
+                        <div className="mt-2 pl-3 border-l-2 border-blue-200">
+                          <p className="text-xs text-blue-700 font-medium">다음 조치: {consult.nextAction}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isStaff && (
+                        <button onClick={() => handleStartEditConsult(consult)}
+                          className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteConsultation(consult.id)}
+                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
