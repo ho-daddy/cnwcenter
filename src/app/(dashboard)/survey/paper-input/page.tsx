@@ -182,12 +182,6 @@ export default function PaperInputPage() {
   const [submitMsg, setSubmitMsg] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  // PDF 뷰어 (pdfjs-dist, iframe 대체)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfRef = useRef<any>(null)
-  const canvasContainerRef = useRef<HTMLDivElement>(null)
-  const [pdfReady, setPdfReady] = useState(false)
-  const renderCancelRef = useRef(false)
   // 강제 리렌더용 (persons 내부 객체 mutate 후)
   const [, forceTick] = useState(0)
   const rerender = useCallback(() => forceTick((t) => t + 1), [])
@@ -206,90 +200,6 @@ export default function PaperInputPage() {
       }
     })()
   }, [])
-
-  // ── PDF 로드 (pdfjs-dist) ──────────────────────────────────
-  useEffect(() => {
-    if (!sessionId) { pdfRef.current = null; setPdfReady(false); return }
-    setPdfReady(false)
-    pdfRef.current = null
-    ;(async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pdfjs: any = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc =
-          `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
-        const resp = await fetch(`/api/paper-ocr/file/${sessionId}`)
-        const data = await resp.arrayBuffer()
-        pdfRef.current = await pdfjs.getDocument({ data }).promise
-        setPdfReady(true)
-      } catch (e) {
-        setStatus('PDF 뷰어 로드 실패: ' + (e instanceof Error ? e.message : String(e)))
-      }
-    })()
-  }, [sessionId])
-
-  // ── PDF 페이지 렌더링 ──────────────────────────────────────
-  useEffect(() => {
-    if (!pdfReady || !pdfRef.current || !canvasContainerRef.current) return
-    renderCancelRef.current = true  // 이전 렌더 취소
-    const cancelled = { v: false }
-    renderCancelRef.current = false
-
-    const container = canvasContainerRef.current
-    container.innerHTML = ''
-    const startPage = cur?.pages[0] ?? 1
-    const endPage = cur?.pages[1] ?? pdfRef.current.numPages
-    ;(async () => {
-      for (let p = startPage; p <= endPage; p++) {
-        if (cancelled.v) break
-        const page = await pdfRef.current.getPage(p)
-        const vp = page.getViewport({ scale: 1.5 })
-        const canvas = document.createElement('canvas')
-        canvas.width = vp.width
-        canvas.height = vp.height
-        canvas.style.width = '100%'
-        canvas.style.display = 'block'
-        // 폼 ↔ PDF 스크롤 연동용: 응답자 내 상대 페이지 인덱스(0-base) 태깅
-        canvas.dataset.page = String(p - startPage)
-        if (p < endPage) canvas.style.marginBottom = '2px'
-        container.appendChild(canvas)
-        const ctx = canvas.getContext('2d')
-        if (ctx) await page.render({ canvasContext: ctx, viewport: vp }).promise
-      }
-      if (!cancelled.v) container.scrollTop = 0
-    })()
-    return () => { cancelled.v = true }
-  }, [pdfReady, cur])
-
-  // ── 폼 스크롤 → PDF 페이지 동기화 ──────────────────────────
-  const formScrollRef = useRef<HTMLDivElement>(null)
-  const syncRaf = useRef<number | null>(null)
-  function onFormScroll() {
-    if (syncRaf.current != null) return // throttle (rAF)
-    syncRaf.current = requestAnimationFrame(() => {
-      syncRaf.current = null
-      const form = formScrollRef.current
-      const container = canvasContainerRef.current
-      if (!form || !container || !cur) return
-      const canvases = container.querySelectorAll<HTMLCanvasElement>('canvas[data-page]')
-      const pageCountForPerson = cur.pages[1] - cur.pages[0] + 1
-      if (canvases.length === 0 || pageCountForPerson <= 1) return
-      // 폼 스크롤 비율 → 해당 페이지 인덱스
-      const maxScroll = form.scrollHeight - form.clientHeight
-      const ratio = maxScroll > 0 ? form.scrollTop / maxScroll : 0
-      const idx = Math.min(
-        pageCountForPerson - 1,
-        Math.round(ratio * (pageCountForPerson - 1))
-      )
-      const target = container.querySelector<HTMLCanvasElement>(
-        `canvas[data-page="${idx}"]`
-      )
-      if (target) {
-        const top = target.offsetTop - container.offsetTop
-        container.scrollTo({ top, behavior: 'smooth' })
-      }
-    })
-  }
 
   // ── 설문 선택 → 구조 로드 ──────────────────────────────────
   async function onSurveyChange(id: string) {
@@ -587,23 +497,19 @@ export default function PaperInputPage() {
               <span className="opacity-60">PDF 미리보기</span>
             )}
           </div>
-          <div className="flex-1 overflow-hidden bg-[#0a0a10] relative">
-            {/* pdfjs 캔버스 렌더 영역 (폼 스크롤 연동 대상) */}
-            <div
-              ref={canvasContainerRef}
-              className="w-full h-full overflow-y-auto"
-              style={{ display: sessionId ? 'block' : 'none' }}
-            />
-            {!sessionId && (
+          <div className="flex-1 overflow-hidden bg-[#0a0a10]">
+            {sessionId ? (
+              <iframe
+                key={cur ? cur.pages[0] : 'all'}
+                src={`/api/paper-ocr/file/${sessionId}#page=${cur ? cur.pages[0] : 1}`}
+                title="PDF 뷰어"
+                className="w-full h-full border-0 bg-white"
+              />
+            ) : (
               <div className="text-[#555] text-[0.95rem] h-full flex items-center justify-center text-center leading-loose">
                 PDF 업로드 후
                 <br />
                 미리보기가 표시됩니다
-              </div>
-            )}
-            {sessionId && !pdfReady && (
-              <div className="absolute inset-0 text-[#777] text-[0.9rem] flex items-center justify-center pointer-events-none">
-                PDF 로딩 중...
               </div>
             )}
           </div>
@@ -620,7 +526,7 @@ export default function PaperInputPage() {
               <span className="text-[#888]">응답자를 선택하면 폼이 표시됩니다</span>
             )}
           </div>
-          <div ref={formScrollRef} onScroll={onFormScroll} className="flex-1 overflow-y-auto p-3.5">
+          <div className="flex-1 overflow-y-auto p-3.5">
             {!structure || !cur ? (
               <div className="text-[#aaa] text-[0.95rem] text-center mt-10">
                 왼쪽에서 응답자를 선택하세요
