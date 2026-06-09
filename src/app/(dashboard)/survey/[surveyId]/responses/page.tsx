@@ -83,6 +83,7 @@ export default function SurveyResponsesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   // editValues: questionId(DB row id) → value
   const [editValues, setEditValues] = useState<Record<string, unknown>>({})
+  const [editValuesLoaded, setEditValuesLoaded] = useState(false)
   const [editName, setEditName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -162,8 +163,9 @@ export default function SurveyResponsesPage() {
           setExpandedDetails((prev) => ({ ...prev, [resp.id]: answers! }))
         }
       } catch {
-        answers = []
-        setExpandedDetails((prev) => ({ ...prev, [resp.id]: [] }))
+        setLoadingDetail(null)
+        alert('답변 데이터를 불러오지 못했습니다. 다시 시도해주세요.')
+        return
       } finally {
         setLoadingDetail(null)
       }
@@ -173,6 +175,7 @@ export default function SurveyResponsesPage() {
     const vals: Record<string, unknown> = {}
     ;(answers ?? []).forEach((a) => { vals[a.questionId] = a.value })
     setEditValues(vals)
+    setEditValuesLoaded(true)
     setEditingId(resp.id)
   }
 
@@ -222,7 +225,7 @@ export default function SurveyResponsesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           respondentName: editName,
-          answers: visibleAnswers,
+          ...(editValuesLoaded ? { answers: visibleAnswers } : {}),
         }),
       })
       if (res.ok) {
