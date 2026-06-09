@@ -151,19 +151,22 @@ export default function SurveyResponsesPage() {
   const handleEdit = async (resp: ResponseItem) => {
     setExpandedId(resp.id)
     setEditName(resp.respondentName ?? '')
+    // 이전 응답의 loaded 상태가 남아있지 않도록 진입 시 리셋
+    setEditValuesLoaded(false)
 
     let answers = expandedDetails[resp.id]
     if (!answers) {
       setLoadingDetail(resp.id)
       try {
         const res = await fetch(`/api/surveys/${surveyId}/responses/${resp.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          answers = data.answers ?? []
-          setExpandedDetails((prev) => ({ ...prev, [resp.id]: answers! }))
+        if (!res.ok) {
+          alert('답변 데이터를 불러오지 못했습니다. 다시 시도해주세요.')
+          return
         }
+        const data = await res.json()
+        answers = data.answers ?? []
+        setExpandedDetails((prev) => ({ ...prev, [resp.id]: answers! }))
       } catch {
-        setLoadingDetail(null)
         alert('답변 데이터를 불러오지 못했습니다. 다시 시도해주세요.')
         return
       } finally {
