@@ -40,6 +40,12 @@ export async function GET(req: NextRequest, { params }: Params) {
 }
 
 // PATCH /api/surveys/[surveyId]/responses/[responseId] — 응답 수정 (STAFF+)
+//
+// 동기화 방식: 클라이언트가 가시 질문들의 (questionId, value) 목록을 보낸다.
+// 서버는 기존 answer row와 비교해서 업데이트/생성/삭제로 동기화한다.
+// - 받은 항목 중 기존 answer 있음 → update
+// - 받은 항목 중 기존 answer 없음 → create
+// - 받지 않은 기존 answer (= 가시성 false 된 질문) → delete
 export async function PATCH(req: NextRequest, { params }: Params) {
   const auth = await requireSurveyAccess(params.surveyId)
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
@@ -54,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json()
   const { respondentName, answers } = body as {
     respondentName?: string
-    answers?: { id: string; value: unknown }[]
+    answers?: { questionId: string; value: unknown }[]
   }
 
   await prisma.$transaction(async (tx) => {
@@ -64,16 +70,58 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         data: { respondentName },
       })
     }
-    if (answers?.length) {
-      await Promise.all(
-        answers.map((a) =>
-          tx.surveyAnswer.update({
-            where: { id: a.id },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data: { value: a.value as any },
-          })
-        )
-      )
+
+    if (answers) {
+      // 입력 정규화: questionId 중복 제거 (마지막 값 유지)
+      const incoming = new Map<string, unknown>()
+      for (const a of answers) {
+        if (a.questionId) incoming.set(a.questionId, a.value)
+      }
+
+      // 현재 응답에 매달린 모든 answer 조회
+      const existing = await tx.surveyAnswer.findMany({
+        where: { responseId: params.responseId },
+        select: { id: true, questionId: true },
+      })
+      const existingByQ = new Map(existing.map(e => [e.questionId, e.id]))
+
+      const ops: Promise<unknown>[] = []
+
+      // 1) 받은 항목: update or create
+      for (const [questionId, value] of incoming.entries()) {
+        const existId = existingByQ.get(questionId)
+        if (existId) {
+          ops.push(
+            tx.surveyAnswer.update({
+              where: { id: existId },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              data: { value: value as any },
+            })
+          )
+        } else {
+          ops.push(
+            tx.surveyAnswer.create({
+              data: {
+                responseId: params.responseId,
+                questionId,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                value: value as any,
+              },
+            })
+          )
+        }
+      }
+
+      // 2) 받지 않은 기존 answer: 삭제 (가시성 false 된 질문)
+      const toDelete: string[] = []
+      for (const e of existing) {
+        if (!incoming.has(e.questionId)) toDelete.push(e.id)
+      }
+      if (toDelete.length > 0) {
+        ops.push(tx.surveyAnswer.deleteMany({ where: { id: { in: toDelete } } }))
+      }
+
+      await Promise.all(ops)
     }
   })
 

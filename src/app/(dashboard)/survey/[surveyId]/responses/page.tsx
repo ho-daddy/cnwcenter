@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -11,11 +11,32 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
+import { evaluateConditions } from '@/lib/survey/conditional-logic'
+import type { ConditionalLogic } from '@/types/survey'
 
 interface SurveyMeta {
   id: string
   title: string
   status: string
+}
+
+interface SurveyQuestion {
+  id: string
+  questionCode: string | null
+  questionText: string
+  questionType: string
+  required: boolean
+  sortOrder: number
+  options: unknown
+  conditionalLogic: ConditionalLogic | null
+}
+
+interface SurveySection {
+  id: string
+  title: string
+  description: string | null
+  sortOrder: number
+  questions: SurveyQuestion[]
 }
 
 interface AnswerItem {
@@ -48,6 +69,8 @@ export default function SurveyResponsesPage() {
   const surveyId = params.surveyId as string
 
   const [survey, setSurvey] = useState<SurveyMeta | null>(null)
+  // 설문 전체 구조 (섹션/질문) — 수정 모드에서 조건부 가시성 평가용
+  const [sections, setSections] = useState<SurveySection[]>([])
   const [responses, setResponses] = useState<ResponseItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -58,6 +81,7 @@ export default function SurveyResponsesPage() {
   const [expandedDetails, setExpandedDetails] = useState<Record<string, AnswerItem[]>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  // editValues: questionId(DB row id) → value
   const [editValues, setEditValues] = useState<Record<string, unknown>>({})
   const [editName, setEditName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -76,6 +100,9 @@ export default function SurveyResponsesPage() {
       if (surveyRes.ok) {
         const surveyData = await surveyRes.json()
         setSurvey({ id: surveyData.id, title: surveyData.title, status: surveyData.status })
+        if (Array.isArray(surveyData.sections)) {
+          setSections(surveyData.sections as SurveySection[])
+        }
       }
       if (responsesRes.ok) {
         const data = await responsesRes.json()
@@ -142,32 +169,72 @@ export default function SurveyResponsesPage() {
       }
     }
 
+    // editValues는 questionId(DB) 키 기반
     const vals: Record<string, unknown> = {}
-    ;(answers ?? []).forEach((a) => { vals[a.id] = a.value })
+    ;(answers ?? []).forEach((a) => { vals[a.questionId] = a.value })
     setEditValues(vals)
     setEditingId(resp.id)
   }
 
+  // questionId(DB) → questionCode 매핑 (조건부 평가용)
+  const codeByQuestionId = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const sec of sections) {
+      for (const q of sec.questions) {
+        if (q.questionCode) m.set(q.id, q.questionCode)
+      }
+    }
+    return m
+  }, [sections])
+
+  // 현재 editValues를 questionCode 기준 객체로 변환 (조건부 로직 평가에 사용)
+  const editValuesByCode = useMemo(() => {
+    const result: Record<string, unknown> = {}
+    for (const [qid, value] of Object.entries(editValues)) {
+      const code = codeByQuestionId.get(qid)
+      if (code) result[code] = value
+    }
+    return result
+  }, [editValues, codeByQuestionId])
+
+  const isQuestionVisible = useCallback((q: SurveyQuestion): boolean => {
+    return evaluateConditions(q.conditionalLogic, editValuesByCode)
+  }, [editValuesByCode])
+
   const handleSave = async (responseId: string) => {
     setIsSaving(true)
     try {
-      const answers = expandedDetails[responseId] ?? []
+      // 가시 질문들에 대한 답만 페이로드에 포함 (서버는 받지 않은 기존 answer를 삭제)
+      const visibleAnswers: { questionId: string; value: unknown }[] = []
+      for (const sec of sections) {
+        for (const q of sec.questions) {
+          if (!isQuestionVisible(q)) continue
+          if (!(q.id in editValues)) continue
+          const v = editValues[q.id]
+          // 빈 값(''/undefined/빈 배열)은 응답 없음으로 처리 → 제외
+          if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue
+          visibleAnswers.push({ questionId: q.id, value: v })
+        }
+      }
+
       const res = await fetch(`/api/surveys/${surveyId}/responses/${responseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           respondentName: editName,
-          answers: answers.map((a) => ({ id: a.id, value: editValues[a.id] })),
+          answers: visibleAnswers,
         }),
       })
       if (res.ok) {
         setResponses((prev) =>
           prev.map((r) => r.id === responseId ? { ...r, respondentName: editName } : r)
         )
-        setExpandedDetails((prev) => ({
-          ...prev,
-          [responseId]: (prev[responseId] ?? []).map((a) => ({ ...a, value: editValues[a.id] })),
-        }))
+        // 상세 캐시 무효화: 다음 펼침 때 다시 fetch
+        setExpandedDetails((prev) => {
+          const next = { ...prev }
+          delete next[responseId]
+          return next
+        })
         setEditingId(null)
       }
     } catch {
@@ -328,11 +395,12 @@ export default function SurveyResponsesPage() {
     }
   }
 
-  const renderEditInput = (answer: AnswerItem) => {
-    const type = answer.question.questionType
-    const opts = answer.question.options as Record<string, unknown> | null
-    const val = editValues[answer.id]
-    const set = (v: unknown) => setEditValues((prev) => ({ ...prev, [answer.id]: v }))
+  // 질문(sections에서 가져온 메타) 기준 입력 UI 렌더링
+  const renderEditInputForQuestion = (q: SurveyQuestion) => {
+    const type = q.questionType
+    const opts = q.options as Record<string, unknown> | null
+    const val = editValues[q.id]
+    const set = (v: unknown) => setEditValues((prev) => ({ ...prev, [q.id]: v }))
 
     switch (type) {
       case 'TEXT':
@@ -645,7 +713,7 @@ export default function SurveyResponsesPage() {
                         불러오는 중...
                       </div>
                     ) : editingId === resp.id ? (
-                      /* ── 수정 모드 ── */
+                      /* ── 수정 모드: 설문 구조 기준 + 조건부 가시성 적용 ── */
                       <div className="space-y-4 pt-3">
                         {/* 응답자 이름 */}
                         <div className="bg-white rounded-lg border border-amber-200 p-3">
@@ -658,29 +726,59 @@ export default function SurveyResponsesPage() {
                             placeholder="이름 입력"
                           />
                         </div>
-                        {expandedDetails[resp.id].map((answer) => (
-                          <div
-                            key={answer.id}
-                            className="bg-white rounded-lg border border-amber-200 p-3"
-                          >
-                            <div className="flex items-start gap-2 mb-1.5">
-                              {answer.question.questionCode && (
-                                <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded font-mono shrink-0">
-                                  {answer.question.questionCode}
-                                </span>
-                              )}
-                              <span className="text-xs text-gray-500 shrink-0">
-                                [{QUESTION_TYPE_LABELS[answer.question.questionType as keyof typeof QUESTION_TYPE_LABELS] ?? answer.question.questionType}]
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-800 mb-2">
-                              {answer.question.questionText}
-                            </p>
-                            <div className="pl-2 border-l-2 border-amber-300">
-                              {renderEditInput(answer)}
-                            </div>
-                          </div>
-                        ))}
+                        {sections.length === 0 ? (
+                          <p className="text-sm text-gray-400">설문 구조를 불러오는 중...</p>
+                        ) : (
+                          sections.map((section) => {
+                            const visibleQs = section.questions.filter(isQuestionVisible)
+                            if (visibleQs.length === 0) return null
+                            return (
+                              <div key={section.id} className="space-y-2">
+                                <h3 className="text-xs font-bold text-amber-700 px-1">
+                                  {section.title}
+                                </h3>
+                                {visibleQs.map((q) => {
+                                  const hadAnswer = q.id in editValues
+                                  const isNew = !expandedDetails[resp.id]?.some(a => a.questionId === q.id)
+                                  return (
+                                    <div
+                                      key={q.id}
+                                      className={cn(
+                                        'bg-white rounded-lg border p-3',
+                                        isNew && hadAnswer === false ? 'border-blue-200 ring-1 ring-blue-100' : 'border-amber-200'
+                                      )}
+                                    >
+                                      <div className="flex items-start gap-2 mb-1.5">
+                                        {q.questionCode && (
+                                          <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded font-mono shrink-0">
+                                            {q.questionCode}
+                                          </span>
+                                        )}
+                                        <span className="text-xs text-gray-500 shrink-0">
+                                          [{QUESTION_TYPE_LABELS[q.questionType as keyof typeof QUESTION_TYPE_LABELS] ?? q.questionType}]
+                                        </span>
+                                        {q.required && (
+                                          <span className="text-[10px] text-red-500">*필수</span>
+                                        )}
+                                        {isNew && (
+                                          <span className="ml-auto text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                            조건부로 추가됨
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm font-medium text-gray-800 mb-2">
+                                        {q.questionText}
+                                      </p>
+                                      <div className="pl-2 border-l-2 border-amber-300">
+                                        {renderEditInputForQuestion(q)}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })
+                        )}
                         {/* 저장/취소 */}
                         <div className="flex items-center gap-2 pt-1">
                           <button
