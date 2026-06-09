@@ -79,7 +79,13 @@ export function buildOcrPrompt(structure: SurveyStructure): string {
           opts = ' 보기: ' + o.map((x) => x.label ?? x.value ?? '').join(', ')
         } else if (typeof o === 'object' && Array.isArray(o.choices)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          opts = ' 보기: ' + o.choices.map((x: any) => x.label ?? '').join(', ')
+          if (q.questionType === 'RANKED_CHOICE') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            opts = ' 보기(번호\u2192레이블): ' + o.choices.map((x: any, i: number) => (i + 1) + '. ' + (x.label ?? '')).join(', ')
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            opts = ' 보기: ' + o.choices.map((x: any) => x.label ?? '').join(', ')
+          }
         }
       }
       lines.push(`- [${q.questionCode}] ${q.questionText} (${q.questionType})${opts}`)
@@ -99,7 +105,7 @@ export function buildOcrPrompt(structure: SurveyStructure): string {
     '- TEXT: 텍스트 문자열. 빈 칸이면 null',
     '- CONSENT: true 또는 false (서명/동의 여부)',
     '- RANGE: 선택된 숫자값 (정수)',
-    '- RANKED_CHOICE: 반드시 배열로 반환. 종이에 \'1순위 : ○, 2순위 : ○, 3순위 : ○\' 칸에 적힌 숫자를 순서대로 읽어서 [1순위번호, 2순위번호, 3순위번호] 형식. 예: [2, 1, 4]. 인식 불가 항목은 0으로 표시. 전혀 모르면 null',
+    '- RANKED_CHOICE: 반드시 배열로 반환. 종이의 1순위·2순위·3순위 칸에 적힌 번호를 확인하고, 위 설문 구조의 "보기(번호→레이블)" 목록에서 해당 번호의 레이블 문자열을 찾아 순서대로 반환. 예: 종이에 2, 1, 4라고 적혔으면 [2번 레이블, 1번 레이블, 4번 레이블]. 인식 불가 항목은 건너뜀. 전혀 모르면 null',
     '- 표 형태(근골격계 증상 등): 각 부위×항목 조합을 별도 questionCode 키로 평탄화하여 반환',
   )
   return lines.join('\n')
