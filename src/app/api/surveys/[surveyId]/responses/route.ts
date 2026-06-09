@@ -21,10 +21,16 @@ export async function GET(req: NextRequest, { params }: Params) {
   const page = parseInt(searchParams.get('page') ?? '1')
   const limit = parseInt(searchParams.get('limit') ?? '20')
   const skip = (page - 1) * limit
+  const q = (searchParams.get('q') ?? '').trim()
+
+  const where = {
+    surveyId: params.surveyId,
+    ...(q ? { respondentName: { contains: q, mode: 'insensitive' as const } } : {}),
+  }
 
   const [responses, total] = await Promise.all([
     prisma.surveyResponse.findMany({
-      where: { surveyId: params.surveyId },
+      where,
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
@@ -37,9 +43,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         _count: { select: { answers: true } },
       },
     }),
-    prisma.surveyResponse.count({
-      where: { surveyId: params.surveyId },
-    }),
+    prisma.surveyResponse.count({ where }),
   ])
 
   return NextResponse.json({

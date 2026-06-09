@@ -7,7 +7,7 @@ import { ko } from 'date-fns/locale'
 import {
   ArrowLeft, Eye, Trash2, ChevronDown, ChevronRight,
   FileText, User, Loader2, AlertCircle, ChevronLeft,
-  Pencil, Check, X,
+  Pencil, Check, X, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
@@ -51,6 +51,8 @@ export default function SurveyResponsesPage() {
   const [responses, setResponses] = useState<ResponseItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [searchText, setSearchText] = useState('')      // 즉시 반영되는 입력값
+  const [searchQuery, setSearchQuery] = useState('')    // 디바운스 후 API 호출 값
   const [isLoading, setIsLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedDetails, setExpandedDetails] = useState<Record<string, AnswerItem[]>>({})
@@ -62,12 +64,14 @@ export default function SurveyResponsesPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  const fetchData = useCallback(async (p: number) => {
+  const fetchData = useCallback(async (p: number, q: string) => {
     setIsLoading(true)
     try {
+      const params = new URLSearchParams({ page: String(p), limit: String(PAGE_SIZE) })
+      if (q) params.set('q', q)
       const [surveyRes, responsesRes] = await Promise.all([
         fetch(`/api/surveys/${surveyId}`),
-        fetch(`/api/surveys/${surveyId}/responses?page=${p}&limit=${PAGE_SIZE}`),
+        fetch(`/api/surveys/${surveyId}/responses?${params}`),
       ])
       if (surveyRes.ok) {
         const surveyData = await surveyRes.json()
@@ -86,8 +90,19 @@ export default function SurveyResponsesPage() {
   }, [surveyId])
 
   useEffect(() => {
-    fetchData(page)
-  }, [fetchData, page])
+    fetchData(page, searchQuery)
+  }, [fetchData, page, searchQuery])
+
+  // 검색어 디바운스: 입력 후 300ms 대기 후 쿼리 확정 + 1페이지로 리셋
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchText !== searchQuery) {
+        setSearchQuery(searchText)
+        setPage(1)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchText, searchQuery])
 
   const loadDetail = async (id: string) => {
     if (expandedDetails[id]) return
@@ -190,6 +205,17 @@ export default function SurveyResponsesPage() {
     await loadDetail(id)
   }
 
+  // ─── Helper: 옵션을 choices 배열로 정규화 ───
+  // 설문 템플릿에서 RADIO/DROPDOWN/CHECKBOX의 options는 직접 배열 형식이고,
+  // RANKED_CHOICE는 { choices: [...], rankCount } 객체 형식이라 둘 다 처리 필요.
+  const getChoices = (opts: unknown): Array<{ value: string; label: string }> => {
+    if (!opts) return []
+    if (Array.isArray(opts)) return opts as Array<{ value: string; label: string }>
+    const o = opts as Record<string, unknown>
+    if (Array.isArray(o.choices)) return o.choices as Array<{ value: string; label: string }>
+    return []
+  }
+
   // ─── Render answer value ───
   const renderAnswer = (answer: AnswerItem) => {
     const value = answer.value
@@ -208,7 +234,7 @@ export default function SurveyResponsesPage() {
 
       case 'RADIO':
       case 'DROPDOWN': {
-        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const choices = getChoices(opts)
         const match = choices.find((c) => c.value === value)
         return (
           <span className="text-sm text-gray-700">
@@ -218,7 +244,7 @@ export default function SurveyResponsesPage() {
       }
 
       case 'CHECKBOX': {
-        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const choices = getChoices(opts)
         const selected = Array.isArray(value) ? value : [value]
         return (
           <div className="flex flex-wrap gap-1">
@@ -281,7 +307,7 @@ export default function SurveyResponsesPage() {
 
       case 'RANKED_CHOICE': {
         const ranked = Array.isArray(value) ? value : []
-        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const choices = getChoices(opts)
         return (
           <ol className="list-decimal list-inside text-sm text-gray-700 space-y-0.5">
             {ranked.map((v: string, i: number) => {
@@ -324,13 +350,13 @@ export default function SurveyResponsesPage() {
           <input
             type="number"
             className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 w-32"
-            value={typeof val === 'number' ? val : (val ?? '')}
+            value={typeof val === 'number' ? val : typeof val === 'string' ? val : ''}
             onChange={(e) => set(e.target.value === '' ? '' : Number(e.target.value))}
           />
         )
       case 'RADIO':
       case 'DROPDOWN': {
-        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const choices = getChoices(opts)
         return (
           <select
             className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -345,7 +371,7 @@ export default function SurveyResponsesPage() {
         )
       }
       case 'CHECKBOX': {
-        const choices = (opts?.choices as { value: string; label: string }[]) ?? []
+        const choices = getChoices(opts)
         const selected: string[] = Array.isArray(val) ? val : []
         return (
           <div className="flex flex-wrap gap-2">
@@ -380,6 +406,78 @@ export default function SurveyResponsesPage() {
               className="w-32"
             />
             <span className="text-sm font-medium text-blue-600 w-6 text-center">{numVal}</span>
+          </div>
+        )
+      }
+      case 'RANKED_CHOICE': {
+        const choices = getChoices(opts)
+        const rankCount = Number((opts as { rankCount?: number } | null)?.rankCount ?? 3)
+        const ranked: string[] = Array.isArray(val) ? (val as string[]) : []
+        const setAt = (i: number, v: string) => {
+          const next = [...ranked]
+          next[i] = v
+          // 빈 슬롯들 정리: 뒤쪽 빈 슬롯이 너무 길어지면 잘라냄
+          set(next.filter((x, idx) => x || idx < ranked.length))
+        }
+        const slots = Array.from({ length: rankCount }, (_, i) => ranked[i] ?? '')
+        return (
+          <div className="space-y-1.5">
+            {slots.map((v, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-12 shrink-0">{i + 1}순위</span>
+                <select
+                  className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1"
+                  value={v}
+                  onChange={(e) => setAt(i, e.target.value)}
+                >
+                  <option value="">선택 안함</option>
+                  {choices.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )
+      }
+      case 'TABLE': {
+        const columns = (opts?.columns as { key: string; label: string }[]) ?? []
+        const rowCount = Number(opts?.rowCount ?? 3)
+        const rawRows = Array.isArray(val) ? (val as Record<string, unknown>[]) : []
+        const rows = Array.from({ length: rowCount }, (_, i) => rawRows[i] ?? {})
+        const updateCell = (rowIdx: number, key: string, v: string) => {
+          const next = rows.map((r, i) => i === rowIdx ? { ...r, [key]: v } : r)
+          set(next)
+        }
+        return (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs border border-gray-200 rounded">
+              <thead className="bg-gray-50">
+                <tr>
+                  {columns.map((col) => (
+                    <th key={col.key} className="px-2 py-1 text-left text-gray-600 font-medium border-b">
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => (
+                  <tr key={idx} className="border-b border-gray-100">
+                    {columns.map((col) => (
+                      <td key={col.key} className="px-1 py-1">
+                        <input
+                          type="text"
+                          className="w-full text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          value={String((row as Record<string, unknown>)[col.key] ?? '')}
+                          onChange={(e) => updateCell(idx, col.key, e.target.value)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )
       }
@@ -431,6 +529,27 @@ export default function SurveyResponsesPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="응답자 이름으로 검색..."
+          className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+        {searchText && (
+          <button
+            onClick={() => setSearchText('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            title="검색어 지우기"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {/* Response list */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {/* Table header */}
@@ -446,7 +565,9 @@ export default function SurveyResponsesPage() {
         {responses.length === 0 ? (
           <div className="py-16 text-center">
             <AlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">아직 응답이 없습니다.</p>
+            <p className="text-sm text-gray-400">
+              {searchQuery ? `'${searchQuery}'에 해당하는 응답자가 없습니다.` : '아직 응답이 없습니다.'}
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
