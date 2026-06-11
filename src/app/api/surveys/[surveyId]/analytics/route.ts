@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const questionOrder: string[] = []
 
   // 질문 맵 구성
-  const questionMap = new Map<string, { questionType: QuestionType; questionText: string; questionCode: string | null }>()
+  const questionMap = new Map<string, { questionType: QuestionType; questionText: string; questionCode: string | null; options: unknown }>()
   for (const section of survey.sections) {
     for (const question of section.questions) {
       questionOrder.push(question.id)
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         questionType: question.questionType,
         questionText: question.questionText,
         questionCode: question.questionCode,
+        options: question.options,
       })
     }
   }
@@ -158,6 +159,8 @@ export async function GET(req: NextRequest, { params }: Params) {
 
       case 'RANKED_CHOICE': {
         // 가중 점수 방식: 1순위 = N점, 2순위 = N-1점, ...
+        const opts = question.options as { choices?: { value: string }[] } | null
+        const validValues = new Set(opts?.choices?.map((c) => c.value) ?? [])
         const weightedScores: Record<string, number> = {}
         for (const val of values) {
           if (val && typeof val === 'object' && !Array.isArray(val)) {
@@ -166,7 +169,8 @@ export async function GET(req: NextRequest, { params }: Params) {
             const totalRanks = Object.keys(ranked).length
             for (const [rankStr, item] of Object.entries(ranked)) {
               const rank = parseInt(rankStr)
-              if (isNaN(rank) || !item) continue
+              if (isNaN(rank) || !item || !item.trim()) continue
+              if (validValues.size > 0 && !validValues.has(item)) continue
               const weight = totalRanks - rank + 1
               weightedScores[item] = (weightedScores[item] || 0) + weight
             }
@@ -174,6 +178,8 @@ export async function GET(req: NextRequest, { params }: Params) {
             const totalRanks = val.length
             val.forEach((item, idx) => {
               const strItem = String(item)
+              if (!strItem.trim()) return
+              if (validValues.size > 0 && !validValues.has(strItem)) return
               const weight = totalRanks - idx
               weightedScores[strItem] = (weightedScores[strItem] || 0) + weight
             })
