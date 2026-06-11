@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -76,7 +76,9 @@ export default function SurveyResponsesPage() {
   const [page, setPage] = useState(1)
   const [searchText, setSearchText] = useState('')      // 즉시 반영되는 입력값
   const [searchQuery, setSearchQuery] = useState('')    // 디바운스 후 API 호출 값
-  const [isLoading, setIsLoading] = useState(true)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)  // 검색/페이지 변경 중 로딩
+  const isComposing = useRef(false)                     // IME 한글 조합 중 여부
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedDetails, setExpandedDetails] = useState<Record<string, AnswerItem[]>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
@@ -89,8 +91,9 @@ export default function SurveyResponsesPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  const fetchData = useCallback(async (p: number, q: string) => {
-    setIsLoading(true)
+  const fetchData = useCallback(async (p: number, q: string, initial = false) => {
+    if (initial) setIsInitialLoading(true)
+    else setIsFetching(true)
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(PAGE_SIZE) })
       if (q) params.set('q', q)
@@ -113,18 +116,22 @@ export default function SurveyResponsesPage() {
     } catch {
       // ignore
     } finally {
-      setIsLoading(false)
+      setIsInitialLoading(false)
+      setIsFetching(false)
     }
   }, [surveyId])
 
+  const isFirstFetch = useRef(true)
   useEffect(() => {
-    fetchData(page, searchQuery)
+    const initial = isFirstFetch.current
+    isFirstFetch.current = false
+    fetchData(page, searchQuery, initial)
   }, [fetchData, page, searchQuery])
 
-  // 검색어 디바운스: 입력 후 300ms 대기 후 쿼리 확정 + 1페이지로 리셋
+  // 검색어 디바운스: IME 조합 중 아닐 때만, 입력 후 300ms 대기 후 쿼리 확정 + 1페이지로 리셋
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchText !== searchQuery) {
+      if (!isComposing.current && searchText !== searchQuery) {
         setSearchQuery(searchText)
         setPage(1)
       }
@@ -569,7 +576,7 @@ export default function SurveyResponsesPage() {
     }
   }
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center py-32 text-sm text-gray-400">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -610,6 +617,11 @@ export default function SurveyResponsesPage() {
           type="text"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          onCompositionStart={() => { isComposing.current = true }}
+          onCompositionEnd={(e) => {
+            isComposing.current = false
+            setSearchText(e.currentTarget.value)
+          }}
           placeholder="응답자 이름으로 검색..."
           className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
@@ -625,7 +637,7 @@ export default function SurveyResponsesPage() {
       </div>
 
       {/* Response list */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className={cn("bg-white rounded-lg border border-gray-200 overflow-hidden transition-opacity", isFetching && "opacity-50 pointer-events-none")}>
         {/* Table header */}
         <div className="grid grid-cols-[40px_1fr_140px_90px_90px_60px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           <span>#</span>
