@@ -295,6 +295,36 @@ export async function GET(req: NextRequest, { params }: Params) {
     deptTenure: computeTenure('S0-deptYears', 'S0-deptMonths', '부서 근속기간'),
   }
 
+  // questionOrder에서 근속기간 관련 ID를 특별 키로 교체
+  const tenureRelatedIds = new Set(
+    ['S0-serviceYears', 'S0-serviceMonths', 'S0-deptYears', 'S0-deptMonths']
+      .map((code) => codeToId.get(code))
+      .filter((id): id is string => id !== undefined)
+  )
+  {
+    let tenureInserted = false
+    let deptTenureInserted = false
+    const processed: string[] = []
+    for (const id of questionOrder) {
+      const code = [...codeToId.entries()].find(([, v]) => v === id)?.[0]
+      if (code === 'S0-serviceYears' || code === 'S0-serviceMonths') {
+        if (!tenureInserted && combinedStats.tenure) {
+          processed.push('__tenure__')
+          tenureInserted = true
+        }
+      } else if (code === 'S0-deptYears' || code === 'S0-deptMonths') {
+        if (!deptTenureInserted && combinedStats.deptTenure) {
+          processed.push('__deptTenure__')
+          deptTenureInserted = true
+        }
+      } else {
+        processed.push(id)
+      }
+    }
+    questionOrder.length = 0
+    questionOrder.push(...processed)
+  }
+
   // ─── 근골격계 부위별 판정 ───
   type AssessmentLevel = '정상' | '관리대상자' | '통증호소자'
 

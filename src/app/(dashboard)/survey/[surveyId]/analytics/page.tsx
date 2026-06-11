@@ -220,18 +220,6 @@ export default function SurveyAnalyticsPage() {
         </div>
       </div>
 
-      {/* Combined Tenure Stats */}
-      {analytics?.combinedStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {analytics.combinedStats.tenure && (
-            <TenureStatsCard stat={analytics.combinedStats.tenure} />
-          )}
-          {analytics.combinedStats.deptTenure && (
-            <TenureStatsCard stat={analytics.combinedStats.deptTenure} />
-          )}
-        </div>
-      )}
-
       {/* Body Part Assessment */}
       {analytics?.bodyPartAssessment && analytics.bodyPartAssessment.respondentCount > 0 && (
         <BodyPartAssessmentSection
@@ -251,8 +239,17 @@ export default function SurveyAnalyticsPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-gray-900">질문별 분석</h2>
           {(analytics.questionOrder ?? Object.keys(analytics.questionStats))
-            .filter((key) => !hiddenSet.has(key) && analytics.questionStats[key] !== undefined)
-            .map((key) => { const stat = analytics.questionStats[key]; return (
+            .filter((key) => !hiddenSet.has(key))
+            .map((key) => {
+              if (key === '__tenure__' && analytics.combinedStats?.tenure) {
+                return <TenureStatsCard key={key} stat={analytics.combinedStats.tenure} />
+              }
+              if (key === '__deptTenure__' && analytics.combinedStats?.deptTenure) {
+                return <TenureStatsCard key={key} stat={analytics.combinedStats.deptTenure} />
+              }
+              const stat = analytics.questionStats[key]
+              if (!stat) return null
+              return (
               <QuestionStatsCard
                 key={key}
                 statKey={key}
