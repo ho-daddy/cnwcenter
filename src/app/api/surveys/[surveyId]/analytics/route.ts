@@ -14,8 +14,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     where: { id: params.surveyId },
     include: {
       sections: {
+        orderBy: { sortOrder: 'asc' },
         include: {
-          questions: true,
+          questions: {
+            orderBy: { sortOrder: 'asc' },
+          },
         },
       },
     },
@@ -39,10 +42,14 @@ export async function GET(req: NextRequest, { params }: Params) {
   // 질문별 통계 계산
   const questionStats: Record<string, unknown> = {}
 
+  // 질문 순서 목록 (섹션 순서 → 질문 순서)
+  const questionOrder: string[] = []
+
   // 질문 맵 구성
   const questionMap = new Map<string, { questionType: QuestionType; questionText: string; questionCode: string | null }>()
   for (const section of survey.sections) {
     for (const question of section.questions) {
+      questionOrder.push(question.id)
       questionMap.set(question.id, {
         questionType: question.questionType,
         questionText: question.questionText,
@@ -362,6 +369,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     totalResponses,
     completedResponses,
     questionStats,
+    questionOrder,
     bodyPartAssessment,
     combinedStats,
     hiddenQuestionIds,

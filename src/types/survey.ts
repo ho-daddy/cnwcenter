@@ -163,6 +163,7 @@ export interface SurveyAnalytics {
   totalResponses: number
   completedResponses: number
   questionStats: Record<string, QuestionStats>
+  questionOrder?: string[]
   bodyPartAssessment?: BodyPartAssessmentSummary
   combinedStats?: {
     tenure?: CombinedTenureStat

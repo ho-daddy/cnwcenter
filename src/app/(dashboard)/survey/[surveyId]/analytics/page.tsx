@@ -250,9 +250,9 @@ export default function SurveyAnalyticsPage() {
       {analytics && Object.keys(analytics.questionStats).length > 0 ? (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-gray-900">질문별 분석</h2>
-          {Object.entries(analytics.questionStats)
-            .filter(([key]) => !hiddenSet.has(key))
-            .map(([key, stat]) => (
+          {(analytics.questionOrder ?? Object.keys(analytics.questionStats))
+            .filter((key) => !hiddenSet.has(key) && analytics.questionStats[key] !== undefined)
+            .map((key) => { const stat = analytics.questionStats[key]; return (
               <QuestionStatsCard
                 key={key}
                 statKey={key}
@@ -260,7 +260,7 @@ export default function SurveyAnalyticsPage() {
                 isCollapsed={collapsedQuestions.has(key)}
                 onToggle={() => toggleCollapse(key)}
               />
-            ))}
+            )})}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 py-16 text-center">
