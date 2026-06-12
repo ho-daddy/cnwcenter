@@ -297,22 +297,44 @@ export function Sheet3Modal({
         setBodyPartScores(s.bodyPartScores || [])
         setPushPullMeasurements(s.measurements || [])
 
-        // Restore saved RULA inputs
+        // Sheet2 각도값은 항상 우선 계산 (base score)
+        // 저장된 rulaInputs이 있으면 수동 조정값(forceLoad, muscleUse 등)만 보존
+        const autoRula = computeRulaFromSheet2(s.bodyPartScores || [], elementWork)
         if (s.rulaInputs) {
-          setRula(s.rulaInputs as RulaState)
-          setSavedSnapshots(prev => ({ ...prev, rula: JSON.stringify(s.rulaInputs) }))
+          const saved = s.rulaInputs as RulaState
+          const merged: RulaState = {
+            ...autoRula, // sheet2 각도 기반 base values
+            upperArmRaised: saved.upperArmRaised,       // 수동
+            forearmCrossMidline: saved.forearmCrossMidline, // 수동
+            wristTwist: saved.wristTwist,               // 수동
+            muscleUseA: saved.muscleUseA,               // 수동
+            forceLoadA: saved.forceLoadA,               // 수동
+            muscleUseB: saved.muscleUseB,               // 수동
+            forceLoadB: saved.forceLoadB,               // 수동
+          }
+          setRula(merged)
+          setSavedSnapshots(prev => ({ ...prev, rula: JSON.stringify(merged) }))
         } else {
-          // Auto-calculate from Sheet 2 angles
-          const autoRula = computeRulaFromSheet2(s.bodyPartScores || [], elementWork)
           setRula(autoRula)
         }
 
-        // Restore saved REBA inputs
+        const autoReba = computeRebaFromSheet2(s.bodyPartScores || [], elementWork)
         if (s.rebaInputs) {
-          setReba(s.rebaInputs as RebaState)
-          setSavedSnapshots(prev => ({ ...prev, reba: JSON.stringify(s.rebaInputs) }))
+          const saved = s.rebaInputs as RebaState
+          const merged: RebaState = {
+            ...autoReba, // sheet2 각도 기반 base values
+            upperArmRaised: saved.upperArmRaised,       // 수동
+            legBase: saved.legBase,                     // 수동
+            legKnee: saved.legKnee,                     // 수동
+            forceLoad: saved.forceLoad,                 // 수동
+            forceShock: saved.forceShock,               // 수동
+            couplingScore: saved.couplingScore,         // 수동
+            activityStatic: saved.activityStatic,       // 수동
+            activityRepeated: saved.activityRepeated,   // 수동
+          }
+          setReba(merged)
+          setSavedSnapshots(prev => ({ ...prev, reba: JSON.stringify(merged) }))
         } else {
-          const autoReba = computeRebaFromSheet2(s.bodyPartScores || [], elementWork)
           setReba(autoReba)
         }
 
