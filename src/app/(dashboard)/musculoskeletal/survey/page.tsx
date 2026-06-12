@@ -28,6 +28,7 @@ import {
   HardDrive,
   Clock,
   RefreshCw,
+  Pencil,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -1145,6 +1146,7 @@ function AssessmentDetail({
           <>
             <OverviewContent
               assessment={assessment}
+              workplaceId={workplaceId}
               isAddingWork={isAddingWork}
               setIsAddingWork={setIsAddingWork}
               newWorkName={newWorkName}
@@ -1153,6 +1155,7 @@ function AssessmentDetail({
               onDeleteWork={onDeleteWork}
               onOpenSheet2={onOpenSheet2}
               onOpenSheet3={onOpenSheet3}
+              onUpdate={onUpdate}
             />
             <div className="mt-6">
               <Sheet1Content
@@ -1207,6 +1210,7 @@ function AssessmentDetail({
 // Overview Content
 function OverviewContent({
   assessment,
+  workplaceId,
   isAddingWork,
   setIsAddingWork,
   newWorkName,
@@ -1215,8 +1219,10 @@ function OverviewContent({
   onDeleteWork,
   onOpenSheet2,
   onOpenSheet3,
+  onUpdate,
 }: {
   assessment: Assessment
+  workplaceId: string
   isAddingWork: boolean
   setIsAddingWork: (v: boolean) => void
   newWorkName: string
@@ -1225,7 +1231,39 @@ function OverviewContent({
   onDeleteWork: (workId: string) => void
   onOpenSheet2: (work: ElementWork) => void
   onOpenSheet3: (work: ElementWork) => void
+  onUpdate: (data: Partial<Assessment>) => void
 }) {
+  const [editingDescWorkId, setEditingDescWorkId] = useState<string | null>(null)
+  const [draftDesc, setDraftDesc] = useState('')
+
+  const startEditDesc = (work: ElementWork) => {
+    setEditingDescWorkId(work.id)
+    setDraftDesc(work.description || '')
+  }
+
+  const saveDesc = async (workId: string) => {
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/element-works/${workId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: draftDesc }),
+        }
+      )
+      if (res.ok) {
+        onUpdate({
+          elementWorks: assessment.elementWorks.map((w) =>
+            w.id === workId ? { ...w, description: draftDesc } : w
+          ),
+        })
+      }
+    } catch (e) {
+      console.error('description 저장 오류:', e)
+    }
+    setEditingDescWorkId(null)
+  }
+
   return (
     <div className="space-y-6">
       {/* Basic Info + Progress */}
@@ -1334,6 +1372,43 @@ function OverviewContent({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{work.name}</p>
+                    {editingDescWorkId === work.id ? (
+                      <div className="mt-1.5">
+                        <textarea
+                          value={draftDesc}
+                          onChange={(e) => setDraftDesc(e.target.value)}
+                          rows={3}
+                          className="w-full text-xs border rounded px-2 py-1 resize-none"
+                          placeholder="작업내용 입력"
+                          autoFocus
+                        />
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={() => saveDesc(work.id)}
+                            className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >저장</button>
+                          <button
+                            onClick={() => setEditingDescWorkId(null)}
+                            className="text-xs px-2 py-0.5 border rounded hover:bg-gray-50"
+                          >취소</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-1 mt-0.5">
+                        {work.description ? (
+                          <p className="text-xs text-gray-500 line-clamp-2 flex-1">{work.description}</p>
+                        ) : (
+                          <p className="text-xs text-gray-300 flex-1">작업내용 없음</p>
+                        )}
+                        <button
+                          onClick={() => startEditDesc(work)}
+                          className="flex-shrink-0 text-gray-300 hover:text-gray-500 mt-0.5"
+                          title="작업내용 편집"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                     <div className="flex gap-1 mt-1 flex-wrap">
                       {work.bodyPartScores.length > 0 && (
                         <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
