@@ -32,6 +32,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   })
   if (!c) return NextResponse.json({ error: '케이스를 찾을 수 없습니다.' }, { status: 404 })
 
+  // WORKPLACE_USER는 자신이 담당자인 케이스만
+  if (auth.user!.role === 'WORKPLACE_USER' && c.assignedTo !== auth.user!.id) {
+    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
+  }
+
   const formData = await req.formData()
   const files = formData.getAll('files') as File[]
 

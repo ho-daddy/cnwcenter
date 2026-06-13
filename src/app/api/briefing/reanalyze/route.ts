@@ -9,13 +9,11 @@ import { analyzeRelevanceBatch, isScoreRelevant } from '@/lib/briefing/relevance
 export async function POST(request: NextRequest) {
   try {
     const apiKey = request.headers.get('x-api-key')
-    const referer = request.headers.get('referer')
     const secret = process.env.BRIEFING_COLLECT_SECRET
 
-    const isInternal = referer?.includes(request.headers.get('host') || 'localhost')
     const isValidKey = secret && apiKey === secret
 
-    if (!isInternal && !isValidKey) {
+    if (!isValidKey) {
       return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
     }
 

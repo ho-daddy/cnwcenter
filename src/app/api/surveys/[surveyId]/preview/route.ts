@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth-utils'
 
 type Params = { params: { surveyId: string } }
 
-// GET /api/surveys/[surveyId]/preview — 미리보기용 공개 조회 (인증 불필요)
+// GET /api/surveys/[surveyId]/preview — 미리보기 조회 (로그인 필요, DRAFT 포함 전체 조회)
 export async function GET(req: NextRequest, { params }: Params) {
+  const auth = await requireAuth()
+  if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
+
   const survey = await prisma.survey.findUnique({
     where: { id: params.surveyId },
     include: {

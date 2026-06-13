@@ -113,12 +113,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
 
       // 2) 받지 않은 기존 answer: 삭제 (가시성 false 된 질문)
-      const toDelete: string[] = []
-      for (const e of existing) {
-        if (!incoming.has(e.questionId)) toDelete.push(e.id)
-      }
-      if (toDelete.length > 0) {
-        ops.push(tx.surveyAnswer.deleteMany({ where: { id: { in: toDelete } } }))
+      //    명시적으로 deleteMissing: true 를 보낸 경우에만 삭제한다.
+      //    (부분 저장 시 payload에 없는 답변이 의도치 않게 삭제되는 것을 방지)
+      if (body.deleteMissing === true) {
+        const toDelete: string[] = []
+        for (const e of existing) {
+          if (!incoming.has(e.questionId)) toDelete.push(e.id)
+        }
+        if (toDelete.length > 0) {
+          ops.push(tx.surveyAnswer.deleteMany({ where: { id: { in: toDelete } } }))
+        }
       }
 
       await Promise.all(ops)

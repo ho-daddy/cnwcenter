@@ -469,7 +469,8 @@ async function restoreMusculoskeletalAssessment(
       },
     })
 
-    // 요소작업 복원
+    // 요소작업 복원 (옛 ID → 새 ID 매핑: 개선항목/첨부파일 복원 시 사용)
+    const ewIdMap = new Map<string, string>()
     for (const ew of elementWorks) {
       const newEw = await tx.elementWork.create({
         data: {
@@ -496,6 +497,7 @@ async function restoreMusculoskeletalAssessment(
           pushPullEvaluations: ew.pushPullEvaluations ?? undefined,
         },
       })
+      if (ew.id) ewIdMap.set(ew.id as string, newEw.id)
 
       // 부위별 점수 복원
       const bodyPartScores = (ew.bodyPartScores as Record<string, unknown>[]) || []
@@ -537,7 +539,9 @@ async function restoreMusculoskeletalAssessment(
       await tx.mSurveyImprovement.create({
         data: {
           assessmentId: newAssessment.id,
-          elementWorkId: (imp.elementWorkId as string) || null,
+          elementWorkId: imp.elementWorkId
+            ? (ewIdMap.get(imp.elementWorkId as string) ?? null)
+            : null,
           documentNo: (imp.documentNo as string) || null,
           problem: imp.problem as string,
           improvement: imp.improvement as string,
@@ -555,7 +559,9 @@ async function restoreMusculoskeletalAssessment(
       await tx.mSurveyAttachment.create({
         data: {
           assessmentId: newAssessment.id,
-          elementWorkId: (att.elementWorkId as string) || null,
+          elementWorkId: att.elementWorkId
+            ? (ewIdMap.get(att.elementWorkId as string) ?? null)
+            : null,
           fileName: att.fileName as string,
           originalName: att.originalName as string,
           fileType: att.fileType as string,

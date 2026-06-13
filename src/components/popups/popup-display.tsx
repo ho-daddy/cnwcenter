@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
+import DOMPurify from 'dompurify'
 
 interface ActivePopup {
   id: string
@@ -94,7 +95,7 @@ export function PopupDisplay() {
         <div className="p-5 overflow-y-auto flex-1">
           <div
             className="prose prose-sm max-w-none text-gray-700"
-            dangerouslySetInnerHTML={{ __html: popup.content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(popup.content) }}
           />
         </div>
 

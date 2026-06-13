@@ -29,11 +29,8 @@ async function cleanup() {
 function isAuthorized(request: NextRequest) {
   const apiKey = request.headers.get('x-api-key')
   const secret = process.env.VIDEO_CLEANUP_SECRET || process.env.BRIEFING_COLLECT_SECRET
-  const referer = request.headers.get('referer')
-  const host = request.headers.get('host') || 'localhost'
-  const isInternal = referer?.includes(host)
   const isValidKey = secret && apiKey === secret
-  return Boolean(isInternal || isValidKey)
+  return Boolean(isValidKey)
 }
 
 export async function POST(request: NextRequest) {

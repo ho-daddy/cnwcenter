@@ -11,6 +11,7 @@ import {
   Image as ImageIcon, Link as LinkIcon, Heading2, Minus,
 } from 'lucide-react'
 import { useCallback, useRef } from 'react'
+import DOMPurify from 'dompurify'
 import { cn } from '@/lib/utils'
 
 interface RichTextEditorProps {
@@ -134,12 +135,12 @@ export function RichTextEditor({ value, onChange, placeholder = '내용을 입�
   )
 }
 
-/** 게시물 본문 HTML 렌더링 (XSS 방지 필요 시 sanitize 적용) */
+/** 게시물 본문 HTML 렌더링 (XSS 방지를 위해 DOMPurify로 sanitize) */
 export function RichTextContent({ html, className }: { html: string; className?: string }) {
   return (
     <div
       className={cn('prose prose-sm max-w-none text-gray-800', className)}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   )
 }

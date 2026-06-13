@@ -11,9 +11,17 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const auth = await requireAuth()
   if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: 401 })
 
-  const doc = await prisma.document.findUnique({ where: { id: params.docId } })
+  const doc = await prisma.document.findUnique({
+    where: { id: params.docId },
+    include: { case: { select: { assignedTo: true } } },
+  })
   if (!doc || doc.caseId !== params.caseId) {
     return NextResponse.json({ error: '파일을 찾을 수 없습니다.' }, { status: 404 })
+  }
+
+  // WORKPLACE_USER는 자신이 담당자인 케이스의 문서만
+  if (auth.user!.role === 'WORKPLACE_USER' && doc.case.assignedTo !== auth.user!.id) {
+    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
   }
 
   // 파일 시스템에서 삭제
