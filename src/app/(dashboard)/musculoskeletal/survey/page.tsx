@@ -2615,6 +2615,8 @@ function MeasurementSection({
   const [newForm, setNewForm] = useState({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
   const [isSaving, setIsSaving] = useState(false)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
   const photoInputRef = useRef<HTMLInputElement>(null)
   const pendingMeasurementRef = useRef<{ workId: string; measurementId: string } | null>(null)
 
@@ -2701,6 +2703,50 @@ function MeasurementSection({
     }
   }
 
+  const handleEditStart = (item: { id: string; name: string; weight: number | null; force: number | null; frequency: number | null; exposureHours: number | null }) => {
+    setEditingId(item.id)
+    setEditForm({
+      name: item.name,
+      weight: item.weight != null ? String(item.weight) : '',
+      force: item.force != null ? String(item.force) : '',
+      frequency: item.frequency != null ? String(item.frequency) : '',
+      exposureHours: item.exposureHours != null ? String(item.exposureHours) : '',
+    })
+  }
+
+  const handleUpdate = async (workId: string, measurementId: string) => {
+    if (!editForm.name.trim()) return
+    setIsSaving(true)
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/element-works/${workId}/measurements/${measurementId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: editForm.name.trim(),
+            weight: editForm.weight || null,
+            force: editForm.force || null,
+            frequency: editForm.frequency || null,
+            exposureHours: editForm.exposureHours || null,
+          }),
+        }
+      )
+      if (res.ok) {
+        const updated = await res.json()
+        const updatedWorks = assessment.elementWorks.map(w =>
+          w.id === workId
+            ? { ...w, measurements: (w.measurements || []).map(m => m.id === measurementId ? { ...m, ...updated } : m) }
+            : w
+        )
+        onUpdate({ elementWorks: updatedWorks })
+        setEditingId(null)
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const inputCls = 'w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
 
   return (
@@ -2770,36 +2816,87 @@ function MeasurementSection({
                         <div className="px-3 pb-2 space-y-1.5">
                           {items.map((item, idx) => (
                             <div key={item.id} className="bg-white rounded px-2 py-1.5 text-xs">
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-400 w-4">{idx + 1}</span>
-                                <span className="font-medium text-gray-800 flex-1">{item.name}</span>
-                                {item.weight != null && <span className="text-gray-500">{item.weight}kg</span>}
-                                {item.force != null && <span className="text-gray-500">{item.force}kgf</span>}
-                                {item.frequency != null && <span className="text-gray-500">{item.frequency}회/일</span>}
-                                {item.exposureHours != null && <span className="text-gray-500">{item.exposureHours}시간/일</span>}
-                                <button
-                                  onClick={() => {
-                                    pendingMeasurementRef.current = { workId: work.id, measurementId: item.id }
-                                    photoInputRef.current?.click()
-                                  }}
-                                  disabled={uploadingId === item.id}
-                                  className={`p-1 rounded transition-colors ${item.photoPath ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300 hover:text-blue-500'}`}
-                                  title={item.photoPath ? '사진 변경' : '사진 추가'}
-                                >
-                                  {uploadingId === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(work.id, item.id)}
-                                  className="p-0.5 text-gray-300 hover:text-red-500"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                              {item.photoPath && (
-                                <div className="mt-1 ml-6">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={item.photoPath} alt={item.name} className="w-20 h-20 object-cover rounded border border-gray-200" />
+                              {editingId === item.id ? (
+                                <div className="bg-yellow-50 rounded p-2 space-y-1.5">
+                                  <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))}
+                                    className={inputCls}
+                                    placeholder={mt.namePlaceholder}
+                                  />
+                                  <div className="flex gap-2">
+                                    {mt.fields.includes('weight') && (
+                                      <input type="number" step="0.1" value={editForm.weight}
+                                        onChange={(e) => setEditForm(f => ({ ...f, weight: e.target.value }))}
+                                        className={inputCls} placeholder="무게(kg)" />
+                                    )}
+                                    {mt.fields.includes('force') && (
+                                      <input type="number" step="0.1" value={editForm.force}
+                                        onChange={(e) => setEditForm(f => ({ ...f, force: e.target.value }))}
+                                        className={inputCls} placeholder="힘(kgf)" />
+                                    )}
+                                    {mt.fields.includes('frequency') && (
+                                      <input type="number" value={editForm.frequency}
+                                        onChange={(e) => setEditForm(f => ({ ...f, frequency: e.target.value }))}
+                                        className={inputCls} placeholder="빈도(회/일)" />
+                                    )}
+                                    {mt.fields.includes('exposureHours') && (
+                                      <input type="number" step="0.5" value={editForm.exposureHours}
+                                        onChange={(e) => setEditForm(f => ({ ...f, exposureHours: e.target.value }))}
+                                        className={inputCls} placeholder="노출시간(시간/일)" />
+                                    )}
+                                  </div>
+                                  <div className="flex justify-end gap-1.5">
+                                    <button onClick={() => setEditingId(null)}
+                                      className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">취소</button>
+                                    <button onClick={() => handleUpdate(work.id, item.id)} disabled={isSaving || !editForm.name.trim()}
+                                      className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50">
+                                      {isSaving ? '저장...' : '수정'}
+                                    </button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-400 w-4">{idx + 1}</span>
+                                    <span className="font-medium text-gray-800 flex-1">{item.name}</span>
+                                    {item.weight != null && <span className="text-gray-500">{item.weight}kg</span>}
+                                    {item.force != null && <span className="text-gray-500">{item.force}kgf</span>}
+                                    {item.frequency != null && <span className="text-gray-500">{item.frequency}회/일</span>}
+                                    {item.exposureHours != null && <span className="text-gray-500">{item.exposureHours}시간/일</span>}
+                                    <button
+                                      onClick={() => handleEditStart(item)}
+                                      className="p-0.5 text-gray-400 hover:text-yellow-500"
+                                      title="수정"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        pendingMeasurementRef.current = { workId: work.id, measurementId: item.id }
+                                        photoInputRef.current?.click()
+                                      }}
+                                      disabled={uploadingId === item.id}
+                                      className={`p-1 rounded transition-colors ${item.photoPath ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300 hover:text-blue-500'}`}
+                                      title={item.photoPath ? '사진 변경' : '사진 추가'}
+                                    >
+                                      {uploadingId === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(work.id, item.id)}
+                                      className="p-0.5 text-gray-300 hover:text-red-500"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  {item.photoPath && (
+                                    <div className="mt-1 ml-6">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={item.photoPath} alt={item.name} className="w-20 h-20 object-cover rounded border border-gray-200" />
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           ))}
