@@ -560,7 +560,7 @@ function SurveyListPageInner() {
               사업장
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(50vh_-_110px)] overflow-y-auto">
+          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
             {isLoading ? (
               <div className="text-center py-4 text-gray-500 text-sm">로딩중...</div>
             ) : workplaces.length === 0 ? (
@@ -636,7 +636,7 @@ function SurveyListPageInner() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(50vh_-_110px)] overflow-y-auto">
+          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
             {!selectedWorkplace ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
@@ -671,7 +671,7 @@ function SurveyListPageInner() {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(50vh_-_110px)] overflow-y-auto">
+          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
             {!selectedWorkplace ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
