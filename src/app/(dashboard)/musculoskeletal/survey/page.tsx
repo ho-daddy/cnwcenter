@@ -553,14 +553,14 @@ function SurveyListPageInner() {
       {/* Top Section: Workplace + Organization Tree with Search */}
       <div className="grid grid-cols-12 gap-4">
         {/* Workplace Selector */}
-        <Card className="col-span-12 lg:col-span-2" data-tutorial="ms-workplace-list">
+        <Card className="col-span-12 lg:col-span-2 flex flex-col" style={{ height: 'calc(30vh - 66px)' }} data-tutorial="ms-workplace-list">
           <CardHeader className="py-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               사업장
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
+          <CardContent className="p-2 overflow-y-auto flex-1 min-h-0">
             {isLoading ? (
               <div className="text-center py-4 text-gray-500 text-sm">로딩중...</div>
             ) : workplaces.length === 0 ? (
@@ -589,74 +589,8 @@ function SurveyListPageInner() {
           </CardContent>
         </Card>
 
-        {/* Assessment List — shows all workplace assessments; org tree filters by unit */}
-        <Card className="col-span-12 lg:col-span-7" data-tutorial="ms-assessment-list">
-          <CardHeader className="py-3">
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <ClipboardList className="w-4 h-4" />
-                조사 목록
-                {selectedUnit ? (
-                  <span className="text-gray-500 font-normal">- {selectedUnit.name}</span>
-                ) : selectedWorkplace ? (
-                  <span className="text-gray-500 font-normal">- {selectedWorkplace.name} 전체</span>
-                ) : null}
-              </CardTitle>
-            </div>
-            {selectedWorkplace && (
-              <div className="flex gap-2 mt-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1 border rounded text-sm"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                    >
-                      <X className="w-3 h-3 text-gray-400 hover:text-gray-600" />
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-2 py-1 border rounded text-sm"
-                >
-                  <option value="">전체 상태</option>
-                  <option value="DRAFT">작성중</option>
-                  <option value="IN_PROGRESS">조사중</option>
-                  <option value="COMPLETED">완료</option>
-                </select>
-              </div>
-            )}
-          </CardHeader>
-          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
-            {!selectedWorkplace ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>사업장을 선택하세요.</p>
-              </div>
-            ) : (
-              <AssessmentListPanel
-                unitAssessments={filteredAssessments}
-                selectedAssessment={selectedAssessment}
-                onSelectAssessment={fetchAssessmentDetails}
-                onNewAssessment={handleNewAssessment}
-                canAdd={!!(selectedUnit && selectedUnit.isLeaf)}
-                showUnitName={!selectedUnit}
-              />
-            )}
-          </CardContent>
-        </Card>
-
         {/* Organization Tree — acts as filter for assessment list */}
-        <Card className="col-span-12 lg:col-span-3" data-tutorial="ms-org-tree">
+        <Card className="col-span-12 lg:col-span-3 flex flex-col" style={{ height: 'calc(30vh - 66px)' }} data-tutorial="ms-org-tree">
           <CardHeader className="py-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <FolderTree className="w-4 h-4" />
@@ -670,8 +604,28 @@ function SurveyListPageInner() {
                 </button>
               )}
             </CardTitle>
+            {selectedWorkplace && (
+              <div className="relative mt-2">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1 border rounded text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                  >
+                    <X className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
+              </div>
+            )}
           </CardHeader>
-          <CardContent className="p-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 110px)' }}>
+          <CardContent className="p-2 overflow-y-auto flex-1 min-h-0">
             {!selectedWorkplace ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
@@ -698,6 +652,54 @@ function SurveyListPageInner() {
                   setSelectedUnit(unit)
                   setSelectedAssessment(null)
                 }}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Assessment List — shows all workplace assessments; org tree filters by unit */}
+        <Card className="col-span-12 lg:col-span-7 flex flex-col" style={{ height: 'calc(30vh - 66px)' }} data-tutorial="ms-assessment-list">
+          <CardHeader className="py-3">
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ClipboardList className="w-4 h-4" />
+                조사 목록
+                {selectedUnit ? (
+                  <span className="text-gray-500 font-normal">- {selectedUnit.name}</span>
+                ) : selectedWorkplace ? (
+                  <span className="text-gray-500 font-normal">- {selectedWorkplace.name} 전체</span>
+                ) : null}
+              </CardTitle>
+            </div>
+            {selectedWorkplace && (
+              <div className="flex gap-2 mt-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-2 py-1 border rounded text-sm"
+                >
+                  <option value="">전체 상태</option>
+                  <option value="DRAFT">작성중</option>
+                  <option value="IN_PROGRESS">조사중</option>
+                  <option value="COMPLETED">완료</option>
+                </select>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="p-2 overflow-y-auto flex-1 min-h-0">
+            {!selectedWorkplace ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>사업장을 선택하세요.</p>
+              </div>
+            ) : (
+              <AssessmentListPanel
+                unitAssessments={filteredAssessments}
+                selectedAssessment={selectedAssessment}
+                onSelectAssessment={fetchAssessmentDetails}
+                onNewAssessment={handleNewAssessment}
+                canAdd={!!(selectedUnit && selectedUnit.isLeaf)}
+                showUnitName={!selectedUnit}
               />
             )}
           </CardContent>
