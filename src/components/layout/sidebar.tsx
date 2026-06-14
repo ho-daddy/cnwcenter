@@ -46,6 +46,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     { title: '공지사항', href: '/notices' },
     { title: '사용자 게시판', href: '/board' },
     ...(role === 'SUPER_ADMIN' || role === 'STAFF' ? [{ title: '교환일기', href: '/diary' }] : []),
+    ...(role === 'SUPER_ADMIN' || role === 'STAFF' ? [{ title: '회의실', href: '/chat' }] : []),
   ]
 
   const items: NavItem[] = [

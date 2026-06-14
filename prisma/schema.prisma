@@ -1340,6 +1340,32 @@ enum DiaryAuthorType {
   HUMAN
 }
 
+// ==========================================
+// 실무 채팅 (회의실)
+// ==========================================
+
+model ChatRoom {
+  id        String        @id @default(cuid())
+  name      String
+  createdAt DateTime      @default(now())
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  authorName  String
+  authorType  String   // 'human' | 'bot'
+  content     String?  @db.Text
+  fileUrl     String?
+  fileName    String?
+  createdAt   DateTime @default(now())
+
+  @@index([roomId])
+  @@index([createdAt])
+}
+
 // 팝업 관리
 model Popup {
   id          String   @id @default(cuid())

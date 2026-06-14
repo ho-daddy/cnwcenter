@@ -14,6 +14,9 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['pdf-parse', 'playwright'],
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
   },
 }
 

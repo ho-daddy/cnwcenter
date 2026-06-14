@@ -6,6 +6,7 @@ import { useSidebarStore } from '@/stores/sidebar-store'
 import { cn } from '@/lib/utils'
 import { TutorialProvider } from '@/components/tutorial/TutorialProvider'
 import { UploadQueuePanel } from '@/components/upload/upload-queue-panel'
+import { ChatWidget } from '@/components/chat/ChatWidget'
 
 export default function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default function DashboardLayout({
           </main>
         </div>
         <UploadQueuePanel />
+        <ChatWidget />
       </div>
     </TutorialProvider>
   )
