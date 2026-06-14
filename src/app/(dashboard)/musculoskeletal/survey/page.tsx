@@ -560,7 +560,7 @@ function SurveyListPageInner() {
               사업장
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+          <CardContent className="p-2 max-h-[calc(50vh-110px)] overflow-y-auto">
             {isLoading ? (
               <div className="text-center py-4 text-gray-500 text-sm">로딩중...</div>
             ) : workplaces.length === 0 ? (
@@ -589,62 +589,21 @@ function SurveyListPageInner() {
           </CardContent>
         </Card>
 
-        {/* Organization Tree */}
-        <Card className="col-span-12 lg:col-span-3" data-tutorial="ms-org-tree">
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <FolderTree className="w-4 h-4" />
-              조직도
-              {selectedWorkplace && (
-                <span className="text-gray-500 font-normal">- {selectedWorkplace.name}</span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
-            {!selectedWorkplace ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>사업장을 선택하세요.</p>
-              </div>
-            ) : orgUnits.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>조직도가 없습니다.</p>
-              </div>
-            ) : (
-              <IntegratedTreeView
-                units={orgUnits}
-                assessmentCounts={(() => {
-                  const counts: Record<string, number> = {}
-                  assessments.forEach((a) => {
-                    counts[a.organizationUnit.id] = (counts[a.organizationUnit.id] || 0) + 1
-                  })
-                  return counts
-                })()}
-                selectedUnit={selectedUnit}
-                searchTerm={searchTerm}
-                onSelectUnit={(unit) => {
-                  setSelectedUnit(unit)
-                  setSelectedAssessment(null)
-                }}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Assessment List for Selected Unit */}
+        {/* Assessment List — shows all workplace assessments; org tree filters by unit */}
         <Card className="col-span-12 lg:col-span-7" data-tutorial="ms-assessment-list">
           <CardHeader className="py-3">
             <div className="flex items-center justify-between gap-4">
               <CardTitle className="text-sm flex items-center gap-2">
                 <ClipboardList className="w-4 h-4" />
                 조사 목록
-                {selectedUnit && (
+                {selectedUnit ? (
                   <span className="text-gray-500 font-normal">- {selectedUnit.name}</span>
-                )}
+                ) : selectedWorkplace ? (
+                  <span className="text-gray-500 font-normal">- {selectedWorkplace.name} 전체</span>
+                ) : null}
               </CardTitle>
             </div>
-            {selectedUnit && selectedUnit.isLeaf && (
+            {selectedWorkplace && (
               <div className="flex gap-2 mt-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -677,16 +636,11 @@ function SurveyListPageInner() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="p-2 max-h-[calc(100vh-220px)] overflow-y-auto">
-            {!selectedUnit ? (
+          <CardContent className="p-2 max-h-[calc(50vh-110px)] overflow-y-auto">
+            {!selectedWorkplace ? (
               <div className="text-center py-8 text-gray-500 text-sm">
-                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>조직도에서 단위를 선택하세요.</p>
-              </div>
-            ) : !selectedUnit.isLeaf ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p>하위 단위를 선택하세요.</p>
+                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>사업장을 선택하세요.</p>
               </div>
             ) : (
               <AssessmentListPanel
@@ -694,6 +648,56 @@ function SurveyListPageInner() {
                 selectedAssessment={selectedAssessment}
                 onSelectAssessment={fetchAssessmentDetails}
                 onNewAssessment={handleNewAssessment}
+                canAdd={!!(selectedUnit && selectedUnit.isLeaf)}
+                showUnitName={!selectedUnit}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Organization Tree — acts as filter for assessment list */}
+        <Card className="col-span-12 lg:col-span-3" data-tutorial="ms-org-tree">
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FolderTree className="w-4 h-4" />
+              조직도
+              {selectedUnit && (
+                <button
+                  onClick={() => { setSelectedUnit(null); setSelectedAssessment(null) }}
+                  className="ml-auto text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5"
+                >
+                  <X className="w-3 h-3" />전체
+                </button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2 max-h-[calc(50vh-110px)] overflow-y-auto">
+            {!selectedWorkplace ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <Building2 className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>사업장을 선택하세요.</p>
+              </div>
+            ) : orgUnits.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <FolderTree className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p>조직도가 없습니다.</p>
+              </div>
+            ) : (
+              <IntegratedTreeView
+                units={orgUnits}
+                assessmentCounts={(() => {
+                  const counts: Record<string, number> = {}
+                  assessments.forEach((a) => {
+                    counts[a.organizationUnit.id] = (counts[a.organizationUnit.id] || 0) + 1
+                  })
+                  return counts
+                })()}
+                selectedUnit={selectedUnit}
+                searchTerm={searchTerm}
+                onSelectUnit={(unit) => {
+                  setSelectedUnit(unit)
+                  setSelectedAssessment(null)
+                }}
               />
             )}
           </CardContent>
@@ -943,11 +947,15 @@ function AssessmentListPanel({
   selectedAssessment,
   onSelectAssessment,
   onNewAssessment,
+  canAdd = true,
+  showUnitName = false,
 }: {
   unitAssessments: Assessment[]
   selectedAssessment: Assessment | null
   onSelectAssessment: (assessmentId: string) => void
   onNewAssessment: (year?: number, assessmentType?: string) => void
+  canAdd?: boolean
+  showUnitName?: boolean
 }) {
   const [showForm, setShowForm] = useState(false)
   const [newYear, setNewYear] = useState(new Date().getFullYear())
@@ -958,10 +966,12 @@ function AssessmentListPanel({
       {unitAssessments.length === 0 && !showForm && (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded text-sm">
           <span className="text-gray-500">조사 내역이 없습니다.</span>
-          <Button size="sm" variant="outline" onClick={() => setShowForm(true)} data-tutorial="ms-add-assessment">
-            <Plus className="w-3 h-3 mr-1" />
-            새 조사
-          </Button>
+          {canAdd && (
+            <Button size="sm" variant="outline" onClick={() => setShowForm(true)} data-tutorial="ms-add-assessment">
+              <Plus className="w-3 h-3 mr-1" />
+              새 조사
+            </Button>
+          )}
         </div>
       )}
       {unitAssessments.length > 0 && (
@@ -977,6 +987,9 @@ function AssessmentListPanel({
               }`}
             >
               <div className="flex flex-col gap-0.5">
+                {showUnitName && (
+                  <span className="text-xs text-blue-600 font-medium">{assessment.organizationUnit.name}</span>
+                )}
                 <span className="text-gray-700 font-medium">
                   {assessment.year}년 {assessment.assessmentType}
                 </span>
@@ -987,7 +1000,7 @@ function AssessmentListPanel({
               <StatusBadge status={assessment.status} />
             </button>
           ))}
-          {!showForm && (
+          {!showForm && canAdd && (
             <Button
               size="sm"
               variant="ghost"
@@ -997,6 +1010,9 @@ function AssessmentListPanel({
               <Plus className="w-3 h-3 mr-1" />
               새 조사 추가
             </Button>
+          )}
+          {!showForm && !canAdd && (
+            <p className="text-xs text-gray-400 text-center py-1">조직도에서 공정을 선택하면 새 조사를 추가할 수 있습니다.</p>
           )}
         </>
       )}
