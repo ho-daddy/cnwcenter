@@ -29,6 +29,7 @@ const PUBLIC_PATHS = [
   '/api/diary',     // 교환일기 AI 에이전트 접근 (x-admin-key로 별도 인증)
   '/api/surveys/public/',  // 공개 설문 API
   '/api/law',       // 법령검색 프록시 (내부 서버 relay)
+  '/api/chat/',    // 채팅 API (X-Bot-Key 또는 세션으로 각 라우트에서 인증)
   '/s/',           // 공개 설문 URL
   '/privacy',           // 개인정보처리방침
   '/terms',             // 이용약관
