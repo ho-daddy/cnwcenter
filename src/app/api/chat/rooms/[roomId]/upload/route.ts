@@ -12,6 +12,7 @@ const ALLOWED_TYPES = [
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/haansofthwp', 'application/x-hwp',
+  'application/zip', 'application/x-zip-compressed', 'application/x-zip',
 ]
 
 export async function POST(req: NextRequest, { params }: { params: { roomId: string } }) {
