@@ -237,6 +237,7 @@ export interface KneeAnkleFactors {
   heavyOver20kg: boolean      // 중량물 20kg 이상 (+2)
   unstableSurface: boolean    // 출발/정지 반복, 불안정한 자세, 노면불량
   kneePressure: boolean       // 무릎 접촉/충격
+  jumpDown: boolean           // 뛰어내리기 동작
 }
 
 // ==========================================

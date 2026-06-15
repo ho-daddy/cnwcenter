@@ -96,7 +96,7 @@ const DEFAULT_FACTORS: Record<string, Record<string, boolean>> = {
   SHOULDER_ARM: { toolOver1kg: false, toolVibration: false, contactPressure: false, excessiveExtension: false, shoulderRaised: false, bendAndReach: false, lyingPosition: false, shoulderCarry: false, heavyLift: false, heavyCarry: false, heavyPushPull: false },
   NECK: { handsAboveShoulder: false, bendAndReach: false, confinedSpace: false, shoulderCarry: false, combinedMovement: false, shoulderHeavyCarry: false },
   BACK_HIP: { wholeBodyVibration: false, kneelSquat: false, heavyOver5kg: false, heavyOver10kg: false, heavyOver20kg: false, handsAboveShoulder: false, bendAndReach: false, backCarry: false, combinedMovement: false, poorSurface: false },
-  KNEE_ANKLE: { kneeTwist: false, confinedSpace: false, heavyOver10kg: false, heavyOver20kg: false, unstableSurface: false, kneePressure: false },
+  KNEE_ANKLE: { kneeTwist: false, confinedSpace: false, heavyOver10kg: false, heavyOver20kg: false, unstableSurface: false, kneePressure: false, jumpDown: false },
 }
 
 const ANGLE_FIELDS: Record<string, { key: string; label: string; min: number; max: number; unit: string }[]> = {
@@ -198,6 +198,7 @@ const FACTOR_LABELS: Record<string, Record<string, string>> = {
     heavyOver20kg: '중량물 20kg 이상 (+2)',
     unstableSurface: '출발/정지 반복, 불안정한 자세, 노면불량',
     kneePressure: '무릎 접촉/충격',
+    jumpDown: '뛰어내리기 동작',
   },
 }
 

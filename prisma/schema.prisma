@@ -1027,9 +1027,9 @@ model BodyPartScore {
   additionalFactors Json?     // { toolOver1kg: true, vibration: false, ... }
 
   // 계산된 점수
-  postureScore    Int         @default(0)  // 자세 기본점수 (max 5)
+  postureScore    Int         @default(0)  // 자세 기본점수 (MAX(주축) + MIN(보조합계, 2))
   additionalScore Int         @default(0)  // 부가점수 합계
-  totalScore      Int         @default(0)  // 총점 (1-7)
+  totalScore      Int         @default(0)  // 총점 (1-7, MIN(자세+부가+힘+정적반복, 7))
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

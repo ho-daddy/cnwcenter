@@ -40,12 +40,12 @@ export function calculateHandWristPostureScore(angles: HandWristAngles): number 
   // 외전 점수 (0-2)
   const abductionScore = angles.abduction < 15 ? 0 : angles.abduction < 30 ? 1 : 2
 
-  // 기본 자세 점수 = 굴곡/신전 중 최대 + 내전/외전 중 최대
-  // 최대 5점
+  // 자세점수 = MAX(굴곡, 신전) + MIN(내전 + 외전, 2)
+  // 자세점수 자체에는 상한 없음 (최종 7점 상한은 calculateTotalScore에서 처리)
   const baseScore = Math.max(flexionScore, extensionScore)
-  const rotationScore = Math.max(adductionScore, abductionScore)
+  const rotationScore = Math.min(adductionScore + abductionScore, 2)
 
-  return Math.min(baseScore + rotationScore, 5)
+  return baseScore + rotationScore
 }
 
 /**
@@ -76,13 +76,14 @@ export function calculateHandWristAdditionalScore(factors: HandWristFactors): nu
  */
 export function calculateElbowPostureScore(angles: ElbowAngles): number {
   // 굴곡 점수 (1-3)
+  // 첨부: ≤30 또는 ≥120 → 3 / 31~60 또는 100~119 → 2 / 나머지(60~100) → 1
   let flexionScore: number
   if (angles.flexion <= 30 || angles.flexion >= 120) {
     flexionScore = 3
-  } else if ((angles.flexion > 30 && angles.flexion < 60) || (angles.flexion > 90 && angles.flexion < 120)) {
+  } else if ((angles.flexion > 30 && angles.flexion < 60) || (angles.flexion >= 100 && angles.flexion < 120)) {
     flexionScore = 2
   } else {
-    flexionScore = 1 // 60-90도 (최적 범위)
+    flexionScore = 1 // 60~99° (최적 범위)
   }
 
   // 회내전 점수 (0-2)
@@ -91,9 +92,10 @@ export function calculateElbowPostureScore(angles: ElbowAngles): number {
   // 회외전 점수 (0-2)
   const supinationScore = angles.supination < 60 ? 0 : angles.supination < 80 ? 1 : 2
 
-  const rotationScore = Math.max(pronationScore, supinationScore)
+  // 자세점수 = 굴곡 + MIN(회내전 + 회외전, 2). 자세점수 자체에는 상한 없음.
+  const rotationScore = Math.min(pronationScore + supinationScore, 2)
 
-  return Math.min(flexionScore + rotationScore, 5)
+  return flexionScore + rotationScore
 }
 
 /**
@@ -158,11 +160,11 @@ export function calculateShoulderPostureScore(angles: ShoulderAngles): number {
   // 내회전 점수 (0-2)
   const internalRotScore = angles.internalRotation < 10 ? 0 : angles.internalRotation < 30 ? 1 : 2
 
-  // 기본 자세 점수 계산
-  const mainScore = neutralScore > 0 ? neutralScore : Math.max(flexionScore, extensionScore)
-  const rotationScore = Math.max(abductionScore, adductionScore, externalRotScore, internalRotScore)
+  // 자세점수 = MAX(중립, 굴곡, 신전) + MIN(외전+내전+외회전+내회전, 2)
+  const mainScore = Math.max(neutralScore, flexionScore, extensionScore)
+  const rotationScore = Math.min(abductionScore + adductionScore + externalRotScore + internalRotScore, 2)
 
-  return Math.min(mainScore + rotationScore, 5)
+  return mainScore + rotationScore
 }
 
 /**
@@ -227,11 +229,11 @@ export function calculateNeckPostureScore(angles: NeckAngles): number {
   // 측면기울임 점수 (0-2)
   const lateralScore = angles.lateralTilt < 10 ? 0 : angles.lateralTilt < 30 ? 1 : 2
 
-  // 기본 자세 점수
-  const mainScore = neutralScore > 0 ? neutralScore : Math.max(flexionScore, extensionScore)
-  const addScore = Math.max(rotationScore, lateralScore)
+  // 자세점수 = MAX(중립, 굴곡, 신전) + MIN(회전 + 측면, 2)
+  const mainScore = Math.max(neutralScore, flexionScore, extensionScore)
+  const addScore = Math.min(rotationScore + lateralScore, 2)
 
-  return Math.min(mainScore + addScore, 5)
+  return mainScore + addScore
 }
 
 /**
@@ -277,10 +279,11 @@ export function calculateBackPostureScore(angles: BackAngles): number {
   // 측면기울임 점수 (0-2)
   const lateralScore = angles.lateralTilt < 10 ? 0 : angles.lateralTilt < 30 ? 1 : 2
 
+  // 자세점수 = MAX(굴곡, 신전) + MIN(회전 + 측면, 2)
   const mainScore = Math.max(flexionScore, extensionScore)
-  const addScore = Math.max(rotationScore, lateralScore)
+  const addScore = Math.min(rotationScore + lateralScore, 2)
 
-  return Math.min(mainScore + addScore, 5)
+  return mainScore + addScore
 }
 
 /**
@@ -334,9 +337,10 @@ export function calculateKneeAnklePostureScore(values: KneeAnkleValues): number 
   const walkingKm = values.walkingKm ?? 0
   const walkingScore = walkingKm < 2 ? 0 : walkingKm < 4 ? 1 : 2
 
-  const addScore = Math.max(climbingScore, drivingScore, walkingScore)
+  // 자세점수 = 쪼그리기 + MIN(오르내리기 + 운전 + 걷기, 2)
+  const addScore = Math.min(climbingScore + drivingScore + walkingScore, 2)
 
-  return Math.min(kneelingScore + addScore, 5)
+  return kneelingScore + addScore
 }
 
 /**
@@ -351,6 +355,7 @@ export function calculateKneeAnkleAdditionalScore(factors: KneeAnkleFactors): nu
   if (factors.heavyOver20kg) score += 2
   if (factors.unstableSurface) score += 1
   if (factors.kneePressure) score += 1
+  if (factors.jumpDown) score += 1  // 뛰어내리기 동작
 
   return score
 }
@@ -860,13 +865,14 @@ export function calculateForceScore(forceChecked: boolean): number {
 
 /**
  * 정적/반복 점수 계산 (최대 1점)
- * 하나 이상 체크시 1점
+ * 첨부 수식: MAX(정적 자세점수, 반복점수)
+ * 각 항목 0 또는 1점이므로 MAX = 둘 중 하나라도 체크 시 1.
  */
 export function calculateStaticRepetitionScore(
   staticOver1min: boolean,
   repetitionChecked: boolean
 ): number {
-  return (staticOver1min || repetitionChecked) ? 1 : 0
+  return Math.max(staticOver1min ? 1 : 0, repetitionChecked ? 1 : 0)
 }
 
 // ==========================================
@@ -875,6 +881,13 @@ export function calculateStaticRepetitionScore(
 
 /**
  * 부위별 총점 계산 (힘/정적·반복 포함)
+ *
+ * 첨부 합산식:
+ *   자세점수 + 방향각도점수(상한 2, 자세점수 내부에 포함됨)
+ *   + 취급물중량점수(부가요인 흡수)
+ *   + MAX(정적자세, 반복)
+ *   + 부가점수 합계
+ *   → 최종 7점 상한
  */
 export function calculateTotalScore(
   postureScore: number,
@@ -882,7 +895,6 @@ export function calculateTotalScore(
   forceScore: number = 0,
   staticRepetitionScore: number = 0
 ): number {
-  // 총점은 최대 7점
   return Math.min(postureScore + additionalScore + forceScore + staticRepetitionScore, 7)
 }
 
