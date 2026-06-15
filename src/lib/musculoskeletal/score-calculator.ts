@@ -158,7 +158,9 @@ export function calculateShoulderPostureScore(angles: ShoulderAngles): number {
   const externalRotScore = angles.externalRotation < 10 ? 0 : angles.externalRotation < 30 ? 1 : 2
 
   // 내회전 점수 (0-2)
-  const internalRotScore = angles.internalRotation < 10 ? 0 : angles.internalRotation < 30 ? 1 : 2
+  // 첨부 문서에 < 10 / < 30 / ≥ 30 으로 잘못 기재되어 있던 값을
+  // 원본 계산 기준(< 30 / < 45 / ≥ 45)으로 정정.
+  const internalRotScore = angles.internalRotation < 30 ? 0 : angles.internalRotation < 45 ? 1 : 2
 
   // 자세점수 = MAX(중립, 굴곡, 신전) + MIN(외전+내전+외회전+내회전, 2)
   const mainScore = Math.max(neutralScore, flexionScore, extensionScore)
