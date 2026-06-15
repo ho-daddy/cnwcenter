@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 import { QUESTION_TYPE_LABELS } from '@/lib/survey/constants'
 import { evaluateConditions } from '@/lib/survey/conditional-logic'
+import { filterVisibleAnswers } from '@/lib/survey/visibility'
 import type { ConditionalLogic } from '@/types/survey'
 
 interface SurveyMeta {
@@ -820,10 +821,15 @@ export default function SurveyResponsesPage() {
                     ) : (
                       /* ── 보기 모드 ── */
                       <div className="space-y-4 pt-3">
-                        {expandedDetails[resp.id].length === 0 ? (
-                          <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
-                        ) : (
-                          expandedDetails[resp.id].map((answer) => (
+                        {(() => {
+                          const visibleAnswers = filterVisibleAnswers(
+                            expandedDetails[resp.id] ?? [],
+                            sections,
+                          )
+                          if (visibleAnswers.length === 0) {
+                            return <p className="text-sm text-gray-400">응답 데이터가 없습니다.</p>
+                          }
+                          return visibleAnswers.map((answer) => (
                             <div
                               key={answer.id}
                               className="bg-white rounded-lg border border-gray-200 p-3"
@@ -846,7 +852,7 @@ export default function SurveyResponsesPage() {
                               </div>
                             </div>
                           ))
-                        )}
+                        })()}
                       </div>
                     )}
                   </div>

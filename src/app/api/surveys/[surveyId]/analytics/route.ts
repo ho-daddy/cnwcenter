@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { QuestionType } from '@prisma/client'
 import { requireSurveyAccess } from '@/lib/auth-utils'
+import { filterVisibleAnswers } from '@/lib/survey/visibility'
 
 type Params = { params: { surveyId: string } }
 
@@ -28,13 +29,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '설문조사를 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  // 전체 응답 가져오기
-  const responses = await prisma.surveyResponse.findMany({
+  // 전체 응답 가져오기 + 응답별로 가시성 false인 stale 답변 제거
+  const rawResponses = await prisma.surveyResponse.findMany({
     where: { surveyId: params.surveyId },
     include: {
       answers: true,
     },
   })
+  const responses = rawResponses.map(r => ({
+    ...r,
+    answers: filterVisibleAnswers(r.answers, survey.sections),
+  }))
 
   const totalResponses = responses.length
   const completedResponses = responses.filter((r) => r.completedAt !== null).length

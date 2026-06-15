@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import ExcelJS from 'exceljs'
 import { requireSurveyAccess } from '@/lib/auth-utils'
+import { filterVisibleAnswers } from '@/lib/survey/visibility'
 
 type Params = { params: { surveyId: string } }
 
@@ -52,11 +53,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '설문조사를 찾을 수 없습니다.' }, { status: 404 })
   }
 
-  const responses = await prisma.surveyResponse.findMany({
+  const rawResponses = await prisma.surveyResponse.findMany({
     where: { surveyId: params.surveyId, completedAt: { not: null } },
     orderBy: { createdAt: 'asc' },
     include: { answers: true },
   })
+  const responses = rawResponses.map(r => ({
+    ...r,
+    answers: filterVisibleAnswers(r.answers, survey.sections),
+  }))
 
   // questionCode → questionId 매핑
   const allQuestions = survey.sections.flatMap((s) => s.questions)

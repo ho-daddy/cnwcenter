@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSurveyAccess } from '@/lib/auth-utils'
+import { filterVisibleAnswers } from '@/lib/survey/visibility'
 
 type Params = { params: { surveyId: string; responseId: string } }
 
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest, { params }: Params) {
               questionText: true,
               questionType: true,
               options: true,
+              conditionalLogic: true,
             },
           },
         },
@@ -36,7 +38,18 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: '해당 설문의 응답이 아닙니다.' }, { status: 400 })
   }
 
-  return NextResponse.json(response)
+  // 같은 설문의 전체 질문 구조를 조회하여 가시성 false인 stale 답변 필터링
+  // (안전성 정책으로 응답 수정 시 stale 답변이 DB에 보존되므로 조회 시점에 제거)
+  const sections = await prisma.surveySection.findMany({
+    where: { surveyId: params.surveyId },
+    include: {
+      questions: { select: { id: true, questionCode: true, conditionalLogic: true } },
+    },
+  })
+
+  const visible = filterVisibleAnswers(response.answers, sections)
+
+  return NextResponse.json({ ...response, answers: visible })
 }
 
 // PATCH /api/surveys/[surveyId]/responses/[responseId] — 응답 수정 (STAFF+)
