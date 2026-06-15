@@ -1451,7 +1451,7 @@ function OverviewContent({
                         <p className="font-semibold text-base text-gray-900 truncate flex-1">{work.name}</p>
                         <button
                           onClick={() => startEditName(work)}
-                          className="flex-shrink-0 text-gray-300 hover:text-gray-500"
+                          className="flex-shrink-0 text-gray-500 hover:text-gray-800"
                           title="요소작업명 편집"
                         >
                           <Pencil className="w-3 h-3" />
