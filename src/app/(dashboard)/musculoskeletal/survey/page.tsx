@@ -1254,10 +1254,43 @@ function OverviewContent({
 }) {
   const [editingDescWorkId, setEditingDescWorkId] = useState<string | null>(null)
   const [draftDesc, setDraftDesc] = useState('')
+  const [editingNameWorkId, setEditingNameWorkId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
+
+  const startEditName = (work: ElementWork) => {
+    setEditingNameWorkId(work.id)
+    setDraftName(work.name)
+    setEditingDescWorkId(null)
+  }
+
+  const saveName = async (workId: string) => {
+    if (!draftName.trim()) return
+    try {
+      const res = await fetch(
+        `/api/workplaces/${workplaceId}/musculoskeletal/${assessment.id}/element-works/${workId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: draftName.trim() }),
+        }
+      )
+      if (res.ok) {
+        onUpdate({
+          elementWorks: assessment.elementWorks.map((w) =>
+            w.id === workId ? { ...w, name: draftName.trim() } : w
+          ),
+        })
+      }
+    } catch (e) {
+      console.error('name 저장 오류:', e)
+    }
+    setEditingNameWorkId(null)
+  }
 
   const startEditDesc = (work: ElementWork) => {
     setEditingDescWorkId(work.id)
     setDraftDesc(work.description || '')
+    setEditingNameWorkId(null)
   }
 
   const saveDesc = async (workId: string) => {
@@ -1390,7 +1423,41 @@ function OverviewContent({
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-base text-gray-900">{work.name}</p>
+                    {editingNameWorkId === work.id ? (
+                      <div className="flex gap-1 mb-1">
+                        <input
+                          type="text"
+                          value={draftName}
+                          onChange={(e) => setDraftName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveName(work.id)
+                            if (e.key === 'Escape') setEditingNameWorkId(null)
+                          }}
+                          className="flex-1 text-base font-semibold border rounded px-2 py-0.5 text-gray-900"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveName(work.id)}
+                          disabled={!draftName.trim()}
+                          className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40"
+                        >저장</button>
+                        <button
+                          onClick={() => setEditingNameWorkId(null)}
+                          className="text-xs px-2 py-0.5 border rounded hover:bg-gray-50"
+                        >취소</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <p className="font-semibold text-base text-gray-900 truncate flex-1">{work.name}</p>
+                        <button
+                          onClick={() => startEditName(work)}
+                          className="flex-shrink-0 text-gray-300 hover:text-gray-500"
+                          title="요소작업명 편집"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                     {editingDescWorkId === work.id ? (
                       <div className="mt-2 rounded-md border-l-4 border-l-amber-400 border border-amber-200 bg-amber-50/60 p-3">
                         <label className="text-xs font-medium text-amber-700 mb-1 block">작업내용</label>
