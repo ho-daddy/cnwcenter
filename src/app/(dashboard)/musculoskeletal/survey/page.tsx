@@ -1136,18 +1136,19 @@ function AssessmentDetail({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-4 border-b pb-2 overflow-x-auto" data-tutorial="ms-sheet-tabs">
+        <div className="flex gap-1 mt-4 border-b border-gray-200 -mb-px overflow-x-auto" data-tutorial="ms-sheet-tabs">
           {SHEET_TABS.map((tab) => {
             const Icon = tab.icon
+            const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 data-tutorial={tab.id === 'videos' ? 'ms-video-tab' : undefined}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-t text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-t-md text-sm font-semibold whitespace-nowrap transition-colors -mb-px border-b-2 ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50 border-transparent'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -1383,82 +1384,84 @@ function OverviewContent({
               .map((work, index) => (
                 <div
                   key={work.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
+                  className="flex items-start gap-3 p-4 rounded-lg border border-l-4 border-l-blue-500 border-gray-200 hover:bg-gray-50/60 transition-colors"
                 >
-                  <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
+                  <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full text-base shrink-0 mt-0.5">
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{work.name}</p>
+                    <p className="font-semibold text-base text-gray-900">{work.name}</p>
                     {editingDescWorkId === work.id ? (
-                      <div className="mt-1.5">
+                      <div className="mt-2 rounded-md border-l-4 border-l-amber-400 border border-amber-200 bg-amber-50/60 p-3">
+                        <label className="text-xs font-medium text-amber-700 mb-1 block">작업내용</label>
                         <textarea
                           value={draftDesc}
                           onChange={(e) => setDraftDesc(e.target.value)}
-                          rows={3}
-                          className="w-full text-xs border rounded px-2 py-1 resize-none"
-                          placeholder="작업내용 입력"
+                          rows={4}
+                          className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 resize-y focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400 bg-white"
+                          placeholder="작업의 구체적인 내용을 입력하세요"
                           autoFocus
                         />
-                        <div className="flex gap-1 mt-1">
-                          <button
-                            onClick={() => saveDesc(work.id)}
-                            className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700"
-                          >저장</button>
+                        <div className="flex justify-end gap-2 mt-2">
                           <button
                             onClick={() => setEditingDescWorkId(null)}
-                            className="text-xs px-2 py-0.5 border rounded hover:bg-gray-50"
+                            className="text-sm px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700"
                           >취소</button>
+                          <button
+                            onClick={() => saveDesc(work.id)}
+                            className="text-sm px-3 py-1.5 bg-amber-500 text-white rounded-md hover:bg-amber-600 font-medium"
+                          >저장</button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-1 mt-0.5">
+                      <div className="flex items-start gap-2 mt-1.5">
                         {work.description ? (
-                          <p className="text-xs text-gray-500 line-clamp-2 flex-1">{work.description}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap flex-1 leading-relaxed">{work.description}</p>
                         ) : (
-                          <p className="text-xs text-gray-300 flex-1">작업내용 없음</p>
+                          <p className="text-sm text-gray-400 italic flex-1">작업내용 없음</p>
                         )}
                         <button
                           onClick={() => startEditDesc(work)}
-                          className="flex-shrink-0 text-gray-300 hover:text-gray-500 mt-0.5"
+                          className="shrink-0 p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
                           title="작업내용 편집"
                         >
-                          <Pencil className="w-3 h-3" />
+                          <Pencil className="w-4 h-4" />
                         </button>
                       </div>
                     )}
-                    <div className="flex gap-1 mt-1 flex-wrap">
+                    <div className="flex gap-1.5 mt-2.5 flex-wrap">
                       {work.bodyPartScores.length > 0 && (
-                        <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded-full">
                           부위 {work.bodyPartScores.length}/6
                         </span>
                       )}
                       {work.rulaScore !== null && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                           RULA {work.rulaScore}
                         </span>
                       )}
                       {work.rebaScore !== null && (
-                        <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
                           REBA {work.rebaScore}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => onOpenSheet2(work)}>
-                      <Calculator className="w-4 h-4" />
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={() => onOpenSheet2(work)} title="공구·중량물·자세 입력" className="text-gray-500 hover:text-blue-600 h-9 w-9 p-0">
+                      <Calculator className="w-4.5 h-4.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => onOpenSheet3(work)}>
-                      <BarChart3 className="w-4 h-4" />
+                    <Button size="sm" variant="ghost" onClick={() => onOpenSheet3(work)} title="RULA/REBA 평가" className="text-gray-500 hover:text-purple-600 h-9 w-9 p-0">
+                      <BarChart3 className="w-4.5 h-4.5" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => onDeleteWork(work.id)}
-                      className="text-red-500 hover:text-red-600"
+                      title="요소작업 삭제"
+                      className="text-gray-400 hover:text-red-600 h-9 w-9 p-0"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4.5 h-4.5" />
                     </Button>
                   </div>
                 </div>
@@ -1939,39 +1942,40 @@ function Sheet2Content({
                   .map((work, index) => (
                     <div
                       key={work.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 mb-2"
+                      className="flex items-center gap-3 p-4 rounded-lg border border-l-4 border-l-blue-500 border-gray-200 hover:bg-gray-50/60 mb-2 transition-colors"
                     >
-                      <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-sm">
+                      <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full text-base shrink-0">
                         {index + 1}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{work.name}</p>
-                        <div className="flex gap-2 mt-1">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-base text-gray-900">{work.name}</p>
+                        <div className="flex gap-1.5 mt-2 flex-wrap">
                           {BODY_PARTS.map((part) => {
                             const score = work.bodyPartScores.find((s) => s.bodyPart === part.id)
+                            const colorCls = score
+                              ? score.totalScore >= 7
+                                ? 'bg-red-100 text-red-700 border-red-200'
+                                : score.totalScore >= 5
+                                  ? 'bg-orange-100 text-orange-700 border-orange-200'
+                                  : score.totalScore >= 3
+                                    ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                    : 'bg-green-100 text-green-700 border-green-200'
+                              : 'bg-gray-50 text-gray-400 border-gray-200'
                             return (
                               <span
                                 key={part.id}
-                                className={`text-xs px-1.5 py-0.5 rounded ${
-                                  score
-                                    ? score.totalScore >= 7
-                                      ? 'bg-red-100 text-red-700'
-                                      : score.totalScore >= 5
-                                        ? 'bg-orange-100 text-orange-700'
-                                        : score.totalScore >= 3
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-400'
-                                }`}
+                                className={`inline-flex items-center gap-1 text-xs font-medium border rounded-md px-2 py-1 ${colorCls}`}
+                                title={part.name}
                               >
-                                {score ? score.totalScore : '-'}
+                                <span className="text-[10px] opacity-75">{part.name}</span>
+                                <span className="font-bold tabular-nums">{score ? score.totalScore : '–'}</span>
                               </span>
                             )
                           })}
                         </div>
                       </div>
-                      <Button size="sm" onClick={() => onOpenSheet2(work)}>
-                        <Edit className="w-4 h-4 mr-1" />
+                      <Button size="sm" onClick={() => onOpenSheet2(work)} className="shrink-0 h-9 px-4 text-sm">
+                        <Edit className="w-4 h-4 mr-1.5" />
                         입력
                       </Button>
                     </div>
@@ -2765,7 +2769,17 @@ function MeasurementSection({
     }
   }
 
-  const inputCls = 'w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500'
+  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white'
+  const fieldLabelCls = 'text-xs font-medium text-gray-600 mb-1 block'
+
+  // 측정값 표시용 칩 (단위 포함)
+  const ValueChip = ({ label, value, unit }: { label: string; value: string | number; unit: string }) => (
+    <span className="inline-flex items-baseline gap-1 text-sm bg-white border border-gray-200 rounded-md px-2.5 py-1">
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="font-semibold text-gray-800">{value}</span>
+      <span className="text-xs text-gray-400">{unit}</span>
+    </span>
+  )
 
   return (
     <div>
@@ -2776,8 +2790,9 @@ function MeasurementSection({
         className="hidden"
         onChange={handlePhotoUpload}
       />
-      <p className="text-sm text-gray-600 mb-2">
-        각 요소작업별 공구, 중량물, 밀고당기기, 전신진동 정보를 입력하세요. (각 유형 최대 10개)
+      <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+        각 요소작업별 공구, 중량물, 밀고당기기, 전신진동 정보를 입력하세요.
+        <span className="text-xs text-gray-500 ml-1">(각 유형 최대 10개)</span>
       </p>
 
       {sortedWorks.map((work, workIdx) => {
@@ -2785,34 +2800,34 @@ function MeasurementSection({
         const totalMeasurements = (work.measurements || []).length
 
         return (
-          <div key={work.id} className="mb-2 border rounded-lg overflow-hidden">
+          <div key={work.id} className="mb-3 border border-gray-200 rounded-lg overflow-hidden">
             <button
               onClick={() => setExpandedWork(isExpanded ? null : work.id)}
-              className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
             >
-              <div className="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 font-bold rounded-full text-xs">
+              <div className="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full text-sm shrink-0">
                 {workIdx + 1}
               </div>
-              <span className="flex-1 text-sm font-medium">{work.name}</span>
-              <span className="text-xs text-gray-400">{totalMeasurements}건</span>
-              {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+              <span className="flex-1 text-base font-semibold text-gray-900">{work.name}</span>
+              <span className="text-sm text-gray-500">{totalMeasurements}건</span>
+              {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-500" /> : <ChevronRight className="w-5 h-5 text-gray-500" />}
             </button>
 
             {isExpanded && (
-              <div className="px-3 pb-3 space-y-2">
+              <div className="px-3 pb-3 space-y-2 bg-gray-50/40">
                 {MEASUREMENT_TYPES.map(mt => {
                   const items = (work.measurements || []).filter(m => m.type === mt.type)
                   const isTypeExpanded = expandedType === `${work.id}-${mt.type}`
                   const isAdding = addingType === `${work.id}-${mt.type}`
 
                   return (
-                    <div key={mt.type} className="border rounded-lg bg-gray-50">
+                    <div key={mt.type} className="border border-gray-200 rounded-lg bg-white">
                       <button
                         onClick={() => setExpandedType(isTypeExpanded ? null : `${work.id}-${mt.type}`)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors rounded-t-lg"
                       >
-                        <span className="text-sm font-medium text-gray-700">{mt.label}</span>
-                        <span className="text-xs text-gray-400 bg-white px-1.5 py-0.5 rounded">{items.length}</span>
+                        <span className="text-sm font-semibold text-gray-800">{mt.label}</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${items.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{items.length}</span>
                         <div className="flex-1" />
                         {items.length < 10 && (
                           <button
@@ -2822,141 +2837,182 @@ function MeasurementSection({
                               setExpandedType(`${work.id}-${mt.type}`)
                               setNewForm({ name: '', weight: '', force: '', frequency: '', exposureHours: '' })
                             }}
-                            className="p-1 text-blue-500 hover:bg-blue-100 rounded"
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                            title={`${mt.label} 추가`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5" /> 추가
                           </button>
                         )}
-                        {isTypeExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
+                        {isTypeExpanded ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                       </button>
 
                       {isTypeExpanded && (
-                        <div className="px-3 pb-2 space-y-1.5">
+                        <div className="px-3 pb-3 space-y-2 border-t border-gray-100 pt-2">
                           {items.map((item, idx) => (
-                            <div key={item.id} className="bg-white rounded px-2 py-1.5 text-xs">
+                            <div key={item.id}>
                               {editingId === item.id ? (
-                                <div className="bg-yellow-50 rounded p-2 space-y-1.5">
-                                  <input
-                                    type="text"
-                                    value={editForm.name}
-                                    onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))}
-                                    className={inputCls}
-                                    placeholder={mt.namePlaceholder}
-                                  />
-                                  <div className="flex gap-2">
+                                <div className="rounded-md border-l-4 border-l-amber-400 border border-amber-200 bg-amber-50/60 p-3 space-y-3">
+                                  <div>
+                                    <label className={fieldLabelCls}>{mt.nameLabel} <span className="text-red-500">*</span></label>
+                                    <input
+                                      type="text"
+                                      value={editForm.name}
+                                      onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))}
+                                      className={inputCls}
+                                      placeholder={mt.namePlaceholder}
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {mt.fields.includes('weight') && (
-                                      <input type="number" step="0.1" value={editForm.weight}
-                                        onChange={(e) => setEditForm(f => ({ ...f, weight: e.target.value }))}
-                                        className={inputCls} placeholder="무게(kg)" />
+                                      <div>
+                                        <label className={fieldLabelCls}>무게 (kg)</label>
+                                        <input type="number" step="0.1" value={editForm.weight}
+                                          onChange={(e) => setEditForm(f => ({ ...f, weight: e.target.value }))}
+                                          className={inputCls} placeholder="예: 2.5" />
+                                      </div>
                                     )}
                                     {mt.fields.includes('force') && (
-                                      <input type="number" step="0.1" value={editForm.force}
-                                        onChange={(e) => setEditForm(f => ({ ...f, force: e.target.value }))}
-                                        className={inputCls} placeholder="힘(kgf)" />
+                                      <div>
+                                        <label className={fieldLabelCls}>힘 (kgf)</label>
+                                        <input type="number" step="0.1" value={editForm.force}
+                                          onChange={(e) => setEditForm(f => ({ ...f, force: e.target.value }))}
+                                          className={inputCls} placeholder="예: 5" />
+                                      </div>
                                     )}
                                     {mt.fields.includes('frequency') && (
-                                      <input type="number" value={editForm.frequency}
-                                        onChange={(e) => setEditForm(f => ({ ...f, frequency: e.target.value }))}
-                                        className={inputCls} placeholder="빈도(회/일)" />
+                                      <div>
+                                        <label className={fieldLabelCls}>빈도 (회/일)</label>
+                                        <input type="number" value={editForm.frequency}
+                                          onChange={(e) => setEditForm(f => ({ ...f, frequency: e.target.value }))}
+                                          className={inputCls} placeholder="예: 60" />
+                                      </div>
                                     )}
                                     {mt.fields.includes('exposureHours') && (
-                                      <input type="number" step="0.5" value={editForm.exposureHours}
-                                        onChange={(e) => setEditForm(f => ({ ...f, exposureHours: e.target.value }))}
-                                        className={inputCls} placeholder="노출시간(시간/일)" />
+                                      <div>
+                                        <label className={fieldLabelCls}>노출시간 (시간/일)</label>
+                                        <input type="number" step="0.5" value={editForm.exposureHours}
+                                          onChange={(e) => setEditForm(f => ({ ...f, exposureHours: e.target.value }))}
+                                          className={inputCls} placeholder="예: 4" />
+                                      </div>
                                     )}
                                   </div>
-                                  <div className="flex justify-end gap-1.5">
+                                  <div className="flex justify-end gap-2 pt-1">
                                     <button onClick={() => setEditingId(null)}
-                                      className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">취소</button>
+                                      className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-md">취소</button>
                                     <button onClick={() => handleUpdate(work.id, item.id)} disabled={isSaving || !editForm.name.trim()}
-                                      className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50">
-                                      {isSaving ? '저장...' : '수정'}
+                                      className="px-3 py-1.5 text-sm font-medium bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:opacity-50">
+                                      {isSaving ? '저장 중…' : '수정 저장'}
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-400 w-4">{idx + 1}</span>
-                                    <span className="font-medium text-gray-800 flex-1">{item.name}</span>
-                                    {item.weight != null && <span className="text-gray-500">{item.weight}kg</span>}
-                                    {item.force != null && <span className="text-gray-500">{item.force}kgf</span>}
-                                    {item.frequency != null && <span className="text-gray-500">{item.frequency}회/일</span>}
-                                    {item.exposureHours != null && <span className="text-gray-500">{item.exposureHours}시간/일</span>}
-                                    <button
-                                      onClick={() => handleEditStart(item)}
-                                      className="p-0.5 text-gray-400 hover:text-yellow-500"
-                                      title="수정"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        pendingMeasurementRef.current = { workId: work.id, measurementId: item.id }
-                                        photoInputRef.current?.click()
-                                      }}
-                                      disabled={uploadingId === item.id}
-                                      className={`p-1 rounded transition-colors ${item.photoPath ? 'text-blue-500 hover:text-blue-700' : 'text-gray-300 hover:text-blue-500'}`}
-                                      title={item.photoPath ? '사진 변경' : '사진 추가'}
-                                    >
-                                      {uploadingId === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(work.id, item.id)}
-                                      className="p-0.5 text-gray-300 hover:text-red-500"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                <div className="rounded-md border border-gray-200 bg-white p-3 hover:border-gray-300 transition-colors">
+                                  {/* 1줄: 번호 + 이름 + 액션 */}
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-xs font-semibold text-gray-400 w-5 shrink-0">#{idx + 1}</span>
+                                    <span className="font-medium text-sm text-gray-900 flex-1 break-words">{item.name}</span>
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                      <button
+                                        onClick={() => handleEditStart(item)}
+                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                        title="수정"
+                                      >
+                                        <Pencil className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          pendingMeasurementRef.current = { workId: work.id, measurementId: item.id }
+                                          photoInputRef.current?.click()
+                                        }}
+                                        disabled={uploadingId === item.id}
+                                        className={`p-1.5 rounded transition-colors ${item.photoPath ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                                        title={item.photoPath ? '사진 변경' : '사진 추가'}
+                                      >
+                                        {uploadingId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(work.id, item.id)}
+                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        title="삭제"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                   </div>
-                                  {item.photoPath && (
-                                    <div className="mt-1 ml-6">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={item.photoPath} alt={item.name} className="w-20 h-20 object-cover rounded border border-gray-200" />
+                                  {/* 2줄: 측정값 칩들 */}
+                                  {(item.weight != null || item.force != null || item.frequency != null || item.exposureHours != null) && (
+                                    <div className="flex flex-wrap gap-1.5 mt-2 pl-7">
+                                      {item.weight != null && <ValueChip label="무게" value={item.weight} unit="kg" />}
+                                      {item.force != null && <ValueChip label="힘" value={item.force} unit="kgf" />}
+                                      {item.frequency != null && <ValueChip label="빈도" value={item.frequency} unit="회/일" />}
+                                      {item.exposureHours != null && <ValueChip label="노출" value={item.exposureHours} unit="시간/일" />}
                                     </div>
                                   )}
-                                </>
+                                  {item.photoPath && (
+                                    <div className="mt-2 pl-7">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={item.photoPath} alt={item.name} className="w-24 h-24 object-cover rounded border border-gray-200" />
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           ))}
 
                           {/* 추가 폼 */}
                           {isAdding && (
-                            <div className="bg-blue-50 rounded p-2 space-y-1.5">
-                              <input
-                                type="text"
-                                value={newForm.name}
-                                onChange={(e) => setNewForm(f => ({ ...f, name: e.target.value }))}
-                                className={inputCls}
-                                placeholder={mt.namePlaceholder}
-                              />
-                              <div className="flex gap-2">
+                            <div className="rounded-md border-l-4 border-l-blue-500 border border-blue-200 bg-blue-50/60 p-3 space-y-3">
+                              <div>
+                                <label className={fieldLabelCls}>{mt.nameLabel} <span className="text-red-500">*</span></label>
+                                <input
+                                  type="text"
+                                  value={newForm.name}
+                                  onChange={(e) => setNewForm(f => ({ ...f, name: e.target.value }))}
+                                  className={inputCls}
+                                  placeholder={mt.namePlaceholder}
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {mt.fields.includes('weight') && (
-                                  <input type="number" step="0.1" value={newForm.weight}
-                                    onChange={(e) => setNewForm(f => ({ ...f, weight: e.target.value }))}
-                                    className={inputCls} placeholder="무게(kg)" />
+                                  <div>
+                                    <label className={fieldLabelCls}>무게 (kg)</label>
+                                    <input type="number" step="0.1" value={newForm.weight}
+                                      onChange={(e) => setNewForm(f => ({ ...f, weight: e.target.value }))}
+                                      className={inputCls} placeholder="예: 2.5" />
+                                  </div>
                                 )}
                                 {mt.fields.includes('force') && (
-                                  <input type="number" step="0.1" value={newForm.force}
-                                    onChange={(e) => setNewForm(f => ({ ...f, force: e.target.value }))}
-                                    className={inputCls} placeholder="힘(kgf)" />
+                                  <div>
+                                    <label className={fieldLabelCls}>힘 (kgf)</label>
+                                    <input type="number" step="0.1" value={newForm.force}
+                                      onChange={(e) => setNewForm(f => ({ ...f, force: e.target.value }))}
+                                      className={inputCls} placeholder="예: 5" />
+                                  </div>
                                 )}
                                 {mt.fields.includes('frequency') && (
-                                  <input type="number" value={newForm.frequency}
-                                    onChange={(e) => setNewForm(f => ({ ...f, frequency: e.target.value }))}
-                                    className={inputCls} placeholder="빈도(회/일)" />
+                                  <div>
+                                    <label className={fieldLabelCls}>빈도 (회/일)</label>
+                                    <input type="number" value={newForm.frequency}
+                                      onChange={(e) => setNewForm(f => ({ ...f, frequency: e.target.value }))}
+                                      className={inputCls} placeholder="예: 60" />
+                                  </div>
                                 )}
                                 {mt.fields.includes('exposureHours') && (
-                                  <input type="number" step="0.5" value={newForm.exposureHours}
-                                    onChange={(e) => setNewForm(f => ({ ...f, exposureHours: e.target.value }))}
-                                    className={inputCls} placeholder="노출시간(시간/일)" />
+                                  <div>
+                                    <label className={fieldLabelCls}>노출시간 (시간/일)</label>
+                                    <input type="number" step="0.5" value={newForm.exposureHours}
+                                      onChange={(e) => setNewForm(f => ({ ...f, exposureHours: e.target.value }))}
+                                      className={inputCls} placeholder="예: 4" />
+                                  </div>
                                 )}
                               </div>
-                              <div className="flex justify-end gap-1.5">
+                              <div className="flex justify-end gap-2 pt-1">
                                 <button onClick={() => setAddingType(null)}
-                                  className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">취소</button>
+                                  className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-md">취소</button>
                                 <button onClick={() => handleAdd(work.id, mt.type)} disabled={isSaving || !newForm.name.trim()}
-                                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                                  {isSaving ? '저장...' : '추가'}
+                                  className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                                  {isSaving ? '저장 중…' : '추가'}
                                 </button>
                               </div>
                             </div>
