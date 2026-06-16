@@ -405,6 +405,19 @@ function SurveyListPageInner() {
     }
   }, [])
 
+  // 저장 후 화면 깜빡임 없이 백그라운드로 최신 데이터 갱신
+  const silentRefetch = useCallback(async (assessmentId: string) => {
+    try {
+      const res = await fetch(`/api/musculoskeletal/${assessmentId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedAssessment(data.assessment)
+      }
+    } catch {
+      // silent — 저장은 이미 성공했으므로 refetch 실패는 무시
+    }
+  }, [])
+
   // Filter assessments by unit if selected
   const filteredAssessments = assessments.filter((a) => {
     if (searchTerm) {
@@ -729,7 +742,8 @@ function SurveyListPageInner() {
           onDeleteWork={handleDeleteElementWork}
           onOpenSheet2={openSheet2Modal}
           onOpenSheet3={openSheet3Modal}
-          onUpdate={(updated) => setSelectedAssessment({ ...selectedAssessment, ...updated })}
+          onUpdate={(updated) => setSelectedAssessment(prev => prev ? { ...prev, ...updated } : prev)}
+          onRefetch={() => selectedAssessment && silentRefetch(selectedAssessment.id)}
           onDeleteAssessment={handleDeleteAssessment}
         />
       ) : (
@@ -1093,6 +1107,7 @@ function AssessmentDetail({
   onOpenSheet2,
   onOpenSheet3,
   onUpdate,
+  onRefetch,
   onDeleteAssessment,
 }: {
   assessment: Assessment
@@ -1108,6 +1123,7 @@ function AssessmentDetail({
   onOpenSheet2: (work: ElementWork) => void
   onOpenSheet3: (work: ElementWork) => void
   onUpdate: (data: Partial<Assessment>) => void
+  onRefetch: () => void
   onDeleteAssessment: () => void
 }) {
   const { label: statusLabel, className: statusClass } =
@@ -1181,6 +1197,7 @@ function AssessmentDetail({
                 assessment={assessment}
                 workplaceId={workplaceId}
                 onUpdate={onUpdate}
+                onRefetch={onRefetch}
               />
             </div>
           </>
@@ -1212,6 +1229,7 @@ function AssessmentDetail({
             assessment={assessment}
             workplaceId={workplaceId}
             onUpdate={onUpdate}
+            onRefetch={onRefetch}
           />
         )}
 
@@ -1562,10 +1580,12 @@ function Sheet1Content({
   assessment,
   workplaceId,
   onUpdate,
+  onRefetch,
 }: {
   assessment: Assessment
   workplaceId: string
   onUpdate: (data: Partial<Assessment>) => void
+  onRefetch?: () => void
 }) {
   const [formData, setFormData] = useState({
     workerName: assessment.workerName || '',
@@ -1625,6 +1645,7 @@ function Sheet1Content({
       if (res.ok) {
         const data = await res.json()
         onUpdate(data.assessment)
+        onRefetch?.()
         alert('저장되었습니다.')
       }
     } catch (error) {
@@ -2176,10 +2197,12 @@ function Sheet4Content({
   assessment,
   workplaceId,
   onUpdate,
+  onRefetch,
 }: {
   assessment: Assessment
   workplaceId: string
   onUpdate: (data: Partial<Assessment>) => void
+  onRefetch?: () => void
 }) {
   const [managementLevel, setManagementLevel] = useState(assessment.managementLevel || '')
   const [evaluationResults, setEvaluationResults] = useState<Record<string, string>>(
@@ -2237,6 +2260,7 @@ function Sheet4Content({
 
       if (res.ok) {
         onUpdate({ managementLevel })
+        onRefetch?.()
         alert('저장되었습니다.')
       }
     } catch (error) {
