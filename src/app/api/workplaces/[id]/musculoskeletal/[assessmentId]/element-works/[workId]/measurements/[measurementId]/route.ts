@@ -27,10 +27,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       where: { id: params.measurementId },
       data: {
         name: body.name ?? existing.name,
-        weight: body.weight !== undefined ? (body.weight != null ? parseFloat(body.weight) : null) : existing.weight,
-        force: body.force !== undefined ? (body.force != null ? parseFloat(body.force) : null) : existing.force,
-        frequency: body.frequency !== undefined ? (body.frequency != null ? parseInt(body.frequency) : null) : existing.frequency,
-        exposureHours: body.exposureHours !== undefined ? (body.exposureHours != null ? parseFloat(body.exposureHours) : null) : existing.exposureHours,
+        weight: body.weight !== undefined ? (body.weight != null ? String(body.weight) : null) : existing.weight,
+        force: body.force !== undefined ? (body.force != null ? String(body.force) : null) : existing.force,
+        frequency: body.frequency !== undefined ? (body.frequency != null ? String(body.frequency) : null) : existing.frequency,
+        exposureHours: body.exposureHours !== undefined ? (body.exposureHours != null ? String(body.exposureHours) : null) : existing.exposureHours,
       },
     })
 

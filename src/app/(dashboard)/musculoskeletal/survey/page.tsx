@@ -183,10 +183,10 @@ interface WorkMeasurementItem {
   type: string
   sortOrder: number
   name: string
-  weight: number | null
-  force: number | null
-  frequency: number | null
-  exposureHours: number | null
+  weight: string | null
+  force: string | null
+  frequency: string | null
+  exposureHours: string | null
   photoPath: string | null
 }
 
@@ -2792,14 +2792,14 @@ function MeasurementSection({
     }
   }
 
-  const handleEditStart = (item: { id: string; name: string; weight: number | null; force: number | null; frequency: number | null; exposureHours: number | null }) => {
+  const handleEditStart = (item: { id: string; name: string; weight: string | null; force: string | null; frequency: string | null; exposureHours: string | null }) => {
     setEditingId(item.id)
     setEditForm({
       name: item.name,
-      weight: item.weight != null ? String(item.weight) : '',
-      force: item.force != null ? String(item.force) : '',
-      frequency: item.frequency != null ? String(item.frequency) : '',
-      exposureHours: item.exposureHours != null ? String(item.exposureHours) : '',
+      weight: item.weight ?? '',
+      force: item.force ?? '',
+      frequency: item.frequency ?? '',
+      exposureHours: item.exposureHours ?? '',
     })
   }
 
@@ -2933,33 +2933,33 @@ function MeasurementSection({
                                     {mt.fields.includes('weight') && (
                                       <div>
                                         <label className={fieldLabelCls}>무게 (kg)</label>
-                                        <input type="number" step="0.1" value={editForm.weight}
+                                        <input type="text" value={editForm.weight}
                                           onChange={(e) => setEditForm(f => ({ ...f, weight: e.target.value }))}
-                                          className={inputCls} placeholder="예: 2.5" />
+                                          className={inputCls} placeholder="예: 2.5 또는 10~20" />
                                       </div>
                                     )}
                                     {mt.fields.includes('force') && (
                                       <div>
                                         <label className={fieldLabelCls}>힘 (kgf)</label>
-                                        <input type="number" step="0.1" value={editForm.force}
+                                        <input type="text" value={editForm.force}
                                           onChange={(e) => setEditForm(f => ({ ...f, force: e.target.value }))}
-                                          className={inputCls} placeholder="예: 5" />
+                                          className={inputCls} placeholder="예: 5 또는 5~10" />
                                       </div>
                                     )}
                                     {mt.fields.includes('frequency') && (
                                       <div>
                                         <label className={fieldLabelCls}>빈도 (회/일)</label>
-                                        <input type="number" value={editForm.frequency}
+                                        <input type="text" value={editForm.frequency}
                                           onChange={(e) => setEditForm(f => ({ ...f, frequency: e.target.value }))}
-                                          className={inputCls} placeholder="예: 60" />
+                                          className={inputCls} placeholder="예: 60 또는 30*3회" />
                                       </div>
                                     )}
                                     {mt.fields.includes('exposureHours') && (
                                       <div>
                                         <label className={fieldLabelCls}>노출시간 (시간/일)</label>
-                                        <input type="number" step="0.5" value={editForm.exposureHours}
+                                        <input type="text" value={editForm.exposureHours}
                                           onChange={(e) => setEditForm(f => ({ ...f, exposureHours: e.target.value }))}
-                                          className={inputCls} placeholder="예: 4" />
+                                          className={inputCls} placeholder="예: 4 또는 2~4" />
                                       </div>
                                     )}
                                   </div>
@@ -3044,33 +3044,33 @@ function MeasurementSection({
                                 {mt.fields.includes('weight') && (
                                   <div>
                                     <label className={fieldLabelCls}>무게 (kg)</label>
-                                    <input type="number" step="0.1" value={newForm.weight}
+                                    <input type="text" value={newForm.weight}
                                       onChange={(e) => setNewForm(f => ({ ...f, weight: e.target.value }))}
-                                      className={inputCls} placeholder="예: 2.5" />
+                                      className={inputCls} placeholder="예: 2.5 또는 10~20" />
                                   </div>
                                 )}
                                 {mt.fields.includes('force') && (
                                   <div>
                                     <label className={fieldLabelCls}>힘 (kgf)</label>
-                                    <input type="number" step="0.1" value={newForm.force}
+                                    <input type="text" value={newForm.force}
                                       onChange={(e) => setNewForm(f => ({ ...f, force: e.target.value }))}
-                                      className={inputCls} placeholder="예: 5" />
+                                      className={inputCls} placeholder="예: 5 또는 5~10" />
                                   </div>
                                 )}
                                 {mt.fields.includes('frequency') && (
                                   <div>
                                     <label className={fieldLabelCls}>빈도 (회/일)</label>
-                                    <input type="number" value={newForm.frequency}
+                                    <input type="text" value={newForm.frequency}
                                       onChange={(e) => setNewForm(f => ({ ...f, frequency: e.target.value }))}
-                                      className={inputCls} placeholder="예: 60" />
+                                      className={inputCls} placeholder="예: 60 또는 30*3회" />
                                   </div>
                                 )}
                                 {mt.fields.includes('exposureHours') && (
                                   <div>
                                     <label className={fieldLabelCls}>노출시간 (시간/일)</label>
-                                    <input type="number" step="0.5" value={newForm.exposureHours}
+                                    <input type="text" value={newForm.exposureHours}
                                       onChange={(e) => setNewForm(f => ({ ...f, exposureHours: e.target.value }))}
-                                      className={inputCls} placeholder="예: 4" />
+                                      className={inputCls} placeholder="예: 4 또는 2~4" />
                                   </div>
                                 )}
                               </div>

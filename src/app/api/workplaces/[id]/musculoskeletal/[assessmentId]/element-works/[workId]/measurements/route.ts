@@ -54,10 +54,10 @@ export async function POST(req: NextRequest, { params }: Params) {
         type,
         sortOrder: count,
         name,
-        weight: weight != null ? parseFloat(weight) : null,
-        force: force != null ? parseFloat(force) : null,
-        frequency: frequency != null ? parseInt(frequency) : null,
-        exposureHours: exposureHours != null ? parseFloat(exposureHours) : null,
+        weight: weight != null ? String(weight) : null,
+        force: force != null ? String(force) : null,
+        frequency: frequency != null ? String(frequency) : null,
+        exposureHours: exposureHours != null ? String(exposureHours) : null,
       },
     })
 

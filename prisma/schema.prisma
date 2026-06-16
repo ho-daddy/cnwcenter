@@ -999,10 +999,10 @@ model WorkMeasurement {
   sortOrder       Int             @default(0)
 
   name            String                    // 공구명/중량물명/물체명칭/발생원
-  weight          Float?                    // 무게(kg) - TOOL, LOAD
-  force           Float?                    // 힘(kgf) - PUSH_PULL
-  frequency       Int?                      // 빈도(회/일) - LOAD, PUSH_PULL
-  exposureHours   Float?                    // 노출시간(시간/일) - VIBRATION
+  weight          String?                   // 무게(kg) - TOOL, LOAD
+  force           String?                   // 힘(kgf) - PUSH_PULL
+  frequency       String?                   // 빈도(회/일) - LOAD, PUSH_PULL
+  exposureHours   String?                   // 노출시간(시간/일) - VIBRATION
   photoPath       String?                   // 사진 경로
 
   createdAt       DateTime        @default(now())
