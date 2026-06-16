@@ -176,6 +176,7 @@ interface Improvement {
   updateDate: string | null
   responsiblePerson: string | null
   remarks: string | null
+  photos?: { id: string; photoPath: string; thumbnailPath?: string | null }[]
 }
 
 interface WorkMeasurementItem {

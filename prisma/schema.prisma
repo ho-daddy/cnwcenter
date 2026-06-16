@@ -1061,10 +1061,25 @@ model MSurveyImprovement {
   updatedAt         DateTime      @updatedAt
 
   records           MSurveyImprovementRecord[]
+  photos            MSurveyImprovementPlanPhoto[]
 
   @@index([assessmentId])
   @@index([elementWorkId])
   @@index([status])
+}
+
+// 근골조사 개선방안 사진
+model MSurveyImprovementPlanPhoto {
+  id             String             @id @default(cuid())
+  improvementId  String
+  improvement    MSurveyImprovement @relation(fields: [improvementId], references: [id], onDelete: Cascade)
+
+  photoPath      String
+  thumbnailPath  String?
+
+  createdAt      DateTime           @default(now())
+
+  @@index([improvementId])
 }
 
 // 근골조사 개선이력 (RiskImprovementRecord 참고)

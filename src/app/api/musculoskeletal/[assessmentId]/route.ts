@@ -35,6 +35,12 @@ export async function GET(
         },
         improvements: {
           orderBy: { createdAt: 'asc' },
+          include: {
+            photos: {
+              orderBy: { createdAt: 'asc' },
+              select: { id: true, photoPath: true, thumbnailPath: true },
+            },
+          },
         },
         createdBy: {
           select: { name: true, email: true },

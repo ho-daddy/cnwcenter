@@ -33,6 +33,7 @@ export interface MSurveyImprovementItem {
   responsiblePerson: string | null
   remarks: string | null
   createdAt?: string
+  photos?: PhotoItem[]
   assessment?: {
     id: string
     organizationUnit: { name: string }
@@ -186,6 +187,10 @@ export default function MSurveyImprovementPanel({
   const [problem, setProblem] = useState(item.problem)
   const [improvement, setImprovement] = useState(item.improvement)
   const [status, setStatus] = useState(item.status || '')
+
+  // Plan photos
+  const [planPhotos, setPlanPhotos] = useState<PhotoItem[]>(item.photos || [])
+  const [planPhotoExpanded, setPlanPhotoExpanded] = useState(false)
 
   // Records
   const [records, setRecords] = useState<ImprovementRecord[]>([])
@@ -362,6 +367,19 @@ export default function MSurveyImprovementPanel({
     }
   }
 
+  // ── Plan photo handlers ──
+
+  const handlePlanPhotoUploaded = (photo: PhotoItem) => {
+    setPlanPhotos(prev => [...prev, photo])
+  }
+
+  const handleDeletePlanPhoto = async (photoId: string) => {
+    const res = await fetch(`/api/musculoskeletal/improvements/${item.id}/photos/${photoId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setPlanPhotos(prev => prev.filter(p => p.id !== photoId))
+    }
+  }
+
   // ── Photo handlers ──
 
   const handlePhotoUploaded = (recordId: string, photo: PhotoItem) => {
@@ -474,6 +492,31 @@ export default function MSurveyImprovementPanel({
               <p className="text-sm text-gray-600">{item.source}</p>
             </div>
           )}
+
+          {/* 개선방안 사진 */}
+          <div>
+            <button
+              onClick={() => setPlanPhotoExpanded(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-blue-600 transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              현황 사진 {planPhotos.length > 0 ? `(${planPhotos.length})` : ''}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${planPhotoExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {planPhotoExpanded && (
+              <div className="mt-2" onClick={e => e.stopPropagation()}>
+                <PhotoUploader
+                  mode="immediate"
+                  uploadUrl={`/api/musculoskeletal/improvements/${item.id}/photos`}
+                  existingPhotos={planPhotos}
+                  onUploaded={handlePlanPhotoUploaded}
+                  onDeleteExisting={handleDeletePlanPhoto}
+                  maxPhotos={10}
+                  maxFileSize={10 * 1024 * 1024}
+                />
+              </div>
+            )}
+          </div>
 
           {/* 수정 중 저장/취소 */}
           {isEditing && (
