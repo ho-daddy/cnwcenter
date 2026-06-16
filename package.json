@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:network": "next dev -H 0.0.0.0 --experimental-https",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
