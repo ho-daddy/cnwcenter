@@ -260,7 +260,7 @@ export function ChatPanel({ roomId: roomIdProp, myName, className, variant = 'wi
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept="image/*,.pdf,.doc,.docx,.hwp,.zip"
+          accept="image/*,.pdf,.doc,.docx,.hwp,.zip,.xls,.xlsx,.ppt,.pptx,.mp4,.txt"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = '' }}
         />
         <button

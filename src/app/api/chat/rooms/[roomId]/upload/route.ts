@@ -13,6 +13,12 @@ const ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/haansofthwp', 'application/x-hwp',
   'application/zip', 'application/x-zip-compressed', 'application/x-zip',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'video/mp4',
+  'text/plain',
 ]
 
 export async function POST(req: NextRequest, { params }: { params: { roomId: string } }) {
