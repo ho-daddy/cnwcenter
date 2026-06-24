@@ -117,7 +117,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     for (const q of allQuestions) {
       const val = answerMap.get(q.id)
-      row.push(formatValue(val, q.questionType))
+      row.push(formatValue(val, q.questionType, q.options))
     }
 
     const dataRow = rawSheet.addRow(row)
@@ -186,7 +186,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       })
       .filter((v) => v !== undefined && v !== null)
 
-    const summary = generateSummary(values, q.questionType)
+    const summary = generateSummary(values, q.questionType, q.options)
     summarySheet.addRow([
       q.questionCode || '',
       q.questionText,
@@ -225,15 +225,33 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 // ─── 헬퍼 함수 ───
 
-function formatValue(val: unknown, questionType: string): string {
+function getChoiceLabel(choices: { label: string; value: string }[], value: string): string {
+  const found = choices.find((c) => c.value === value)
+  return found ? found.label : value
+}
+
+function formatValue(val: unknown, questionType: string, options?: unknown): string {
   if (val === null || val === undefined) return ''
 
+  const choices =
+    options && typeof options === 'object' && 'choices' in (options as object)
+      ? ((options as { choices: { label: string; value: string }[] }).choices ?? [])
+      : []
+
   switch (questionType) {
+    case 'RADIO':
+    case 'DROPDOWN':
+      return choices.length > 0 ? getChoiceLabel(choices, String(val)) : String(val)
+
     case 'CONSENT':
       return val === true || val === 'true' ? '동의' : '미동의'
 
     case 'CHECKBOX':
-      if (Array.isArray(val)) return val.join(', ')
+      if (Array.isArray(val)) {
+        return choices.length > 0
+          ? val.map((v) => getChoiceLabel(choices, String(v))).join(', ')
+          : val.join(', ')
+      }
       return String(val)
 
     case 'RANKED_CHOICE':
@@ -267,8 +285,13 @@ function formatValue(val: unknown, questionType: string): string {
   }
 }
 
-function generateSummary(values: unknown[], questionType: string): string {
+function generateSummary(values: unknown[], questionType: string, options?: unknown): string {
   if (values.length === 0) return '응답 없음'
+
+  const choices =
+    options && typeof options === 'object' && 'choices' in (options as object)
+      ? ((options as { choices: { label: string; value: string }[] }).choices ?? [])
+      : []
 
   switch (questionType) {
     case 'RADIO':
@@ -279,7 +302,12 @@ function generateSummary(values: unknown[], questionType: string): string {
         counts[s] = (counts[s] || 0) + 1
       }
       const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
-      return sorted.map(([label, count]) => `${label}(${count})`).join(', ')
+      return sorted
+        .map(([val, count]) => {
+          const label = choices.length > 0 ? getChoiceLabel(choices, val) : val
+          return `${label}(${count})`
+        })
+        .join(', ')
     }
 
     case 'CHECKBOX': {
@@ -289,7 +317,12 @@ function generateSummary(values: unknown[], questionType: string): string {
         for (const item of arr) counts[String(item)] = (counts[String(item)] || 0) + 1
       }
       const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
-      return sorted.map(([label, count]) => `${label}(${count})`).join(', ')
+      return sorted
+        .map(([val, count]) => {
+          const label = choices.length > 0 ? getChoiceLabel(choices, val) : val
+          return `${label}(${count})`
+        })
+        .join(', ')
     }
 
     case 'NUMBER':
