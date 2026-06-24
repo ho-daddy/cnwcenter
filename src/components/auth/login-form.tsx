@@ -145,12 +145,9 @@ export function LoginForm() {
         {/* 소셜 로그인 버튼 */}
         <SocialButtons />
 
-        {/* 회원가입 링크 */}
-        <div className="text-center text-sm">
-          <span className="text-gray-500">계정이 없으신가요?</span>{' '}
-          <Link href="/register" className="text-blue-600 hover:underline font-medium">
-            회원가입
-          </Link>
+        {/* 가입 안내 */}
+        <div className="text-center text-sm text-gray-400">
+          계정 문의는 새움터 담당자에게 연락해 주세요.
         </div>
       </CardContent>
     </Card>

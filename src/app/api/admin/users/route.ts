@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { requireStaffOrAbove } from '@/lib/auth-utils'
 
@@ -82,5 +83,58 @@ export async function GET(request: NextRequest) {
       { error: '사용자 목록 조회 중 오류가 발생했습니다.' },
       { status: 500 }
     )
+  }
+}
+
+// 어드민 직접 사용자 등록
+export async function POST(request: NextRequest) {
+  const authCheck = await requireStaffOrAbove()
+  if (!authCheck.authorized) {
+    return NextResponse.json({ error: authCheck.error }, { status: 401 })
+  }
+
+  try {
+    const { name, email, password, role, workplaceId } = await request.json()
+
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: '이름, 이메일, 비밀번호는 필수입니다.' }, { status: 400 })
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: '올바른 이메일 형식이 아닙니다.' }, { status: 400 })
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, { status: 400 })
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } })
+    if (existing) {
+      return NextResponse.json({ error: '이미 등록된 이메일입니다.' }, { status: 400 })
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role: role || 'WORKPLACE_USER',
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: authCheck.user!.id,
+        ...(workplaceId && {
+          workplaces: { create: { workplaceId } },
+        }),
+      },
+      select: { id: true, email: true, name: true, role: true, status: true },
+    })
+
+    return NextResponse.json({ success: true, user })
+  } catch (error) {
+    console.error('[Admin Users POST] 오류:', error)
+    return NextResponse.json({ error: '사용자 등록 중 오류가 발생했습니다.' }, { status: 500 })
   }
 }

@@ -4,6 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { sendNewUserNotification } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { error: '현재 공개 회원가입이 운영되지 않습니다. 새움터 담당자에게 문의해 주세요.' },
+    { status: 403 }
+  )
+
+  // eslint-disable-next-line no-unreachable
   try {
     const body = await request.json()
     const { email, password, name, phone, organization, privacyAgreed } = body
