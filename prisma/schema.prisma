@@ -51,6 +51,7 @@ model User {
   popups            Popup[]                              // 생성한 팝업
   boardPosts        BoardPost[]                          // 게시판 글
   boardComments     BoardComment[]                       // 게시판 댓글
+  smsLogs           SmsLog[]                             // 발송한 단체문자
 }
 
 enum UserRole {
@@ -1396,4 +1397,85 @@ model Popup {
 
   @@index([isActive, startDate, endDate])
   @@index([createdById])
+}
+
+// ─── 회원 관리 ────────────────────────────────────────────────
+
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  email     String?
+  address   String?
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groups    MemberGroupMember[]
+  smsLogs   SmsLogMember[]
+
+  @@index([phone])
+  @@index([isActive])
+  @@index([name])
+}
+
+model MemberGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     MemberGroupMember[]
+  smsLogs     SmsLogGroup[]
+}
+
+model MemberGroupMember {
+  memberId String
+  groupId  String
+  member   Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  group    MemberGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, groupId])
+  @@index([groupId])
+}
+
+model SmsLog {
+  id           String   @id @default(cuid())
+  content      String   @db.Text
+  sentAt       DateTime @default(now())
+  sentById     String
+  sentBy       User     @relation(fields: [sentById], references: [id])
+  totalCount   Int
+  successCount Int      @default(0)
+  result       Json?
+
+  groups     SmsLogGroup[]
+  recipients SmsLogMember[]
+
+  @@index([sentAt])
+  @@index([sentById])
+}
+
+model SmsLogGroup {
+  smsLogId String
+  groupId  String
+  smsLog   SmsLog      @relation(fields: [smsLogId], references: [id], onDelete: Cascade)
+  group    MemberGroup @relation(fields: [groupId], references: [id])
+
+  @@id([smsLogId, groupId])
+}
+
+model SmsLogMember {
+  smsLogId String
+  memberId String
+  phone    String
+  name     String
+  status   String @default("sent")
+  smsLog   SmsLog @relation(fields: [smsLogId], references: [id], onDelete: Cascade)
+  member   Member @relation(fields: [memberId], references: [id])
+
+  @@id([smsLogId, memberId])
 }

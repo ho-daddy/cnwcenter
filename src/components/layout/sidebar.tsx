@@ -24,6 +24,7 @@ import {
   BookOpen,
   MessageCircle,
   Scale,
+  Contact2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -42,36 +43,33 @@ const TUTORIAL_ATTR_MAP: Record<string, string> = {
 
 // 역할별 메뉴 정의
 const getNavItems = (role?: UserRole): NavItem[] => {
-  const boardSubItems = [
-    { title: '공지사항', href: '/notices' },
-    { title: '사용자 게시판', href: '/board' },
-    ...(role === 'SUPER_ADMIN' || role === 'STAFF' ? [{ title: '교환일기', href: '/diary' }] : []),
-    ...(role === 'SUPER_ADMIN' || role === 'STAFF' ? [{ title: '회의실', href: '/chat' }] : []),
-  ]
+  const isStaff = role === 'SUPER_ADMIN' || role === 'STAFF'
 
   const items: NavItem[] = [
     { title: '오늘의 새움터', href: '/', icon: LayoutDashboard },
-    { title: '게시판', href: '/notices', icon: MessageCircle, subItems: boardSubItems },
+    {
+      title: '게시판',
+      href: '/notices',
+      icon: MessageCircle,
+      subItems: [
+        { title: '공지사항', href: '/notices' },
+        { title: '게시판', href: '/board' },
+      ],
+    },
+    { title: '법령 검색', href: '/law-search', icon: Scale },
+    { title: '일정 관리', href: '/calendar', icon: Calendar },
   ]
 
-  // 법령 검색: 모든 역할
-  items.push({ title: '법령 검색', href: '/law-search', icon: Scale })
-
-  // 일정 관리: 모든 역할 (WORKPLACE_USER는 회의실 일정만 조회)
-  items.push({ title: '일정 관리', href: '/calendar', icon: Calendar })
-
-  // 상담 관리: STAFF 이상
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+  if (isStaff) {
     items.push({ title: '상담 관리', href: '/counseling', icon: Users })
   }
 
-  // 위험성평가 서브메뉴
   items.push({
     title: '위험성평가',
     href: '/risk-assessment',
     icon: AlertTriangle,
     subItems: [
-      { title: '현황판',   href: '/risk-assessment' },
+      { title: '현황판',     href: '/risk-assessment' },
       { title: '평가 실시',  href: '/risk-assessment/conduct' },
       { title: '모아 보기',  href: '/risk-assessment/view' },
       { title: '보고서 생성', href: '/risk-assessment/report' },
@@ -81,52 +79,63 @@ const getNavItems = (role?: UserRole): NavItem[] => {
     ],
   })
 
-  // 근골조사 서브메뉴
   items.push({
     title: '근골조사',
     href: '/musculoskeletal',
     icon: ClipboardList,
     subItems: [
-      { title: '현황판', href: '/musculoskeletal' },
-      { title: '조사 실시', href: '/musculoskeletal/survey' },
-      { title: '모아 보기', href: '/musculoskeletal/view' },
+      { title: '현황판',     href: '/musculoskeletal' },
+      { title: '조사 실시',  href: '/musculoskeletal/survey' },
+      { title: '모아 보기',  href: '/musculoskeletal/view' },
       { title: '보고서 생성', href: '/musculoskeletal/report' },
-      { title: '개선작업', href: '/musculoskeletal/improvement' },
+      { title: '개선작업',   href: '/musculoskeletal/improvement' },
     ],
   })
 
-  // 설문조사 (모든 역할 - WORKPLACE_USER는 자기 사업장 설문만)
   items.push({
     title: '설문조사',
     href: '/survey',
     icon: ClipboardCheck,
     subItems: [
-      { title: '설문 목록', href: '/survey' },
-      { title: '새 설문', href: '/survey/create' },
+      { title: '설문 목록',    href: '/survey' },
+      { title: '새 설문',      href: '/survey/create' },
       { title: '종이설문 입력', href: '/survey/paper-input' },
     ],
   })
 
-  // 사업장 관리 (모든 역할 - WORKPLACE_USER는 자기 사업장만 관리 가능)
+  // 사무국 (STAFF 이상): 회원·문자·회의실·교환일기
+  if (isStaff) {
+    items.push({
+      title: '사무국',
+      href: '/members',
+      icon: Contact2,
+      subItems: [
+        { title: '회원 목록', href: '/members' },
+        { title: '그룹 관리', href: '/members/groups' },
+        { title: '문자 발송', href: '/sms' },
+        { title: '발송 이력', href: '/sms/history' },
+        { title: '회의실',   href: '/chat' },
+        { title: '교환일기', href: '/diary' },
+      ],
+    })
+  }
+
   items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
 
-  // 휴지통 (모든 역할)
-  items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
-
-  // STAFF 이상
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+  if (isStaff) {
     items.push({ title: '사용자 관리', href: '/admin/users', icon: UserCog })
   }
 
-  // STAFF 이상: 설정 메뉴 (하위 메뉴 포함)
-  if (role === 'SUPER_ADMIN' || role === 'STAFF') {
+  items.push({ title: '휴지통', href: '/trash', icon: Trash2 })
+
+  if (isStaff) {
     items.push({
       title: '설정',
       href: '/settings',
       icon: Settings,
       subItems: [
         { title: '브리핑 관리', href: '/settings' },
-        { title: '팝업 관리', href: '/settings/popups' },
+        { title: '팝업 관리',   href: '/settings/popups' },
       ],
     })
   }
