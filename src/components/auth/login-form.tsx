@@ -24,6 +24,7 @@ export function LoginForm() {
   const errorMessages: Record<string, string> = {
     rejected: '가입이 거부되었습니다.',
     suspended: '계정이 정지되었습니다.',
+    registration_closed: '현재 신규 가입이 제한되어 있습니다. 담당자에게 문의해 주세요.',
     Callback: '인증 중 오류가 발생했습니다.',
   }
 

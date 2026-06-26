@@ -92,16 +92,19 @@ export const authOptions: NextAuthOptions = {
         where: { email: user.email! },
       })
 
-      if (dbUser) {
-        if (dbUser.status === 'PENDING') {
-          return '/pending-approval'
-        }
-        if (dbUser.status === 'REJECTED') {
-          return '/login?error=rejected'
-        }
-        if (dbUser.status === 'SUSPENDED') {
-          return '/login?error=suspended'
-        }
+      if (!dbUser) {
+        // 신규 사용자 — 구글 OAuth를 통한 자동 가입 차단
+        return '/login?error=registration_closed'
+      }
+
+      if (dbUser.status === 'PENDING') {
+        return '/pending-approval'
+      }
+      if (dbUser.status === 'REJECTED') {
+        return '/login?error=rejected'
+      }
+      if (dbUser.status === 'SUSPENDED') {
+        return '/login?error=suspended'
       }
 
       return true
