@@ -18,6 +18,7 @@ const ROLE_ACCESS: Record<string, string[]> = {
   '/chat': ['SUPER_ADMIN', 'STAFF'],
   '/members': ['SUPER_ADMIN', 'STAFF'],
   '/sms': ['SUPER_ADMIN', 'STAFF'],
+  '/finance': ['SUPER_ADMIN', 'STAFF'],
   // /workplaces는 모든 역할 접근 가능 (API에서 권한 체크)
 }
 
@@ -56,6 +57,7 @@ const PROTECTED_PATHS = [
   '/board',
   '/law-search',
   '/chat',
+  '/finance',
 ]
 
 export default withAuth(

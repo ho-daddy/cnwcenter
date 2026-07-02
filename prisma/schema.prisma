@@ -52,6 +52,9 @@ model User {
   boardPosts        BoardPost[]                          // 게시판 글
   boardComments     BoardComment[]                       // 게시판 댓글
   smsLogs           SmsLog[]                             // 발송한 단체문자
+  createdTransactions    Transaction[] @relation("TransactionCreatedBy")         // 등록한 거래
+  secretaryApprovals     Transaction[] @relation("TransactionSecretaryApprover") // 사무국장 결재
+  directorApprovals      Transaction[] @relation("TransactionDirectorApprover")  // 센터장 결재
 }
 
 enum UserRole {
@@ -1478,4 +1481,70 @@ model SmsLogMember {
   member   Member @relation(fields: [memberId], references: [id])
 
   @@id([smsLogId, memberId])
+}
+
+// ── 재정관리 (2026-07-02, 영희동지 인터뷰 기반) ──────────────────────
+
+enum AccountType {
+  PROFIT     // 수익통장
+  NONPROFIT  // 비영리통장
+}
+
+enum TransactionKind {
+  INCOME   // 수입
+  EXPENSE  // 지출
+}
+
+enum ApprovalStatus {
+  PENDING   // 결재 대기
+  APPROVED  // 승인
+  REJECTED  // 반려
+}
+
+// 관/항/목 계정과목 (자기참조 트리)
+model BudgetCategory {
+  id        String   @id @default(cuid())
+  name      String
+  level     String   // "관" | "항" | "목"
+  kind      TransactionKind
+  parentId  String?
+  parent    BudgetCategory?  @relation("BudgetCategoryTree", fields: [parentId], references: [id])
+  children  BudgetCategory[] @relation("BudgetCategoryTree")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@index([parentId])
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  kind          TransactionKind
+  accountType   AccountType     // 수익통장/비영리통장 구분 (필수 — 영희동지 인터뷰 핵심 요구사항)
+  date          DateTime
+  amount        Int             // 원 단위
+  categoryId    String?
+  category      BudgetCategory? @relation(fields: [categoryId], references: [id])
+  description   String?         @db.Text  // 적요
+  counterparty  String?                    // 거래처/지급처(채주)
+  payMethod     String?                    // 지급방법 (현금/계좌이체/카드 등)
+  receiptUrl    String?                    // 영수증 사진 업로드 경로
+
+  approvalStatus ApprovalStatus @default(PENDING)
+  secretaryApproverId String?
+  secretaryApprover   User?     @relation("TransactionSecretaryApprover", fields: [secretaryApproverId], references: [id])
+  directorApproverId  String?
+  directorApprover    User?     @relation("TransactionDirectorApprover", fields: [directorApproverId], references: [id])
+  approvedAt          DateTime?
+
+  createdById   String
+  createdBy     User            @relation("TransactionCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([date])
+  @@index([accountType])
+  @@index([kind])
 }

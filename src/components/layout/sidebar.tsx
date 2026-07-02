@@ -25,6 +25,7 @@ import {
   MessageCircle,
   Scale,
   Contact2,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -118,6 +119,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
         { title: '교환일기', href: '/diary' },
       ],
     })
+    items.push({ title: '재정관리', href: '/finance', icon: Wallet })
   }
 
   items.push({ title: '사업장 관리', href: '/workplaces', icon: Building2 })
